@@ -1,0 +1,40 @@
+[package]
+name = "nvim-rs"
+version = "0.0.1"
+license = "LGPL-3.0"
+authors = ["KillTheMule <KillTheMule@users.noreply.github.com"]
+description = "A library for writing neovim rpc clients"
+repository = "https://github.com/KillTheMule/nvim-rs"
+readme = "README.md"
+categories = ["api-bindings"]
+keywords = ["neovim", "nvim", "rpc", "msgpack"]
+exclude = [
+  "neovim/*",
+]
+edition = "2018"
+
+[lib]
+bench = false
+
+[dependencies]
+rmp = "0.8"
+rmpv = { version ="0.4", features=["with-serde"] }
+log = "0.4"
+#async-std = { version = "1.1.0", features = ["unstable"] }
+tokio = { version = "0.2.3", features = ["sync", "rt-core", "macros", "io-util", "tcp", "uds", "process", "io-std", "dns", "rt-threaded", "io-driver"] }
+async-trait = "0.1.18"
+
+[target.'cfg(unix)'.dependencies]
+unix_socket = "0.5.0"
+
+[dev-dependencies]
+tempdir = "0.3"
+criterion = "0.3.0"
+
+[profile.bench]
+lto = true
+debug = true
+
+[[bench]]
+name = "rpc"
+harness = false
