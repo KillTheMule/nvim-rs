@@ -63,14 +63,17 @@ pub mod neovim;
 pub mod callerror;
 pub mod create;
 pub mod neovim_api;
+pub mod neovim_api_manual;
 pub mod runtime;
 pub mod uioptions;
+pub mod exttypes;
 
 pub use crate::{
   callerror::CallError,
   neovim::Neovim,
   rpc::{handler::DefaultHandler, Requester},
   uioptions::{UiAttachOptions, UiOption},
+  exttypes::{Buffer, Window, Tabpage},
 };
 
 pub use crate::rpc::{handler::Handler, model::IntoVal};

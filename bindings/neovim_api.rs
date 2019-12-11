@@ -1,5 +1,6 @@
 // Auto generated {{date}}
-use std::io::Write;
+use crate::runtime::AsyncWrite;
+use crate::{Buffer, Window, Tabpage};
 
 use crate::neovim::*;
 use crate::rpc::*;
@@ -10,15 +11,15 @@ fn map_result<T: FromVal<Value>>(val: Value) -> T {
 }
 
 {% for etype in exttypes %}
-#[derive(PartialEq, Clone, Debug)]
-pub struct {{ etype.name }} {
-    code_data: Value,
-}
 
-impl {{ etype.name }} {
-    pub fn new(code_data: Value) -> {{ etype.name }} {
+impl<W> {{ etype.name }}<W>
+  where W: AsyncWrite + Send + Sync + Unpin + 'static
+  {
+    pub fn new(code_data: Value, requester: Requester<W>) -> {{ etype.name }}<W>
+    {
         {{ etype.name }} {
             code_data,
+            requester
         }
     }
 
@@ -29,10 +30,9 @@ impl {{ etype.name }} {
 
     {% for f in functions if f.ext and f.name.startswith(etype.prefix) %}
     /// since: {{f.since}}
-    pub async fn {{f.name|replace(etype.prefix, '')}}<W>(&self, neovim: &Neovim<W>, {{f.argstring}}) -> Result<{{f.return_type.native_type_ret}}, CallError>
-    where W: Write + Send + 'static
+    pub async fn {{f.name|replace(etype.prefix, '')}}(&self, {{f.argstring}}) -> Result<{{f.return_type.native_type_ret}}, CallError>
     {
-        neovim.call("{{f.name}}",
+        self.requester.call("{{f.name}}",
                           call_args![self.code_data.clone()
                           {% if f.parameters|count > 0 %}
                           , {{ f.parameters|map(attribute = "name")|join(", ") }}
@@ -47,23 +47,10 @@ impl {{ etype.name }} {
 
 {% endfor %}
 
-{% for etype in exttypes %}
-impl FromVal<Value> for {{ etype.name }} {
-    fn from_val(val: Value) -> Self {
-        {{ etype.name }}::new(val)
-    }
-}
-
-impl <'a> IntoVal<Value> for &'a {{etype.name}} {
-    fn into_val(self) -> Value {
-        self.code_data.clone()
-    }
-}
-{% endfor %}
 
 impl<W> Requester<W>
 where
-      W: Write + Send + 'static,
+      W: AsyncWrite + Send + Sync + Unpin + 'static,
 {
     {% for f in functions if not f.ext %}
     pub async fn {{f.name|replace('nvim_', '')}}(&self, {{f.argstring}}) -> Result<{{f.return_type.native_type_ret}}, CallError> {
@@ -79,15 +66,12 @@ where
 
 impl<W> Neovim<W>
 where
-      W: Write + Send + 'static,
+      W: AsyncWrite + Send + Sync + Unpin + 'static,
 {
     {% for f in functions if not f.ext %}
     pub async fn {{f.name|replace('nvim_', '')}}(&self, {{f.argstring}}) -> Result<{{f.return_type.native_type_ret}}, CallError> {
-        self.call("{{f.name}}",
-                          call_args![{{ f.parameters|map(attribute = "name")|join(", ") }}])
-                    .await
-                    .map(map_result)
-                    .map_err(map_generic_error)
+      // TODO: This will clone always, make it a ref
+        self.requester().{{f.name|replace('nvim_', '')}}({{f.callstring}}).await
     }
 
     {% endfor %}

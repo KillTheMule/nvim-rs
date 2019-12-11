@@ -38,7 +38,7 @@ macro_rules! call_args {
 
 impl<W> Neovim<W>
 where
-  W: AsyncWrite + Send + Unpin + 'static,
+  W: AsyncWrite + Send + Sync + Unpin + 'static,
 {
   pub fn requester(&self) -> Requester<W> {
     use Neovim::*;

@@ -11,6 +11,22 @@ import datetime
 
 INPUT = 'bindings'
 
+MANUALLY_IMPLEMENTED = [
+        "nvim_ui_attach",
+        "nvim_tabpage_list_wins",
+        "nvim_tabpage_get_win",
+        "nvim_win_get_buf",
+        "nvim_win_get_tabpage",
+        "nvim_list_bufs",
+        "nvim_get_current_buf",
+        "nvim_list_wins",
+        "nvim_get_current_win",
+        "nvim_create_buf",
+        "nvim_open_win",
+        "nvim_list_tabpages",
+        "nvim_get_current_tabpage",
+        ]
+
 def decutf8(inp):
     """
     Recursively decode bytes as utf8 into unicode
@@ -71,9 +87,9 @@ class NeovimTypeVal:
         }
     # msgpack extension types
     EXTTYPES = {
-            'Window': 'Window',
-            'Buffer': 'Buffer',
-            'Tabpage': 'Tabpage',
+            'Window': 'Window<W>',
+            'Buffer': 'Buffer<W>',
+            'Tabpage': 'Tabpage<W>',
         }
     # Unbound Array types
     UNBOUND_ARRAY = re.compile('ArrayOf\(\s*(\w+)\s*\)')
@@ -156,10 +172,12 @@ class Function:
         # Build the argument string - makes it easier for the templates
         self.argstring = ', '.join(['%s: %s' % (tv["name"], tv.native_type_arg) for tv in self.parameters])
 
+        # Build the call string - even easier for the templates ;)
+        self.callstring = ', '.join(['%s' % tv["name"] for tv in self.parameters])
         # filter function, use only nvim one
         # nvim_ui_attach implemented manually
         self.valid = self.name.startswith('nvim')\
-                and self.name != 'nvim_ui_attach'
+                and self.name not in MANUALLY_IMPLEMENTED
 
     def _is_ext(self, all_ext_prefixes):
         for prefix in all_ext_prefixes:
