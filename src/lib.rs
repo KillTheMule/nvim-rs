@@ -67,6 +67,7 @@ pub mod neovim_api_manual;
 pub mod runtime;
 pub mod uioptions;
 pub mod exttypes;
+pub mod examples;
 
 pub use crate::{
   callerror::CallError,

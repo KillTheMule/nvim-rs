@@ -124,7 +124,7 @@ where
   ) where
     H: Handler + Sync + 'static,
     R: AsyncRead + Send + Unpin + 'static,
-    H::Writer: AsyncWrite + Send + Unpin + 'static,
+    H::Writer: AsyncWrite + Send + Sync + Unpin + 'static,
   {
     let handler = Arc::new(handler);
     let mut v: Vec<u8> = vec![];

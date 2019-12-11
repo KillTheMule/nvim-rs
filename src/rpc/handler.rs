@@ -7,8 +7,8 @@ use crate::Requester;
 use crate::runtime::AsyncWrite;
 
 #[async_trait]
-pub trait Handler: Sync + Send {
-  type Writer: AsyncWrite + Send + Unpin + 'static;
+pub trait Handler: Send + Sync {
+  type Writer: AsyncWrite + Send + Sync + Unpin + 'static;
 
   async fn handle_request(
     &self,
