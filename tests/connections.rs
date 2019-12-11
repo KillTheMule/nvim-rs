@@ -1,17 +1,13 @@
-extern crate neovim_lib;
-extern crate rmp;
-
-//use neovim_lib::runtime::{Sender, channel};
 use async_trait::async_trait;
-use neovim_lib::{create, Handler, Requester, runtime::spawn};
+use nvim_rs::{create, Handler, Requester, runtime::spawn};
 use tokio;
 use rmpv::Value;
 
 const NVIMPATH: &str = "neovim/build/bin/nvim";
 
 #[cfg(unix)]
-use neovim_lib::runtime::Command;
-use neovim_lib::runtime::{ChildStdin};
+use nvim_rs::runtime::Command;
+use nvim_rs::runtime::{ChildStdin};
 use std::process::exit as std_exit;
 
 /*

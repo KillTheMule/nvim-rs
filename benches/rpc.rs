@@ -1,8 +1,7 @@
 use criterion::{Criterion, criterion_group, criterion_main};
-use tokio::runtime::Runtime;
 use async_trait::async_trait;
-use neovim_lib::{create, Handler, call_args, rpc::IntoVal};
-use neovim_lib::runtime::{ChildStdin, Command};
+use nvim_rs::{create, Handler, call_args, rpc::IntoVal};
+use nvim_rs::runtime::{ChildStdin, Command};
 
 use tokio::runtime::Builder;
 
