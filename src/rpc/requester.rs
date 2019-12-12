@@ -131,7 +131,6 @@ where
     let mut buf = Box::new([0u8;80 * 1024]);
     loop {
       let msg = {
-        v.clear();
         let mut msg = None;
 
         while let Ok(n) = reader.read(&mut *buf).await {
