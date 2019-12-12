@@ -128,13 +128,13 @@ where
   {
     let handler = Arc::new(handler);
     let mut v: Vec<u8> = vec![];
+    let mut buf = Box::new([0u8;80 * 1024]);
     loop {
       let msg = {
         v.clear();
-        let mut buf = [0u8;80 * 1024];
         let mut msg = None;
 
-        while let Ok(n) = reader.read(&mut buf).await {
+        while let Ok(n) = reader.read(&mut *buf).await {
           v.extend_from_slice(&buf[..n]);
           let mut c = Cursor::new(&v);
           msg = match model::decode(&mut c) {
