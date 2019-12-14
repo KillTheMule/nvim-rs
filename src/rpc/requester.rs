@@ -1,7 +1,7 @@
 use std::{
   convert::TryInto,
   error::Error,
-  io::ErrorKind,
+  io::{ErrorKind, self},
   future::Future,
   io::Cursor,
   sync::{
@@ -134,6 +134,11 @@ where
         let mut msg = None;
 
         while let Ok(n) = reader.read(&mut *buf).await {
+          if n == 0 {
+            let e = io::Error::new(ErrorKind::UnexpectedEof, "EOF").into();
+            req.send_error_to_callers(&req.queue, &e).await;
+            return
+          }
           v.extend_from_slice(&buf[..n]);
           let mut c = Cursor::new(&v);
           msg = match model::decode(&mut c) {
