@@ -30,7 +30,7 @@
 //!
 //! Some overview over the code:
 //!
-//! * The handler struct `NH` needs to contain some plugin state, namely two
+//! * The handler struct `NeovimHandler` needs to contain some plugin state, namely two
 //! cursor positions `start` and `end`. It needs to be `Send` and `Sync`, and we
 //! need mutable access, so we wrap it in a `Arc<Mutex<_>>`. Note that we're
 //! using the [`Mutex`](crate::runtime::Mutex) from `nvim-rs`, which is a

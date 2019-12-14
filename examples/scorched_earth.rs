@@ -38,10 +38,10 @@ fn the_smaller(
   }
 }
 
-struct NH(Arc<Mutex<Posis>>);
+struct NeovimHandler(Arc<Mutex<Posis>>);
 
 #[async_trait]
-impl Handler for NH {
+impl Handler for NeovimHandler {
   type Writer = Stdout;
 
   async fn handle_notify(
@@ -104,7 +104,7 @@ async fn main() {
     cursor_start: None,
     cursor_end: None,
   };
-  let handler: NH = NH(Arc::new(Mutex::new(p)));
+  let handler: NeovimHandler = NeovimHandler(Arc::new(Mutex::new(p)));
 
   let (_nvim, fut) = create::new_parent(handler).unwrap();
   fut.await;
