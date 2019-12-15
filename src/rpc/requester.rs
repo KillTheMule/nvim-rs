@@ -1,6 +1,5 @@
 use std::{
   convert::TryInto,
-  error::Error,
   io::{ErrorKind, self},
   future::Future,
   io::Cursor,
@@ -14,8 +13,9 @@ use crate::runtime::{spawn, AsyncRead, AsyncWrite,
 AsyncReadExt, BufWriter, Mutex, oneshot};
 
 use crate::rpc::{handler::Handler, model};
+use crate::callerror::DecodeError;
 use rmpv::Value;
-use rmpv::decode::Error as RmpvError;
+use rmpv::decode::Error as RmpvDecodeError;
 
 type Queue = Arc<Mutex<Vec<(u64, oneshot::Sender<Result<Value, Value>>)>>>;
 
@@ -108,8 +108,7 @@ where
     })
   }
 
-  async fn send_error_to_callers(&self, queue: &Queue, err: &Box<dyn Error +
-    Sync + Send>) {
+  async fn send_error_to_callers(&self, queue: &Queue, err: &DecodeError) {
     let mut queue = queue.lock().await;
     queue.drain(0..).for_each(|sender| {
       let e = format!("Error read response: {}", err);
@@ -135,7 +134,8 @@ where
 
         while let Ok(n) = reader.read(&mut *buf).await {
           if n == 0 {
-            let e = io::Error::new(ErrorKind::UnexpectedEof, "EOF").into();
+            let e = RmpvDecodeError::InvalidMarkerRead(io::Error::new(ErrorKind::UnexpectedEof, "EOF")).into();
+            //let e = .into();
             req.send_error_to_callers(&req.queue, &e).await;
             return
           }
@@ -144,21 +144,17 @@ where
           msg = match model::decode(&mut c) {
             Ok(msg) => Some(msg),
             Err(e) => {
-              let e_rmpv = e.downcast_ref::<RmpvError>();
-              if let Some(RmpvError::InvalidDataRead(ee)) = e_rmpv  {
-                if ee.kind() == ErrorKind::UnexpectedEof {
+              match *e {
+                DecodeError::InvalidRead(e) if e.kind() == ErrorKind::UnexpectedEof => {
                   debug!("Not enough data, reading more!");
                   continue;
                 }
-              } else if let Some(RmpvError::InvalidMarkerRead(ee)) = e_rmpv  {
-                if ee.kind() == ErrorKind::UnexpectedEof {
-                  debug!("Not enough data, reading more!");
-                  continue;
+                err => {
+                  error!("Error while reading: {}", err);
+                  req.send_error_to_callers(&req.queue, &err).await;
+                  return;
                 }
               }
-              error!("Error while reading: {}", e);
-              req.send_error_to_callers(&req.queue, &e).await;
-              return;
             }
           };
           let pos = c.position();

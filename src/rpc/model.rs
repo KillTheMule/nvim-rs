@@ -1,12 +1,9 @@
-use rmpv::{decode::read_value, encode::write_value, Value};
-use std::{
-  error::Error,
-  io,
-  io::Read,
-  self,
-  sync::{Arc}
+use crate::{
+  callerror::DecodeError,
+  runtime::{AsyncWrite, AsyncWriteExt, BufWriter, Mutex, Result},
 };
-use crate::runtime::{AsyncWrite, AsyncWriteExt, BufWriter, Result, Mutex};
+use rmpv::{decode::read_value, encode::write_value, Value};
+use std::{self, io::Read, sync::Arc};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum RpcMessage {
@@ -26,16 +23,17 @@ pub enum RpcMessage {
   }, // 2
 }
 
+/*
 macro_rules! try_str {
   ($exp:expr, $msg:expr) => {
     match $exp {
       Value::String(val) => match val.into_str() {
         Some(s) => s,
         None => {
-          return Err(Box::new(io::Error::new(io::ErrorKind::Other, $msg)))
+          panic!() //return Err(Box::new(io::Error::new(io::ErrorKind::Other, $msg)))
         }
       },
-      _ => return Err(Box::new(io::Error::new(io::ErrorKind::Other, $msg))),
+      _ => panic!() //return Err(Box::new(io::Error::new(io::ErrorKind::Other, $msg))),
     }
   };
 }
@@ -44,7 +42,7 @@ macro_rules! try_int {
   ($exp:expr, $msg:expr) => {
     match $exp.as_u64() {
       Some(val) => val,
-      _ => return Err(Box::new(io::Error::new(io::ErrorKind::Other, $msg))),
+      _ => panic!() //return Err(Box::new(io::Error::new(io::ErrorKind::Other, $msg))),
     }
   };
 }
@@ -53,10 +51,11 @@ macro_rules! try_arr {
   ($exp:expr, $msg:expr) => {
     match $exp {
       Value::Array(arr) => arr,
-      _ => return Err(Box::new(io::Error::new(io::ErrorKind::Other, $msg))),
+      _ => panic!() //return Err(Box::new(io::Error::new(io::ErrorKind::Other, $msg))),
     }
   };
 }
+*/
 
 macro_rules! rpc_args {
     ($($e:expr), *) => {{
@@ -68,14 +67,39 @@ macro_rules! rpc_args {
     }}
 }
 
-pub fn decode<R: Read>(reader: &mut R) -> std::result::Result<RpcMessage, Box<dyn Error + Sync + Send>> {
-  let mut arr = try_arr!(read_value(reader)?, "Rpc message must be array");
-  match try_int!(arr[0], "Can't find message type") {
+pub fn decode<R: Read>(
+  reader: &mut R,
+) -> std::result::Result<RpcMessage, Box<DecodeError>> {
+  use crate::callerror::InvalidMessageError::*;
+
+  let arr = match read_value(reader)? {
+    Value::Array(v) => v,
+    _ => Err(NotAnArray)?,
+  };
+
+  let mut arr = arr.into_iter();
+  match arr
+    .next()
+    .ok_or(WrongArrayLength)?
+    .as_u64()
+    .ok_or(InvalidMessageType)?
+  {
     0 => {
-      arr.truncate(4);
-      let params = try_arr!(arr.pop().unwrap(), "params not found"); // [3]
-      let method = try_str!(arr.pop().unwrap(), "method not found"); // [2]
-      let msgid = try_int!(arr.pop().unwrap(), "msgid not found"); // [1]
+      let msgid = arr
+        .next()
+        .ok_or(WrongArrayLength)?
+        .as_u64()
+        .ok_or(InvalidMsgid)?;
+      let method = match arr.next() {
+        Some(Value::String(s)) => s.into_str().ok_or(InvalidMethodName)?,
+        Some(_) => return Err(InvalidMethodName)?,
+        None => return Err(WrongArrayLength)?,
+      };
+      let params = match arr.next() {
+        Some(Value::Array(v)) => v,
+        Some(_) => return Err(InvalidMethodName)?,
+        None => return Err(WrongArrayLength)?,
+      };
 
       Ok(RpcMessage::RpcRequest {
         msgid,
@@ -84,10 +108,13 @@ pub fn decode<R: Read>(reader: &mut R) -> std::result::Result<RpcMessage, Box<dy
       })
     }
     1 => {
-      arr.truncate(4);
-      let msgid = try_int!(arr[1], "msgid not found");
-      let result = arr.pop().unwrap(); // [3]
-      let error = arr.pop().unwrap(); // [2]
+      let msgid = arr
+        .next()
+        .ok_or(WrongArrayLength)?
+        .as_u64()
+        .ok_or(InvalidMsgid)?;
+      let error = arr.next().ok_or(WrongArrayLength)?;
+      let result = arr.next().ok_or(WrongArrayLength)?;
       Ok(RpcMessage::RpcResponse {
         msgid,
         error,
@@ -95,15 +122,19 @@ pub fn decode<R: Read>(reader: &mut R) -> std::result::Result<RpcMessage, Box<dy
       })
     }
     2 => {
-      arr.truncate(3);
-      let params = try_arr!(arr.pop().unwrap(), "params not found"); // [2]
-      let method = try_str!(arr.pop().unwrap(), "method not found"); // [1]
+      let method = match arr.next() {
+        Some(Value::String(s)) => s.into_str().ok_or(InvalidMethodName)?,
+        Some(_) => return Err(InvalidMethodName)?,
+        None => return Err(WrongArrayLength)?,
+      };
+      let params = match arr.next() {
+        Some(Value::Array(v)) => v,
+        Some(_) => return Err(InvalidMethodName)?,
+        None => return Err(WrongArrayLength)?,
+      };
       Ok(RpcMessage::RpcNotification { method, params })
     }
-    _ => Err(Box::new(io::Error::new(
-      io::ErrorKind::Other,
-      "Not nown type",
-    ))),
+    _ => Err(UnknownMessageType)?,
   }
 }
 
@@ -275,10 +306,8 @@ impl IntoVal<Value> for Vec<(Value, Value)> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use std::sync::Arc;
-  use crate::runtime::Mutex;
-  use crate::runtime::BufWriter;
-  use std::io::Cursor;
+  use crate::runtime::{BufWriter, Mutex};
+  use std::{io::Cursor, sync::Arc};
 
   #[tokio::test]
   async fn request_test() {
@@ -288,8 +317,7 @@ mod test {
       params: vec![],
     };
 
-
-    let buff:Vec<u8> = vec![];
+    let buff: Vec<u8> = vec![];
     let tmp = Arc::new(Mutex::new(BufWriter::new(buff)));
     let tmp2 = tmp.clone();
     let msg2 = msg.clone();
@@ -319,8 +347,7 @@ mod test {
       params: vec![],
     };
 
-
-    let buff:Vec<u8> = vec![];
+    let buff: Vec<u8> = vec![];
     let tmp = Arc::new(Mutex::new(BufWriter::new(buff)));
     let tmp_c = tmp.clone();
     let msg_c = msg.clone();
