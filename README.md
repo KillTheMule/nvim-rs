@@ -5,11 +5,11 @@ Rust library for Neovim msgpack-rpc clients. Utilizes async to allow for arbitra
 
 Useable, see the `examples/` and `tests/` folders for examples. The `nvim_rs::examples` submodule contains documentation of the examples.
 
-The [b]API[/b] is unstable, see the [Roadmap](https://github.com/KillTheMule/nvim-rs/issues/1) for things being planned.
+The **API** is unstable, see the [Roadmap](https://github.com/KillTheMule/nvim-rs/issues/1) for things being planned.
 
-The [b]Documentation[/b] is in a state of disarray and should not be used. The examples are the one exception.
+The **Documentation** is in a state of disarray and should not be used. The examples are the one exception.
 
-Supported [b]Operating Systems[/b] should include Linux, Windows, Mac OS, \*BSD as supported by neovim and rust. Right now, CI is not set up, so it might be the case that only Linux really works.
+Supported **Operating Systems** should include Linux, Windows, Mac OS, \*BSD as supported by neovim and rust. Right now, CI is not set up, so it might be the case that only Linux really works.
 
 ## Contributing
 
