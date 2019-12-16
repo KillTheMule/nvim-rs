@@ -176,17 +176,7 @@ impl Handler for NH2 {
         let req = req.clone();
         match v {
           "y" => {
-            let mut x: String = req
-              .get_vvar("servername")
-              .await
-              .unwrap()
-              .as_str()
-              .unwrap()
-              .into();
-            x.push_str(" - ");
-            x.push_str(
-              req.get_vvar("progname").await.unwrap().as_str().unwrap(),
-            );
+            let mut x: String = req.get_vvar("progname").await.unwrap().as_str().unwrap().into();
             x.push_str(" - ");
             x.push_str(req.get_var("oogle").await.unwrap().as_str().unwrap());
             x.push_str(" - ");
@@ -230,12 +220,14 @@ impl Handler for NH2 {
     &self,
     name: String,
     args: Vec<Value>,
-    _req: Requester<ChildStdin>,
+    req: Requester<ChildStdin>,
   ) {
     eprintln!("Notification: {}", name);
     match name.as_ref() {
       "not" => eprintln!("Not: {}", args[0].as_str().unwrap()),
       "quit" => {
+        let res:String = req.get_var("froodle").await.unwrap().as_str().unwrap().into();
+        assert_eq!("nvim - doodle - o - nvim", res);
         std_exit(0);
       }
       _ => {}
@@ -248,7 +240,7 @@ impl Handler for NH2 {
 #[tokio::test(basic_scheduler)]
 async fn can_connect_to_child_2() {
   let rs = r#"exe ":fun M(timer) 
-      call rpcrequest(1, 'req', 'y') 
+      let g:froodle = rpcrequest(1, 'req', 'y') 
     endfun""#;
   let rs2 = r#"exe ":fun N(timer) 
       call rpcnotify(1, 'quit') 
