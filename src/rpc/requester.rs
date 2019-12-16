@@ -1,8 +1,5 @@
 use std::{
-  convert::TryInto,
-  io::{ErrorKind, self},
   future::Future,
-  io::Cursor,
   sync::{
     atomic::{AtomicU64, Ordering},
     Arc,
@@ -10,12 +7,11 @@ use std::{
 };
 
 use crate::runtime::{spawn, AsyncRead, AsyncWrite,
-AsyncReadExt, BufWriter, Mutex, oneshot};
+BufWriter, Mutex, oneshot};
 
 use crate::rpc::{handler::Handler, model};
 use crate::callerror::DecodeError;
 use rmpv::Value;
-use rmpv::decode::Error as RmpvDecodeError;
 
 type Queue = Arc<Mutex<Vec<(u64, oneshot::Sender<Result<Value, Value>>)>>>;
 
@@ -126,42 +122,16 @@ where
     H::Writer: AsyncWrite + Send + Sync + Unpin + 'static,
   {
     let handler = Arc::new(handler);
-    let mut v: Vec<u8> = vec![];
-    let mut buf = Box::new([0u8;80 * 1024]);
-    loop {
-      let msg = {
-        let mut msg = None;
+    let mut rest: Vec<u8> = vec![];
 
-        while let Ok(n) = reader.read(&mut *buf).await {
-          if n == 0 {
-            let e = RmpvDecodeError::InvalidMarkerRead(io::Error::new(ErrorKind::UnexpectedEof, "EOF")).into();
-            //let e = .into();
-            req.send_error_to_callers(&req.queue, &e).await;
-            return
-          }
-          v.extend_from_slice(&buf[..n]);
-          let mut c = Cursor::new(&v);
-          msg = match model::decode(&mut c) {
-            Ok(msg) => Some(msg),
-            Err(e) => {
-              match *e {
-                DecodeError::ReadError(e) if e.kind() == ErrorKind::UnexpectedEof => {
-                  debug!("Not enough data, reading more!");
-                  continue;
-                }
-                err => {
-                  error!("Error while reading: {}", err);
-                  req.send_error_to_callers(&req.queue, &err).await;
-                  return;
-                }
-              }
-            }
-          };
-          let pos = c.position();
-          v = v.split_off(pos.try_into().unwrap()); // TODO: more efficiency
-          break;
-        };
-        msg.unwrap()
+    loop {
+      let msg = match model::decode(&mut reader, &mut rest).await {
+        Ok(msg) => msg,
+        Err(err) => {
+          error!("Error while reading: {}", err);
+          req.send_error_to_callers(&req.queue, &err).await;
+          return;
+        }
       };
 
       debug!("Get message {:?}", msg);
@@ -218,6 +188,7 @@ where
       };
     }
   }
+
 }
 
 /* The idea to use Vec here instead of HashMap

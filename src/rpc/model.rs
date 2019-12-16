@@ -1,10 +1,10 @@
 use crate::{
   callerror::DecodeError,
   callerror::EncodeError,
-  runtime::{AsyncWrite, AsyncWriteExt, BufWriter, Mutex},
+  runtime::{AsyncWrite, AsyncWriteExt, BufWriter, Mutex, AsyncRead, AsyncReadExt},
 };
 use rmpv::{decode::read_value, encode::write_value, Value};
-use std::{self, io::Read, sync::Arc};
+use std::{self, io::Read, sync::Arc, io::{self, ErrorKind, Cursor}};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum RpcMessage {
@@ -68,7 +68,45 @@ macro_rules! rpc_args {
     }}
 }
 
-pub fn decode<R: Read>(
+pub async fn decode<R: AsyncRead + Send + Unpin + 'static>(
+  reader: &mut R,
+  rest: &mut Vec<u8>
+) -> std::result::Result<RpcMessage, Box<DecodeError>> 
+{
+  let mut buf = Box::new([0u8; 80 * 1024]);
+  let mut bytes_read = reader.read(&mut *buf).await;
+
+  loop {
+    match bytes_read {
+      Ok(n) =>  {
+        if n == 0 {
+          return Err(io::Error::new(ErrorKind::UnexpectedEof, "EOF").into());
+        }
+        rest.extend_from_slice(&buf[..n]);
+        let mut c = Cursor::new(&rest);
+
+        match decode_buffer(&mut c).map_err(|b| *b) {
+          Ok(msg) => { 
+            let pos = c.position();
+            // Following cast is save since we got this from a vec index
+            *rest = rest.split_off(pos as usize); // TODO: more efficiency
+            return Ok(msg);
+          }
+          Err(DecodeError::BufferReadError(e)) if e.kind() ==
+            ErrorKind::UnexpectedEof => {
+                debug!("Not enough data, reading more!");
+                bytes_read = reader.read(&mut *buf).await;
+                continue;
+          }
+          Err(err) => return Err(err)?, 
+        }
+      }
+      Err(err) => return Err(err)?,
+    }
+  }
+}
+
+fn decode_buffer<R: Read>(
   reader: &mut R,
 ) -> std::result::Result<RpcMessage, Box<DecodeError>> {
   use crate::callerror::InvalidMessageError::*;
@@ -333,7 +371,7 @@ mod test {
     let msg_dest = {
       let v = &mut *tmp.lock().await;
       let x = v.get_mut();
-      decode(&mut x.as_slice()).unwrap()
+      decode_buffer(&mut x.as_slice()).unwrap()
     };
 
     assert_eq!(msg, msg_dest);
@@ -368,12 +406,12 @@ mod test {
     let v = &mut *tmp.lock().await;
     let x = v.get_mut();
     let mut cursor = Cursor::new(x.as_slice());
-    let msg_dest = decode(&mut cursor).unwrap();
+    let msg_dest = decode_buffer(&mut cursor).unwrap();
 
     assert_eq!(msg, msg_dest);
     assert_eq!(16, cursor.position());
 
-    let msg_dest_2 = decode(&mut cursor).unwrap();
+    let msg_dest_2 = decode_buffer(&mut cursor).unwrap();
     assert_eq!(msg2, msg_dest_2);
   }
 }
