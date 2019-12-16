@@ -1,6 +1,7 @@
 use crate::{
   callerror::DecodeError,
-  runtime::{AsyncWrite, AsyncWriteExt, BufWriter, Mutex, Result},
+  callerror::EncodeError,
+  runtime::{AsyncWrite, AsyncWriteExt, BufWriter, Mutex},
 };
 use rmpv::{decode::read_value, encode::write_value, Value};
 use std::{self, io::Read, sync::Arc};
@@ -146,7 +147,7 @@ pub fn decode<R: Read>(
 pub async fn encode<W: AsyncWrite + Send + Unpin + 'static>(
   writer: Arc<Mutex<BufWriter<W>>>,
   msg: RpcMessage,
-) -> Result<()> {
+) -> std::result::Result<(), Box<EncodeError>> {
   let mut v: Vec<u8> = vec![];
   match msg {
     RpcMessage::RpcRequest {
@@ -155,7 +156,7 @@ pub async fn encode<W: AsyncWrite + Send + Unpin + 'static>(
       params,
     } => {
       let val = rpc_args!(0, msgid, method, params);
-      write_value(&mut v, &val).unwrap();
+      write_value(&mut v, &val)?;
     }
     RpcMessage::RpcResponse {
       msgid,
@@ -163,11 +164,11 @@ pub async fn encode<W: AsyncWrite + Send + Unpin + 'static>(
       result,
     } => {
       let val = rpc_args!(1, msgid, error, result);
-      write_value(&mut v, &val).unwrap();
+      write_value(&mut v, &val)?;
     }
     RpcMessage::RpcNotification { method, params } => {
       let val = rpc_args!(2, method, params);
-      write_value(&mut v, &val).unwrap();
+      write_value(&mut v, &val)?;
     }
   };
 

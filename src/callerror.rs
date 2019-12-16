@@ -51,7 +51,9 @@ pub fn map_generic_error(err: Value) -> CallError {
 }
 
 use rmpv::decode::Error as RmpvDecodeError;
-use std::{fmt::Display, ops::RangeInclusive};
+use rmpv::encode::Error as RmpvEncodeError;
+
+use std::{fmt::Display, ops::RangeInclusive, io};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum InvalidMessageError {
@@ -114,14 +116,14 @@ impl Display for InvalidMessageError {
 
 #[derive(Debug)]
 pub enum DecodeError {
-  InvalidRead(RmpvDecodeError),
+  ReadError(RmpvDecodeError),
   InvalidMessage(InvalidMessageError),
 }
 
 impl Error for DecodeError {
   fn source(&self) -> Option<&(dyn Error + 'static)> {
     match *self {
-      DecodeError::InvalidRead(ref e) => Some(e),
+      DecodeError::ReadError(ref e) => Some(e),
       DecodeError::InvalidMessage(ref e) => Some(e),
     }
   }
@@ -130,7 +132,7 @@ impl Error for DecodeError {
 impl Display for DecodeError {
   fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
     let s = match *self {
-      DecodeError::InvalidRead(_) => "Error while reading",
+      DecodeError::ReadError(_) => "Error while reading",
       DecodeError::InvalidMessage(_) => "Error while decoding",
     };
 
@@ -140,18 +142,68 @@ impl Display for DecodeError {
 
 impl From<RmpvDecodeError> for Box<DecodeError> {
   fn from(err: RmpvDecodeError) -> Box<DecodeError> {
-    Box::new(DecodeError::InvalidRead(err))
+    Box::new(DecodeError::ReadError(err))
   }
 }
 
 impl From<RmpvDecodeError> for DecodeError {
   fn from(err: RmpvDecodeError) -> DecodeError {
-    DecodeError::InvalidRead(err)
+    DecodeError::ReadError(err)
   }
 }
 
 impl From<InvalidMessageError> for Box<DecodeError> {
   fn from(err: InvalidMessageError) -> Box<DecodeError> {
     Box::new(DecodeError::InvalidMessage(err))
+  }
+}
+
+#[derive(Debug)]
+pub enum EncodeError {
+  BufferWriteError(RmpvEncodeError),
+  WriterError(io::Error),
+}
+
+impl Error for EncodeError {
+  fn source(&self) -> Option<&(dyn Error + 'static)> {
+    match *self {
+      EncodeError::BufferWriteError(ref e) => Some(e),
+      EncodeError::WriterError(ref e) => Some(e),
+    }
+  }
+}
+
+impl Display for EncodeError {
+  fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    let s = match *self {
+      Self::BufferWriteError(_) => "Error writing to buffer",
+      Self::WriterError(_) => "Error writing to the Writer"
+    };
+
+    fmt.write_str(s)
+  }
+}
+
+impl From<RmpvEncodeError> for EncodeError {
+  fn from(err: RmpvEncodeError) -> EncodeError {
+    Self::BufferWriteError(err)
+  }
+}
+
+impl From<RmpvEncodeError> for Box<EncodeError> {
+  fn from(err: RmpvEncodeError) -> Box<EncodeError> {
+    Box::new(EncodeError::BufferWriteError(err))
+  }
+}
+
+impl From<io::Error> for EncodeError {
+  fn from(err: io::Error) -> EncodeError {
+    Self::WriterError(err)
+  }
+}
+
+impl From<io::Error> for Box<EncodeError> {
+  fn from(err: io::Error) -> Box<EncodeError> {
+    Box::new(EncodeError::WriterError(err))
   }
 }

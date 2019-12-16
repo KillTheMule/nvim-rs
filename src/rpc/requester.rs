@@ -145,7 +145,7 @@ where
             Ok(msg) => Some(msg),
             Err(e) => {
               match *e {
-                DecodeError::InvalidRead(e) if e.kind() == ErrorKind::UnexpectedEof => {
+                DecodeError::ReadError(e) if e.kind() == ErrorKind::UnexpectedEof => {
                   debug!("Not enough data, reading more!");
                   continue;
                 }
