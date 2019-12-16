@@ -1,7 +1,7 @@
 use std::{clone::Clone, result};
 
 use crate::{
-  callerror::{map_generic_error, CallError},
+  callerror::{map_generic_error, CallError2},
   rpc::{model::IntoVal, Requester},
   uioptions::UiAttachOptions,
 };
@@ -67,7 +67,7 @@ where
     &self,
     method: &str,
     args: Vec<Value>,
-  ) -> result::Result<Value, Value> {
+  ) -> result::Result<result::Result<Value, Value>, Box<CallError2>> {
     use Neovim::*;
     match self {
       Child(r, _) | Parent(r) | Tcp(r) => r.call(method, args).await,
@@ -84,21 +84,23 @@ where
     width: i64,
     height: i64,
     opts: &UiAttachOptions,
-  ) -> Result<(), CallError> {
-    self
+  ) -> Result<(), Box<CallError2>> {
+    match self
       .call(
         "nvim_ui_attach",
         call_args!(width, height, opts.to_value_map()),
       )
-      .await
-      .map_err(map_generic_error)
-      .map(|_| ())
+      .await?
+    {
+      Ok(_) => Ok(()),
+      Err(val) => Err(map_generic_error(val))?,
+    }
   }
 
   /// Send a quit command to Nvim.
   /// The quit command is 'qa!' which will make Nvim quit without
   /// saving anything.
-  pub async fn quit_no_save(&mut self) -> Result<(), CallError> {
+  pub async fn quit_no_save(&mut self) -> Result<(), Box<CallError2>> {
     self.requester().command("qa!").await
   }
 }

@@ -9,7 +9,7 @@ use std::{
 use crate::runtime::{oneshot, spawn, AsyncRead, AsyncWrite, BufWriter, Mutex};
 
 use crate::{
-  callerror::DecodeError,
+  callerror::{DecodeError, EncodeError, CallError2},
   rpc::{handler::Handler, model},
 };
 use rmpv::Value;
@@ -71,7 +71,7 @@ where
     &self,
     method: &str,
     args: Vec<Value>,
-  ) -> oneshot::Receiver<Result<Value, Value>> {
+  ) -> Result<oneshot::Receiver<Result<Value, Value>>, Box<EncodeError>> {
     let msgid = self.msgid_counter.fetch_add(1, Ordering::SeqCst);
 
     let req = model::RpcMessage::RpcRequest {
@@ -86,25 +86,26 @@ where
 
     let writer = self.writer.clone(); //&mut *self.writer.lock().unwrap();
     model::encode(writer, req)
-      .await
-      .expect("Error sending message");
+      .await?;
 
-    receiver
+    Ok(receiver)
   }
 
   pub async fn call(
     &self,
     method: &str,
     args: Vec<Value>,
-  ) -> Result<Value, Value> {
-    let receiver = self.send_msg(method, args).await;
+  ) -> Result<Result<Value, Value>, Box<CallError2>> {
+    let receiver = self.send_msg(method, args).await.map_err(|e|
+      CallError2::SendError(*e, method.to_string()))?;
 
-    receiver.await.unwrap_or_else(|_| {
-      Err(Value::from(format!(
-        "Method '{}' did not receive a response",
-        method
-      )))
-    })
+    match receiver.await {
+      Ok(res) => Ok(res), // Ok(Result<Value, Value>)
+      Err(err) => {
+        Err(Box::new(CallError2::ReceiveError(err, method.to_string())))
+      }
+    }
+    //receiver.await.map_err(|e| CallError2::ReceiveError(e, method.to_string()))?
   }
 
   async fn send_error_to_callers(&self, queue: &Queue, err: &DecodeError) {

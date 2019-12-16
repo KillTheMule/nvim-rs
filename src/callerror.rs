@@ -56,6 +56,8 @@ use rmpv::{
 
 use std::{fmt::Display, io, ops::RangeInclusive};
 
+use crate::runtime::oneshot;
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum InvalidMessageError {
   /// The value read was not an array
@@ -221,5 +223,46 @@ impl From<io::Error> for EncodeError {
 impl From<io::Error> for Box<EncodeError> {
   fn from(err: io::Error) -> Box<EncodeError> {
     Box::new(EncodeError::WriterError(err))
+  }
+}
+
+#[derive(Debug)]
+pub enum CallError2 {
+  SendError(EncodeError, String),
+  ReceiveError(oneshot::error::RecvError, String),
+  OldCallError(CallError)
+}
+
+impl Error for CallError2 {
+  fn source(&self) -> Option<&(dyn Error + 'static)> {
+    match *self {
+      CallError2::SendError(ref e, _) => Some(e),
+      CallError2::ReceiveError(ref e, _) => Some(e),
+      CallError2::OldCallError(ref e) => Some(e),
+    }
+  }
+}
+
+impl Display for CallError2 {
+  fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    match *self {
+      Self::SendError(_, ref s) => write!(fmt, "Error sending request '{}'", s),
+      Self::ReceiveError(_, ref s) => {
+        write!(fmt, "Error receiving response for '{}'", s)
+      }
+      Self::OldCallError(ref err) => write!(fmt, "{}", err),
+    }
+  }
+}
+
+impl From<CallError> for CallError2 {
+  fn from(err: CallError) -> CallError2 {
+    CallError2::OldCallError(err)
+  }
+}
+
+impl From<CallError> for Box<CallError2> {
+  fn from(err: CallError) -> Box<CallError2> {
+    Box::new(CallError2::OldCallError(err))
   }
 }
