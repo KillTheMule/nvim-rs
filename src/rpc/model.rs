@@ -74,31 +74,34 @@ pub fn decode<R: Read>(
 
   let arr = match read_value(reader)? {
     Value::Array(v) => v,
-    _ => Err(NotAnArray)?,
+    val => Err(NotAnArray(val))?,
   };
 
   let mut arr = arr.into_iter();
+
   match arr
     .next()
-    .ok_or(WrongArrayLength)?
+    .ok_or(WrongArrayLength(3..=4, 0))?
     .as_u64()
     .ok_or(InvalidMessageType)?
   {
     0 => {
       let msgid = arr
         .next()
-        .ok_or(WrongArrayLength)?
+        .ok_or(WrongArrayLength(4..=4, 1))?
         .as_u64()
         .ok_or(InvalidMsgid)?;
       let method = match arr.next() {
-        Some(Value::String(s)) => s.into_str().ok_or(InvalidMethodName)?,
-        Some(_) => return Err(InvalidMethodName)?,
-        None => return Err(WrongArrayLength)?,
+        Some(Value::String(s)) => {
+          s.into_str().ok_or(InvalidRequestName(msgid))?
+        }
+        Some(_) => return Err(InvalidRequestName(msgid))?,
+        None => return Err(WrongArrayLength(4..=4, 2))?,
       };
       let params = match arr.next() {
         Some(Value::Array(v)) => v,
-        Some(_) => return Err(InvalidMethodName)?,
-        None => return Err(WrongArrayLength)?,
+        Some(val) => return Err(InvalidParams(val, method))?,
+        None => return Err(WrongArrayLength(4..=4, 3))?,
       };
 
       Ok(RpcMessage::RpcRequest {
@@ -110,11 +113,11 @@ pub fn decode<R: Read>(
     1 => {
       let msgid = arr
         .next()
-        .ok_or(WrongArrayLength)?
+        .ok_or(WrongArrayLength(4..=4, 1))?
         .as_u64()
         .ok_or(InvalidMsgid)?;
-      let error = arr.next().ok_or(WrongArrayLength)?;
-      let result = arr.next().ok_or(WrongArrayLength)?;
+      let error = arr.next().ok_or(WrongArrayLength(4..=4, 2))?;
+      let result = arr.next().ok_or(WrongArrayLength(4..=4, 3))?;
       Ok(RpcMessage::RpcResponse {
         msgid,
         error,
@@ -123,18 +126,20 @@ pub fn decode<R: Read>(
     }
     2 => {
       let method = match arr.next() {
-        Some(Value::String(s)) => s.into_str().ok_or(InvalidMethodName)?,
-        Some(_) => return Err(InvalidMethodName)?,
-        None => return Err(WrongArrayLength)?,
+        Some(Value::String(s)) => {
+          s.into_str().ok_or(InvalidNotificationName)?
+        }
+        Some(_) => return Err(InvalidNotificationName)?,
+        None => return Err(WrongArrayLength(3..=3, 1))?,
       };
       let params = match arr.next() {
         Some(Value::Array(v)) => v,
-        Some(_) => return Err(InvalidMethodName)?,
-        None => return Err(WrongArrayLength)?,
+        Some(val) => return Err(InvalidParams(val, method))?,
+        None => return Err(WrongArrayLength(3..=3, 2))?,
       };
       Ok(RpcMessage::RpcNotification { method, params })
     }
-    _ => Err(UnknownMessageType)?,
+    t => Err(UnknownMessageType(t))?,
   }
 }
 
