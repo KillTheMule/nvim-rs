@@ -230,7 +230,7 @@ impl From<io::Error> for Box<EncodeError> {
 pub enum CallError2 {
   SendError(EncodeError, String),
   ReceiveError(oneshot::error::RecvError, String),
-  OldCallError(CallError)
+  OldCallError(CallError),
 }
 
 impl Error for CallError2 {

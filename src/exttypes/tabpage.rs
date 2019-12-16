@@ -25,29 +25,33 @@ where
     match self
       .requester
       .call("nvim_tabpage_list_wins", call_args![self.code_data.clone()])
-      .await? {
-        Ok(val) => {
-          if let Value::Array(arr) = val {
-            Ok(arr
+      .await?
+    {
+      Ok(val) => {
+        if let Value::Array(arr) = val {
+          Ok(
+            arr
               .into_iter()
               .map(|v| Window::new(v, self.requester.clone()))
-              .collect())
-          } else {
-            panic!("Non-array return value in nvim_tabpage_list_wins!");
-          }
+              .collect(),
+          )
+        } else {
+          panic!("Non-array return value in nvim_tabpage_list_wins!");
         }
-        Err(val) => Err(map_generic_error(val))?,
       }
+      Err(val) => Err(map_generic_error(val))?,
+    }
   }
   /// since: 1
   pub async fn get_win(&self) -> Result<Window<W>, Box<CallError2>> {
     match self
       .requester
       .call("nvim_tabpage_get_win", call_args![self.code_data.clone()])
-      .await? {
-        Ok(val) => Ok(Window::new(val, self.requester.clone())),
-        Err(val) => Err(map_generic_error(val))?,
-      }
+      .await?
+    {
+      Ok(val) => Ok(Window::new(val, self.requester.clone())),
+      Err(val) => Err(map_generic_error(val))?,
+    }
   }
 }
 

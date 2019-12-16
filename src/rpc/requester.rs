@@ -9,7 +9,7 @@ use std::{
 use crate::runtime::{oneshot, spawn, AsyncRead, AsyncWrite, BufWriter, Mutex};
 
 use crate::{
-  callerror::{DecodeError, EncodeError, CallError2},
+  callerror::{CallError2, DecodeError, EncodeError},
   rpc::{handler::Handler, model},
 };
 use rmpv::Value;
@@ -85,8 +85,7 @@ where
     self.queue.lock().await.push((msgid, sender));
 
     let writer = self.writer.clone(); //&mut *self.writer.lock().unwrap();
-    model::encode(writer, req)
-      .await?;
+    model::encode(writer, req).await?;
 
     Ok(receiver)
   }
@@ -96,8 +95,10 @@ where
     method: &str,
     args: Vec<Value>,
   ) -> Result<Result<Value, Value>, Box<CallError2>> {
-    let receiver = self.send_msg(method, args).await.map_err(|e|
-      CallError2::SendError(*e, method.to_string()))?;
+    let receiver = self
+      .send_msg(method, args)
+      .await
+      .map_err(|e| CallError2::SendError(*e, method.to_string()))?;
 
     match receiver.await {
       Ok(res) => Ok(res), // Ok(Result<Value, Value>)
@@ -105,7 +106,8 @@ where
         Err(Box::new(CallError2::ReceiveError(err, method.to_string())))
       }
     }
-    //receiver.await.map_err(|e| CallError2::ReceiveError(e, method.to_string()))?
+    //receiver.await.map_err(|e| CallError2::ReceiveError(e,
+    // method.to_string()))?
   }
 
   async fn send_error_to_callers(&self, queue: &Queue, err: &DecodeError) {
