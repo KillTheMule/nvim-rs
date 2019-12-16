@@ -1,13 +1,18 @@
 //use std::future::Future;
 
-pub use tokio::sync::mpsc::{Sender, Receiver, channel};
-pub use tokio::sync::oneshot;
-pub use tokio::sync::Mutex;
-pub use tokio::spawn;
-pub use tokio::io::{AsyncRead, AsyncWrite, AsyncReadExt, AsyncWriteExt,
-BufWriter, BufReader, Stdin, Stdout, stdin, stdout, Result};
-pub use tokio::net::{TcpStream, UnixStream};
-pub use tokio::process::{ChildStdin, ChildStdout, Command, Child};
+pub use tokio::{
+  io::{
+    stdin, stdout, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt,
+    BufReader, BufWriter, Result, Stdin, Stdout,
+  },
+  net::{TcpStream, UnixStream},
+  process::{Child, ChildStdin, ChildStdout, Command},
+  spawn,
+  sync::{
+    mpsc::{channel, Receiver, Sender},
+    oneshot, Mutex,
+  },
+};
 
 /*
 pub use async_std::sync::{Sender, Receiver, channel};
@@ -22,10 +27,10 @@ impl Runtime {
     Runtime {}
   }
 
-  pub fn spawn<F>(&self, future: F) -> JoinHandle<F::Output> 
+  pub fn spawn<F>(&self, future: F) -> JoinHandle<F::Output>
   where
     F: Future + Send + 'static,
-    F::Output: Send + 'static, 
+    F::Output: Send + 'static,
   {
     async_std::task::spawn(future)
   }

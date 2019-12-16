@@ -1,12 +1,14 @@
-use crate::Requester;
+use crate::{
+  callerror::{map_generic_error, CallError},
+  exttypes::Window,
+  rpc::model::IntoVal,
+  runtime::AsyncWrite,
+  Requester,
+};
 use rmpv::Value;
-use crate::exttypes::Window;
-use crate::callerror::{map_generic_error, CallError};
-use crate::runtime::AsyncWrite;
-use crate::rpc::model::IntoVal;
 
 #[derive(Clone)]
-pub struct Tabpage<W> 
+pub struct Tabpage<W>
 where
   W: AsyncWrite + Send + Sync + Unpin + 'static,
 {
@@ -26,7 +28,10 @@ where
       .await
       .map(|res| {
         if let Value::Array(arr) = res {
-          return arr.into_iter().map(|v| Window::new(v, self.requester.clone())).collect();
+          return arr
+            .into_iter()
+            .map(|v| Window::new(v, self.requester.clone()))
+            .collect();
         } else {
           panic!("Non-array return value in nvim_tabpage_list_wins!");
         }
@@ -47,7 +52,7 @@ where
 impl<W> IntoVal<Value> for &Tabpage<W>
 where
   W: AsyncWrite + Send + Sync + Unpin + 'static,
-  {
+{
   fn into_val(self) -> Value {
     self.code_data.clone()
   }

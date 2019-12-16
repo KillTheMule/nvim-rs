@@ -50,10 +50,11 @@ pub fn map_generic_error(err: Value) -> CallError {
   }
 }
 
-use rmpv::decode::Error as RmpvDecodeError;
-use rmpv::encode::Error as RmpvEncodeError;
+use rmpv::{
+  decode::Error as RmpvDecodeError, encode::Error as RmpvEncodeError,
+};
 
-use std::{fmt::Display, ops::RangeInclusive, io};
+use std::{fmt::Display, io, ops::RangeInclusive};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum InvalidMessageError {
@@ -136,7 +137,7 @@ impl Display for DecodeError {
     let s = match *self {
       DecodeError::BufferReadError(_) => "Error while reading from buffer",
       DecodeError::InvalidMessage(_) => "Error while decoding",
-      DecodeError::ReaderError(_) => "Error while reading from Reader"
+      DecodeError::ReaderError(_) => "Error while reading from Reader",
     };
 
     fmt.write_str(s)
@@ -192,7 +193,7 @@ impl Display for EncodeError {
   fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
     let s = match *self {
       Self::BufferWriteError(_) => "Error writing to buffer",
-      Self::WriterError(_) => "Error writing to the Writer"
+      Self::WriterError(_) => "Error writing to the Writer",
     };
 
     fmt.write_str(s)

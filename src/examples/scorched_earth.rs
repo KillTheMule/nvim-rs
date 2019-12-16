@@ -30,7 +30,8 @@
 //!
 //! Some overview over the code:
 //!
-//! * The handler struct `NeovimHandler` needs to contain some plugin state, namely two
+//! * The handler struct `NeovimHandler` needs to contain some plugin state,
+//!   namely two
 //! cursor positions `start` and `end`. It needs to be `Send` and `Sync`, and we
 //! need mutable access, so we wrap it in a `Arc<Mutex<_>>`. Note that we're
 //! using the [`Mutex`](crate::runtime::Mutex) from `nvim-rs`, which is a
@@ -49,7 +50,8 @@
 //! requests to neovim. All requests are async methods, so we need to `await`
 //! them.
 //!
-//! * When getting a `quit` notification, we simply call `std::process::exit(0)`.
+//! * When getting a `quit` notification, we simply call
+//!   `std::process::exit(0)`.
 //! That's not a good solutions, nvim-rs will need to provide something better.
 //!
 //! * The main function is denoted `#[tokio::main]` to use async notation, but

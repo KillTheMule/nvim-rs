@@ -1,7 +1,7 @@
 pub mod buffer;
-pub mod window;
 pub mod tabpage;
+pub mod window;
 
 pub use buffer::Buffer;
-pub use window::Window;
 pub use tabpage::Tabpage;
+pub use window::Window;

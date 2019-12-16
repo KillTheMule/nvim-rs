@@ -1,8 +1,9 @@
-use crate::rpc::Requester;
-use crate::{Buffer, Window, Tabpage};
-use crate::callerror::{map_generic_error, CallError};
-use crate::runtime::AsyncWrite;
-use crate::rpc::model::IntoVal;
+use crate::{
+  callerror::{map_generic_error, CallError},
+  rpc::{model::IntoVal, Requester},
+  runtime::AsyncWrite,
+  Buffer, Tabpage, Window,
+};
 use rmpv::Value;
 
 impl<W> Requester<W>
@@ -15,7 +16,10 @@ where
       .await
       .map(|res| {
         if let Value::Array(arr) = res {
-          return arr.into_iter().map(|v| Buffer::new(v, self.clone())).collect();
+          return arr
+            .into_iter()
+            .map(|v| Buffer::new(v, self.clone()))
+            .collect();
         } else {
           panic!("Non-array response in nvim_list_bufs!");
         }
@@ -37,7 +41,10 @@ where
       .await
       .map(|res| {
         if let Value::Array(arr) = res {
-          return arr.into_iter().map(|v| Window::new(v, self.clone())).collect();
+          return arr
+            .into_iter()
+            .map(|v| Window::new(v, self.clone()))
+            .collect();
         } else {
           panic!("Non-array return value in nvim_list_wins!");
         }
@@ -84,7 +91,10 @@ where
       .await
       .map(|res| {
         if let Value::Array(arr) = res {
-          return arr.into_iter().map(|v| Tabpage::new(v, self.clone())).collect();
+          return arr
+            .into_iter()
+            .map(|v| Tabpage::new(v, self.clone()))
+            .collect();
         } else {
           panic!("Non-array return value in nvim_list_tabpages!");
         }
@@ -99,6 +109,4 @@ where
       .map(|res| Tabpage::new(res, self.clone()))
       .map_err(map_generic_error)
   }
-
-
 }

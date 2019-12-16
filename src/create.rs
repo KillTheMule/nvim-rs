@@ -1,15 +1,17 @@
 use std::{
   future::Future,
   io::{self, Error, ErrorKind},
-  process::Stdio,
   path::Path,
+  process::Stdio,
 };
 
-use crate::{Handler, Neovim, Requester};
-use crate::runtime::{Command, ChildStdin, TcpStream, Stdout};
+use crate::{
+  runtime::{ChildStdin, Command, Stdout, TcpStream},
+  Handler, Neovim, Requester,
+};
 
 #[cfg(unix)]
-use crate::runtime::{UnixStream, stdin, stdout};
+use crate::runtime::{stdin, stdout, UnixStream};
 
 /// Connect to nvim instance via tcp
 pub async fn new_tcp<H>(
@@ -103,8 +105,7 @@ pub fn new_parent<H>(
 where
   H: Handler<Writer = Stdout> + Send + 'static,
 {
-  let (requester, fut) =
-    Requester::<Stdout>::new(stdin(), stdout(), handler);
+  let (requester, fut) = Requester::<Stdout>::new(stdin(), stdout(), handler);
 
   Ok((Neovim::Parent(requester), fut))
 }

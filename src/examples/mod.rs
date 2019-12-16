@@ -1,2 +1,2 @@
-pub mod scorched_earth;
 pub mod quitting;
+pub mod scorched_earth;

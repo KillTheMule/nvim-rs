@@ -85,13 +85,14 @@ where
     height: i64,
     opts: &UiAttachOptions,
   ) -> Result<(), CallError> {
-    self.call(
-      "nvim_ui_attach",
-      call_args!(width, height, opts.to_value_map()),
-    )
-    .await
-    .map_err(map_generic_error)
-    .map(|_| ())
+    self
+      .call(
+        "nvim_ui_attach",
+        call_args!(width, height, opts.to_value_map()),
+      )
+      .await
+      .map_err(map_generic_error)
+      .map(|_| ())
   }
 
   /// Send a quit command to Nvim.

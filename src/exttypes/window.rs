@@ -1,14 +1,16 @@
-use crate::Requester;
-use rmpv::Value;
-use crate::runtime::AsyncWrite;
 use super::{Buffer, Tabpage};
-use crate::rpc::model::IntoVal;
-use crate::callerror::{map_generic_error, CallError};
+use crate::{
+  callerror::{map_generic_error, CallError},
+  rpc::model::IntoVal,
+  runtime::AsyncWrite,
+  Requester,
+};
+use rmpv::Value;
 
 #[derive(Clone)]
 pub struct Window<W>
 where
-    W: AsyncWrite + Send + Unpin + 'static,
+  W: AsyncWrite + Send + Unpin + 'static,
 {
   pub(crate) code_data: Value,
   pub requester: Requester<W>,

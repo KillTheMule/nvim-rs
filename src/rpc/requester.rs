@@ -6,11 +6,12 @@ use std::{
   },
 };
 
-use crate::runtime::{spawn, AsyncRead, AsyncWrite,
-BufWriter, Mutex, oneshot};
+use crate::runtime::{oneshot, spawn, AsyncRead, AsyncWrite, BufWriter, Mutex};
 
-use crate::rpc::{handler::Handler, model};
-use crate::callerror::DecodeError;
+use crate::{
+  callerror::DecodeError,
+  rpc::{handler::Handler, model},
+};
 use rmpv::Value;
 
 type Queue = Arc<Mutex<Vec<(u64, oneshot::Sender<Result<Value, Value>>)>>>;
@@ -84,7 +85,9 @@ where
     self.queue.lock().await.push((msgid, sender));
 
     let writer = self.writer.clone(); //&mut *self.writer.lock().unwrap();
-    model::encode(writer, req).await.expect("Error sending message");
+    model::encode(writer, req)
+      .await
+      .expect("Error sending message");
 
     receiver
   }
@@ -112,11 +115,8 @@ where
     });
   }
 
-  async fn io_loop<H, R>(
-    handler: H,
-    mut reader: R,
-    req: Requester<H::Writer>,
-  ) where
+  async fn io_loop<H, R>(handler: H, mut reader: R, req: Requester<H::Writer>)
+  where
     H: Handler + Sync + 'static,
     R: AsyncRead + Send + Unpin + 'static,
     H::Writer: AsyncWrite + Send + Sync + Unpin + 'static,
@@ -163,7 +163,7 @@ where
               };
 
             let w = req.writer;
-            model::encode(w, response).await.unwrap();//.expect("Error sending message");
+            model::encode(w, response).await.unwrap(); //.expect("Error sending message");
           });
         }
         model::RpcMessage::RpcResponse {
@@ -173,22 +173,21 @@ where
         } => {
           let sender = find_sender(&req.queue, msgid).await;
           if error != Value::Nil {
-              sender.send(Err(error)).unwrap();
+            sender.send(Err(error)).unwrap();
           } else {
-              sender.send(Ok(result)).unwrap();
+            sender.send(Ok(result)).unwrap();
           }
         }
         model::RpcMessage::RpcNotification { method, params } => {
           let handler = handler.clone();
           let req = req.clone();
-          spawn(async move {
-            handler.handle_notify(method, params, req).await
-          });
+          spawn(
+            async move { handler.handle_notify(method, params, req).await },
+          );
         }
       };
     }
   }
-
 }
 
 /* The idea to use Vec here instead of HashMap

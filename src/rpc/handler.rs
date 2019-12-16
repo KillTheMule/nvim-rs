@@ -3,8 +3,7 @@ use std::{marker::PhantomData, sync::Arc};
 use async_trait::async_trait;
 use rmpv::Value;
 
-use crate::Requester;
-use crate::runtime::AsyncWrite;
+use crate::{runtime::AsyncWrite, Requester};
 
 #[async_trait]
 pub trait Handler: Send + Sync {

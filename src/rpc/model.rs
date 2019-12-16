@@ -1,11 +1,18 @@
 use crate::{
-  callerror::DecodeError,
-  callerror::EncodeError,
-  runtime::{AsyncWrite, AsyncWriteExt, BufWriter, Mutex, AsyncRead, AsyncReadExt},
+  callerror::{DecodeError, EncodeError},
+  runtime::{
+    AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufWriter, Mutex,
+  },
 };
 use rmpv::{decode::read_value, encode::write_value, Value};
-use std::{self, io::Read, sync::Arc, io::{self, ErrorKind, Cursor}};
+use std::{
+  self,
+  io::{self, Cursor, ErrorKind, Read},
+  sync::Arc,
+};
 
+// A msgpack-rpc message, se
+// https://github.com/msgpack-rpc/msgpack-rpc/blob/master/spec.md
 #[derive(Debug, PartialEq, Clone)]
 pub enum RpcMessage {
   RpcRequest {
@@ -24,40 +31,6 @@ pub enum RpcMessage {
   }, // 2
 }
 
-/*
-macro_rules! try_str {
-  ($exp:expr, $msg:expr) => {
-    match $exp {
-      Value::String(val) => match val.into_str() {
-        Some(s) => s,
-        None => {
-          panic!() //return Err(Box::new(io::Error::new(io::ErrorKind::Other, $msg)))
-        }
-      },
-      _ => panic!() //return Err(Box::new(io::Error::new(io::ErrorKind::Other, $msg))),
-    }
-  };
-}
-
-macro_rules! try_int {
-  ($exp:expr, $msg:expr) => {
-    match $exp.as_u64() {
-      Some(val) => val,
-      _ => panic!() //return Err(Box::new(io::Error::new(io::ErrorKind::Other, $msg))),
-    }
-  };
-}
-
-macro_rules! try_arr {
-  ($exp:expr, $msg:expr) => {
-    match $exp {
-      Value::Array(arr) => arr,
-      _ => panic!() //return Err(Box::new(io::Error::new(io::ErrorKind::Other, $msg))),
-    }
-  };
-}
-*/
-
 macro_rules! rpc_args {
     ($($e:expr), *) => {{
         let mut vec = Vec::new();
@@ -68,17 +41,20 @@ macro_rules! rpc_args {
     }}
 }
 
+// Continously reads from reader, pushing onto rest. Then tries to decode the
+// contents of rest. If it succeeds, returns the message, and leaves any
+// non-decoded bytes in rest. If we did not read enough for a full message, read
+// more. Return on all other errors.
 pub async fn decode<R: AsyncRead + Send + Unpin + 'static>(
   reader: &mut R,
-  rest: &mut Vec<u8>
-) -> std::result::Result<RpcMessage, Box<DecodeError>> 
-{
+  rest: &mut Vec<u8>,
+) -> std::result::Result<RpcMessage, Box<DecodeError>> {
   let mut buf = Box::new([0u8; 80 * 1024]);
   let mut bytes_read = reader.read(&mut *buf).await;
 
   loop {
     match bytes_read {
-      Ok(n) =>  {
+      Ok(n) => {
         if n == 0 {
           return Err(io::Error::new(ErrorKind::UnexpectedEof, "EOF").into());
         }
@@ -86,19 +62,20 @@ pub async fn decode<R: AsyncRead + Send + Unpin + 'static>(
         let mut c = Cursor::new(&rest);
 
         match decode_buffer(&mut c).map_err(|b| *b) {
-          Ok(msg) => { 
+          Ok(msg) => {
             let pos = c.position();
             // Following cast is save since we got this from a vec index
             *rest = rest.split_off(pos as usize); // TODO: more efficiency
             return Ok(msg);
           }
-          Err(DecodeError::BufferReadError(e)) if e.kind() ==
-            ErrorKind::UnexpectedEof => {
-                debug!("Not enough data, reading more!");
-                bytes_read = reader.read(&mut *buf).await;
-                continue;
+          Err(DecodeError::BufferReadError(e))
+            if e.kind() == ErrorKind::UnexpectedEof =>
+          {
+            debug!("Not enough data, reading more!");
+            bytes_read = reader.read(&mut *buf).await;
+            continue;
           }
-          Err(err) => return Err(err)?, 
+          Err(err) => return Err(err)?,
         }
       }
       Err(err) => return Err(err)?,
@@ -106,6 +83,8 @@ pub async fn decode<R: AsyncRead + Send + Unpin + 'static>(
   }
 }
 
+// Syncronously decode the content of a reader into an rpc message. Tries to
+// give detailed errors if something went wrong.
 fn decode_buffer<R: Read>(
   reader: &mut R,
 ) -> std::result::Result<RpcMessage, Box<DecodeError>> {
@@ -182,6 +161,8 @@ fn decode_buffer<R: Read>(
   }
 }
 
+// Encode the given message into the BufWriter. Flushes the writer when
+// finished.
 pub async fn encode<W: AsyncWrite + Send + Unpin + 'static>(
   writer: Arc<Mutex<BufWriter<W>>>,
   msg: RpcMessage,
