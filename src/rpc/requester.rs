@@ -9,7 +9,7 @@ use std::{
 use crate::runtime::{oneshot, spawn, AsyncRead, AsyncWrite, BufWriter, Mutex};
 
 use crate::{
-  callerror::{CallError2, DecodeError, EncodeError},
+  callerror::{CallError, DecodeError, EncodeError},
   rpc::{handler::Handler, model},
 };
 use rmpv::Value;
@@ -94,20 +94,18 @@ where
     &self,
     method: &str,
     args: Vec<Value>,
-  ) -> Result<Result<Value, Value>, Box<CallError2>> {
+  ) -> Result<Result<Value, Value>, Box<CallError>> {
     let receiver = self
       .send_msg(method, args)
       .await
-      .map_err(|e| CallError2::SendError(*e, method.to_string()))?;
+      .map_err(|e| CallError::SendError(*e, method.to_string()))?;
 
     match receiver.await {
       Ok(res) => Ok(res), // Ok(Result<Value, Value>)
       Err(err) => {
-        Err(Box::new(CallError2::ReceiveError(err, method.to_string())))
+        Err(Box::new(CallError::ReceiveError(err, method.to_string())))
       }
     }
-    //receiver.await.map_err(|e| CallError2::ReceiveError(e,
-    // method.to_string()))?
   }
 
   async fn send_error_to_callers(&self, queue: &Queue, err: &DecodeError) {

@@ -16,7 +16,6 @@ impl Handler for NH {
 
 fn simple_requests(c: &mut Criterion) {
   let handler = NH{};
-  //let mut rt = Runtime::new().unwrap();
 
   let mut rt = Builder::new().threaded_scheduler().enable_io().build().unwrap();
 
@@ -39,7 +38,6 @@ fn simple_requests(c: &mut Criterion) {
   rt.block_on(async move {req1.command("set noswapfile").await}).expect("0");
 
   c.bench_function("simple_requests", move |b| {
-    //let rt = &rt;
     b.iter(|| {
         let req = nvim.requester();
         let _curbuf = rt.block_on(async move {
@@ -78,7 +76,12 @@ fn request_file(c: &mut Criterion) {
     b.iter(|| {
         let req = nvim.requester();
         let _lines = rt.block_on(async move {
-          req.call("nvim_buf_get_lines",
+          // Using `call` is not recommended. It returns a
+          // Result<Result<Value, Value, CallError>> that needs to be massaged
+          // in a proper Result<Value, CallError> at least. That's what the API
+          // is for, but for now we don't want to deal with getting a buffer
+          // from the API
+          let _ = req.call("nvim_buf_get_lines",
             call_args![0i64, 0i64, -1i64, false]).await.expect("1");
         });
       })

@@ -1,6 +1,6 @@
 use super::{Buffer, Tabpage};
 use crate::{
-  callerror::{map_generic_error, CallError2},
+  callerror::{CallError},
   rpc::model::IntoVal,
   runtime::AsyncWrite,
   Requester,
@@ -21,26 +21,20 @@ where
   W: AsyncWrite + Send + Sync + Unpin + 'static,
 {
   /// since: 1
-  pub async fn get_buf(&self) -> Result<Buffer<W>, Box<CallError2>> {
-    match self
+  pub async fn get_buf(&self) -> Result<Buffer<W>, Box<CallError>> {
+    Ok(self
       .requester
       .call("nvim_win_get_buf", call_args![self.code_data.clone()])
       .await?
-    {
-      Ok(val) => Ok(Buffer::new(val, self.requester.clone())),
-      Err(val) => Err(map_generic_error(val))?,
-    }
+      .map(|val| Buffer::new(val, self.requester.clone()))?)
   }
   /// since: 1
-  pub async fn get_tabpage(&self) -> Result<Tabpage<W>, Box<CallError2>> {
-    match self
+  pub async fn get_tabpage(&self) -> Result<Tabpage<W>, Box<CallError>> {
+    Ok(self
       .requester
       .call("nvim_win_get_tabpage", call_args![self.code_data.clone()])
       .await?
-    {
-      Ok(val) => Ok(Tabpage::new(val, self.requester.clone())),
-      Err(val) => Err(map_generic_error(val))?,
-    }
+      .map(|val| Tabpage::new(val, self.requester.clone()))?)
   }
 }
 

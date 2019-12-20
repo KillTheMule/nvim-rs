@@ -4,7 +4,7 @@ use crate::{Buffer, Window, Tabpage};
 
 use crate::neovim::*;
 use crate::rpc::*;
-use crate::callerror::{map_generic_error, CallError2};
+use crate::callerror::{CallError};
 
 fn map_result<T: FromVal<Value>>(val: Value) -> T {
     T::from_val(val)
@@ -30,19 +30,16 @@ impl<W> {{ etype.name }}<W>
 
     {% for f in functions if f.ext and f.name.startswith(etype.prefix) %}
     /// since: {{f.since}}
-    pub async fn {{f.name|replace(etype.prefix, '')}}(&self, {{f.argstring}}) -> Result<{{f.return_type.native_type_ret}}, Box<CallError2>>
+    pub async fn {{f.name|replace(etype.prefix, '')}}(&self, {{f.argstring}}) -> Result<{{f.return_type.native_type_ret}}, Box<CallError>>
     {
-        match self.requester.call("{{f.name}}",
+        Ok(self.requester.call("{{f.name}}",
                           call_args![self.code_data.clone()
                           {% if f.parameters|count > 0 %}
                           , {{ f.parameters|map(attribute = "name")|join(", ") }}
                           {% endif %}
                           ])
                     .await?
-                  {
-                    Ok(val) => Ok(map_result(val)),
-                    Err(val) => Err(map_generic_error(val))?,
-                  }
+                    .map(map_result)?)
     }
     {% endfor %}
 }
@@ -55,14 +52,11 @@ where
       W: AsyncWrite + Send + Sync + Unpin + 'static,
 {
     {% for f in functions if not f.ext %}
-    pub async fn {{f.name|replace('nvim_', '')}}(&self, {{f.argstring}}) -> Result<{{f.return_type.native_type_ret}}, Box<CallError2>> {
-        match self.call("{{f.name}}",
+    pub async fn {{f.name|replace('nvim_', '')}}(&self, {{f.argstring}}) -> Result<{{f.return_type.native_type_ret}}, Box<CallError>> {
+        Ok(self.call("{{f.name}}",
                           call_args![{{ f.parameters|map(attribute = "name")|join(", ") }}])
                     .await?
-                  {
-                    Ok(val) => Ok(map_result(val)),
-                    Err(val) => Err(map_generic_error(val))?,
-                  }
+                    .map(map_result)?)
     }
 
     {% endfor %}
@@ -73,7 +67,7 @@ where
       W: AsyncWrite + Send + Sync + Unpin + 'static,
 {
     {% for f in functions if not f.ext %}
-    pub async fn {{f.name|replace('nvim_', '')}}(&self, {{f.argstring}}) -> Result<{{f.return_type.native_type_ret}}, Box<CallError2>> {
+    pub async fn {{f.name|replace('nvim_', '')}}(&self, {{f.argstring}}) -> Result<{{f.return_type.native_type_ret}}, Box<CallError>> {
       // TODO: This will clone always, make it a ref
         self.requester().{{f.name|replace('nvim_', '')}}({{f.callstring}}).await
     }

@@ -70,7 +70,6 @@ pub mod runtime;
 pub mod uioptions;
 
 pub use crate::{
-  callerror::CallError,
   exttypes::{Buffer, Tabpage, Window},
   neovim::Neovim,
   rpc::{handler::DefaultHandler, Requester},

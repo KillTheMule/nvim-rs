@@ -1,55 +1,5 @@
 use rmpv::Value;
 use std::{error::Error, fmt};
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum CallError {
-  GenericError(String),
-  NeovimError(i64, String),
-}
-
-impl fmt::Display for CallError {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    match *self {
-      CallError::GenericError(ref s) => write!(f, "Unknown error type: {}", s),
-      CallError::NeovimError(id, ref s) => write!(f, "{} - {}", id, s),
-    }
-  }
-}
-
-impl Error for CallError {
-  fn description(&self) -> &str {
-    match *self {
-      CallError::GenericError(ref s) => s,
-      CallError::NeovimError(_, ref s) => s,
-    }
-  }
-}
-
-#[doc(hidden)]
-pub fn map_generic_error(err: Value) -> CallError {
-  match err {
-    Value::String(val) => {
-      CallError::GenericError(val.as_str().unwrap().to_owned())
-    }
-    Value::Array(arr) => {
-      if arr.len() == 2 {
-        match (&arr[0], &arr[1]) {
-          (&Value::Integer(ref id), &Value::String(ref val)) => {
-            CallError::NeovimError(
-              id.as_i64().unwrap(),
-              val.as_str().unwrap().to_owned(),
-            )
-          }
-          _ => CallError::GenericError(format!("{:?}", arr)),
-        }
-      } else {
-        CallError::GenericError(format!("{:?}", arr))
-      }
-    }
-    val => CallError::GenericError(format!("{:?}", val)),
-  }
-}
-
 use rmpv::{
   decode::Error as RmpvDecodeError, encode::Error as RmpvEncodeError,
 };
@@ -227,42 +177,64 @@ impl From<io::Error> for Box<EncodeError> {
 }
 
 #[derive(Debug)]
-pub enum CallError2 {
+pub enum CallError {
   SendError(EncodeError, String),
   ReceiveError(oneshot::error::RecvError, String),
-  OldCallError(CallError),
+  NeovimError(Option<i64>, String),
 }
 
-impl Error for CallError2 {
+impl Error for CallError {
   fn source(&self) -> Option<&(dyn Error + 'static)> {
     match *self {
-      CallError2::SendError(ref e, _) => Some(e),
-      CallError2::ReceiveError(ref e, _) => Some(e),
-      CallError2::OldCallError(ref e) => Some(e),
+      CallError::SendError(ref e, _) => Some(e),
+      CallError::ReceiveError(ref e, _) => Some(e),
+      CallError::NeovimError(_, _) => None,
     }
   }
 }
 
-impl Display for CallError2 {
+impl Display for CallError {
   fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
     match *self {
       Self::SendError(_, ref s) => write!(fmt, "Error sending request '{}'", s),
       Self::ReceiveError(_, ref s) => {
         write!(fmt, "Error receiving response for '{}'", s)
       }
-      Self::OldCallError(ref err) => write!(fmt, "{}", err),
+      Self::NeovimError(ref i, ref s) => {
+        match i {
+          Some(i) => write!(fmt, "Error processing request: {} - '{}')", i, s),
+          None => write!(fmt, "Error processing request, unknown error format:
+            '{}'", s),
+        }
+      }
     }
   }
 }
 
-impl From<CallError> for CallError2 {
-  fn from(err: CallError) -> CallError2 {
-    CallError2::OldCallError(err)
+impl From<Value> for CallError {
+  fn from(val: Value) -> CallError {
+    match val {
+      Value::Array(mut arr) if arr.len() == 2 && arr[0].is_i64() &&
+        arr[1].is_str() => {
+          let s = arr.pop().unwrap().as_str().unwrap().into();
+          let i = arr.pop().unwrap().as_i64();
+          CallError::NeovimError(i, s)
+      }
+    val => CallError::NeovimError(None, format!("{:?}", val))
+    }
   }
 }
 
-impl From<CallError> for Box<CallError2> {
-  fn from(err: CallError) -> Box<CallError2> {
-    Box::new(CallError2::OldCallError(err))
+impl From<Value> for Box<CallError> {
+  fn from(val: Value) -> Box<CallError> {
+    match val {
+      Value::Array(mut arr) if arr.len() == 2 && arr[0].is_i64() &&
+        arr[1].is_str() => {
+          let s = arr.pop().unwrap().as_str().unwrap().into();
+          let i = arr.pop().unwrap().as_i64();
+          Box::new(CallError::NeovimError(i, s))
+      }
+    val => Box::new(CallError::NeovimError(None, format!("{:?}", val)))
+    }
   }
 }
