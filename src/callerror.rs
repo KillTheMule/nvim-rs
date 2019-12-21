@@ -2,6 +2,7 @@ use rmpv::{
   decode::Error as RmpvDecodeError, encode::Error as RmpvEncodeError, Value,
 };
 use std::{error::Error, fmt};
+use std::io::ErrorKind;
 use std::sync::Arc;
 
 use std::{fmt::Display, io, ops::RangeInclusive};
@@ -67,10 +68,19 @@ impl Display for InvalidMessageError {
   }
 }
 
+/// An error to communicate the failure to decode a message from neovim.
 #[derive(Debug)]
 pub enum DecodeError {
+  /// Reading from the internal buffer failed. This is recovered from by trying
+  /// to read from the stream again and should never surface to the user.
+  ///
+  /// **TODO**: Can we remove this from the public interface?
   BufferReadError(RmpvDecodeError),
+  /// Reading from the stream failed. This is probably unrecoverable from, but
+  /// might also mean that neovim closed the stream and wants the plugin to
+  /// finish. See examples/quitting.rs on how this might be caught.
   ReaderError(io::Error),
+  /// Neovim sent a message that's not valid.
   InvalidMessage(InvalidMessageError),
 }
 
@@ -126,9 +136,12 @@ impl From<io::Error> for Box<DecodeError> {
   }
 }
 
+/// An error to communicate that sending a message to neovim has failed.
 #[derive(Debug)]
 pub enum EncodeError {
+  /// Encoding the message into the internal buffer has failed.
   BufferWriteError(RmpvEncodeError),
+  /// Writing the encoded message to the stream failed.
   WriterError(io::Error),
 }
 
@@ -176,12 +189,42 @@ impl From<io::Error> for Box<EncodeError> {
   }
 }
 
+/// Error to communicate the failure of a [`call`](crate::neovim::Neovim::call) to
+/// neovim. The API functions return this, as they are just
+/// proxies for [`call`](crate::neovim::Neovim::call).
 #[derive(Debug)]
 pub enum CallError {
+  /// Sending the request to neovim has failed.
+  ///
+  /// Fields:
+  ///
+  /// 0. The underlying error
+  /// 1. The name of the called method 
   SendError(EncodeError, String),
+  /// The internal channel to send the response to the right task was closed.
+  /// This really should not happen, unless someone manages to kill individual
+  /// tasks.
+  ///
+  /// Fields:
+  ///
+  /// 0. The underlying error
+  /// 1. The name of the called method 
   ReceiveError(oneshot::error::RecvError, String),
-  /// Note: DecodeError can't be Clone, so we Arc-wrap it
+  /// Decoding neovim's response failed.
+  ///
+  /// Fields:
+  ///
+  /// 0. The underlying error
+  /// 1. The name of the called method 
+  ///
+  /// *Note*: DecodeError can't be Clone, so we Arc-wrap it
   DecodeError(Arc<DecodeError>, String),
+  /// Neovim encountered an error while executing the reqest.
+  ///
+  /// Fields:
+  ///
+  /// 0. Neovim's error type (see `:h api`)
+  /// 1. Neovim's error message
   NeovimError(Option<i64>, String),
 }
 
@@ -193,6 +236,27 @@ impl Error for CallError {
       CallError::DecodeError(ref e, _) => Some(e.as_ref()),
       CallError::NeovimError(_, _) => None,
     }
+  }
+}
+
+impl CallError {
+  pub fn is_channel_closed(&self) -> bool {
+    match *self {
+      CallError::SendError(EncodeError::WriterError(ref e), _) if e.kind() ==
+        ErrorKind::UnexpectedEof => {
+          return true
+      }
+      CallError::DecodeError(ref err, _) => {
+         if let DecodeError::ReaderError(ref e) = err.as_ref() {
+           if e.kind() == ErrorKind::UnexpectedEof {
+             return true
+           }
+         }
+      }
+      _ => {}
+    }
+
+    return false;
   }
 }
 

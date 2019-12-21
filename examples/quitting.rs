@@ -7,6 +7,8 @@ use nvim_rs::{
   Handler,
 };
 
+use std::error::Error;
+
 const NVIMPATH: &str = "neovim/build/bin/nvim";
 struct NeovimHandler {}
 
@@ -34,13 +36,13 @@ async fn main() {
   let close = format!("call chanclose({})", chan);
 
   if let Err(e) = nvim.command(&close).await {
-    // Not yet implemented: Better error handling, so we can actually
-    // distinguish EOF from other read errors
-
-    //if e.kind() == ErrorKind::UnexpectedEof {
-    //  eprintln!("Channel closed, quitting!");
-    //} else {
     eprintln!("Error in last command: {}", e);
-    //}
+    eprintln!("Caused by : {:?}", e.as_ref().source());
+
+    if e.is_channel_closed() {
+      eprintln!("Channel closed, quitting!");
+    } else {
+      eprintln!("Channel was not closed, no idea what happened!");
+    }
   }
 }
