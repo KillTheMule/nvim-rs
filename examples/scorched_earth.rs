@@ -1,11 +1,12 @@
 //! Scorched earth. See src/examples/scorched_earth.rs for documentation
-use std::{process::exit as std_exit, sync::Arc};
+use std::{error::Error, process::exit as std_exit, sync::Arc};
 
 use async_trait::async_trait;
 
 use rmpv::Value;
 
 use nvim_rs::{
+  callerror::LoopError,
   create,
   runtime::{Mutex, Stdout},
   Handler, Requester,
@@ -60,13 +61,16 @@ impl Handler for NeovimHandler {
         posis.cursor_start = the_smaller(posis.cursor_start, (line, column));
         posis.cursor_end = the_larger(posis.cursor_end, (line, column));
 
-        req.command(&format!(
+        req
+          .command(&format!(
           "syntax region ScorchedEarth start=/\\%{}l\\%{}c/ end=/\\%{}l\\%{}c/",
           posis.cursor_start.unwrap().0,
           posis.cursor_start.unwrap().1,
           posis.cursor_end.unwrap().0,
           posis.cursor_end.unwrap().1
-        )).await.unwrap();
+        ))
+          .await
+          .unwrap();
       }
       "insert-enter" => {
         let _mode = args[0].as_str().unwrap();
@@ -106,6 +110,31 @@ async fn main() {
   };
   let handler: NeovimHandler = NeovimHandler(Arc::new(Mutex::new(p)));
 
-  let (_nvim, fut) = create::new_parent(handler).unwrap();
-  fut.await;
+  let (nvim, fut) = create::new_parent(handler).unwrap();
+
+  // Any error should probably be logged, as stderr is not visible to users.
+  if let Err(err) = fut.await {
+    eprintln!("Error: '{}'", err);
+
+    if let LoopError::EncodeError(_) = *err {
+    } else {
+      // One last try, since there wasn't an error with writing to the stream
+      nvim
+        .err_writeln(&format!("Error: '{}'", err))
+        .await
+        .unwrap_or_else(|e| {
+          // We could inspect this error to see what was happening, and maybe
+          // retry, but at this point it's probably best to assume the worst and
+          // print a friendly and supportive message to our users
+          eprintln!("Well, dang... '{}'", e);
+        });
+    }
+
+    let mut source = err.source();
+
+    while let Some(e) = source {
+      eprintln!("Caused by: '{}'", e);
+      source = e.source();
+    }
+  }
 }

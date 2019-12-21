@@ -249,11 +249,11 @@ mod tests {
       queue.lock().await.push((3, sender));
     }
 
-    find_sender(&queue, 1).await;
+    find_sender(&queue, 1).await.unwrap();
     assert_eq!(2, queue.lock().await.len());
-    find_sender(&queue, 2).await;
+    find_sender(&queue, 2).await.unwrap();
     assert_eq!(1, queue.lock().await.len());
-    find_sender(&queue, 3).await;
+    find_sender(&queue, 3).await.unwrap();
     assert!(queue.lock().await.is_empty());
 
     if let LoopError::MsgidNotFoundError(17) = *find_sender(&queue,

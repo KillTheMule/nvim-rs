@@ -255,9 +255,9 @@ pub enum LoopError {
   /// of the waiting requests as well as the error to send
   /// Note: DecodeError can't be clone, so we Arc-wrap it.
   SendToCallersError(Vec<u64>, Arc<DecodeError>),
-  /// Failed to send a Response through the sender from the Queue
+  /// Failed to send a Response (from neovim) through the sender from the Queue
   SendResponseError(u64, Result<Value, Value>),
-  /// Encoding a response faile
+  /// Sending a response to neovim failed
   EncodeError(EncodeError),
 }
 
