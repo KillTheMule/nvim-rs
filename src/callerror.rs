@@ -180,6 +180,7 @@ impl From<io::Error> for Box<EncodeError> {
 pub enum CallError {
   SendError(EncodeError, String),
   ReceiveError(oneshot::error::RecvError, String),
+  /// Note: DecodeError can't be Clone, so we Arc-wrap it
   DecodeError(Arc<DecodeError>, String),
   NeovimError(Option<i64>, String),
 }
@@ -250,9 +251,10 @@ impl From<Value> for Box<CallError> {
 pub enum LoopError {
   /// A Msgid could not be found in the Queue
   MsgidNotFoundError(u64),
-  /// Could not send an error to all callers in the Queue. The first element is
-  /// the msgid of the waiting request
-  SendToCallersError(Vec<(u64, Result<Result<Value, Value>, Arc<DecodeError>>)>),
+  /// Could not send an error to all callers in the Queue. Contains the msgids
+  /// of the waiting requests as well as the error to send
+  /// Note: DecodeError can't be clone, so we Arc-wrap it.
+  SendToCallersError(Vec<u64>, Arc<DecodeError>),
   /// Failed to send a Response through the sender from the Queue
   SendResponseError(u64, Result<Value, Value>),
   /// Encoding a response faile
@@ -263,7 +265,7 @@ impl Error for LoopError {
   fn source(&self) -> Option<&(dyn Error + 'static)> {
     match *self {
       LoopError::MsgidNotFoundError(_) => None,
-      LoopError::SendToCallersError(_) => None,
+      LoopError::SendToCallersError(_, ref e) => Some(e.as_ref()),
       LoopError::SendResponseError(_, _) => None,
       LoopError::EncodeError(ref e) => Some(e),
     }
@@ -279,7 +281,7 @@ impl Display for LoopError {
         the Qeue",
         i
       ),
-      Self::SendToCallersError(ref v) => write!(
+      Self::SendToCallersError(ref v, _) => write!(
         fmt,
         "Could not send responses to their callers: '{:?}'",
         v
@@ -301,9 +303,9 @@ impl From<(u64, Result<Value, Value>)> for Box<LoopError> {
   }
 }
 
-impl From<Vec<(u64, Result<Result<Value, Value>, Arc<DecodeError>>)>> for Box<LoopError> {
-  fn from(v: Vec<(u64, Result<Result<Value, Value>, Arc<DecodeError>>)>) -> Box<LoopError> {
-    Box::new(LoopError::SendToCallersError(v))
+impl From<(Vec<u64>, Arc<DecodeError>)> for Box<LoopError> {
+  fn from(v: (Vec<u64>, Arc<DecodeError>)) -> Box<LoopError> {
+    Box::new(LoopError::SendToCallersError(v.0, v.1))
   }
 }
 

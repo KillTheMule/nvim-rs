@@ -117,18 +117,18 @@ where
   async fn send_error_to_callers(&self, queue: &Queue, err: DecodeError) ->
     Result<(), Box<LoopError>> {
     let err = Arc::new(err);
-    let mut v:Vec<(u64, ResponseResult)> = vec![];
+    let mut v:Vec<u64> = vec![];
 
     let mut queue = queue.lock().await;
     queue.drain(0..).for_each(|sender| {
       let msgid = sender.0;
-      sender.1.send(Err(err.clone())).unwrap_or_else(|e| v.push((msgid, e)));
+      sender.1.send(Err(err.clone())).unwrap_or_else(|_| v.push(msgid));
     });
 
     if v.is_empty() {
       Ok(())
     } else {
-      Err(v)?
+      Err((v, err))?
     }
   }
 
