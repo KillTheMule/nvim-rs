@@ -94,9 +94,6 @@ impl Handler for NeovimHandler {
         posis.cursor_end = None;
         req.command("syntax clear ScorchedEarth").await.unwrap();
       }
-      "quit" => {
-        std_exit(0); // This needs a solution!
-      }
       _ => {}
     }
   }

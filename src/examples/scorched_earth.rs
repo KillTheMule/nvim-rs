@@ -50,10 +50,6 @@
 //! requests to neovim. All requests are async methods, so we need to `await`
 //! them.
 //!
-//! * When getting a `quit` notification, we simply call
-//!   `std::process::exit(0)`.
-//! That's not a good solutions, nvim-rs will need to provide something better.
-//!
 //! * The main function is denoted `#[tokio::main]` to use async notation, but
 //! it would be perfectly feasible to explicitely create a runtime and use that.
 //!
@@ -61,3 +57,9 @@
 //! [`create`](crate::create) functions. It gives back a
 //! [`Neovim`](crate::Neovim) instance which we could use for requests, and a
 //! `Future` which implements the IO, so we need to run it.
+//!
+//! * The plugin quits by ending the IO task when neovim closes the channel, so
+//!   we don't need to do anything special. Any cleanup-logic can happen after
+//!   the IO task has finished. Note that we're loosing access to our
+//!   [`Handler`](crate::Handler), which isn't optimal and will need to be
+//!   fixed.
