@@ -230,13 +230,87 @@ impl From<Value> for CallError {
 impl From<Value> for Box<CallError> {
   fn from(val: Value) -> Box<CallError> {
     match val {
-      Value::Array(mut arr) if arr.len() == 2 && arr[0].is_i64() &&
-        arr[1].is_str() => {
-          let s = arr.pop().unwrap().as_str().unwrap().into();
-          let i = arr.pop().unwrap().as_i64();
-          Box::new(CallError::NeovimError(i, s))
+      Value::Array(mut arr)
+        if arr.len() == 2 && arr[0].is_i64() && arr[1].is_str() =>
+      {
+        let s = arr.pop().unwrap().as_str().unwrap().into();
+        let i = arr.pop().unwrap().as_i64();
+        Box::new(CallError::NeovimError(i, s))
       }
-    val => Box::new(CallError::NeovimError(None, format!("{:?}", val)))
+      val => Box::new(CallError::NeovimError(None, format!("{:?}", val))),
     }
+  }
+}
+
+#[derive(Debug)]
+pub enum LoopError {
+  /// A Msgid could not be found in the Queue
+  MsgidNotFoundError(u64),
+  /// Could not send an error to all callers in the Queue. The first element is
+  /// the msgid of the waiting request
+  SendToCallersError(Vec<(u64, Result<Value, Value>)>),
+  /// Failed to send a Response through the sender from the Queue
+  SendResponseError(u64, Result<Value, Value>),
+  /// Encoding a response faile
+  EncodeError(EncodeError),
+}
+
+impl Error for LoopError {
+  fn source(&self) -> Option<&(dyn Error + 'static)> {
+    match *self {
+      LoopError::MsgidNotFoundError(_) => None,
+      LoopError::SendToCallersError(_) => None,
+      LoopError::SendResponseError(_, _) => None,
+      LoopError::EncodeError(ref e) => Some(e),
+    }
+  }
+}
+
+impl Display for LoopError {
+  fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    match *self {
+      Self::MsgidNotFoundError(i) => write!(
+        fmt,
+        "Could not find Msgid '{}' in
+        the Qeue",
+        i
+      ),
+      Self::SendToCallersError(ref v) => write!(
+        fmt,
+        "Could not send responses to their callers: '{:?}'",
+        v
+      ),
+      Self::SendResponseError(i, ref res) => write!(
+        fmt,
+        "Request {}: Could not send response, which was {:?}", 
+        i,
+        res
+      ),
+      Self::EncodeError(_) => write!(fmt, "Error encoding response"),
+    }
+  }
+}
+
+impl From<(u64, Result<Value, Value>)> for Box<LoopError> {
+  fn from(res: (u64, Result<Value, Value>)) -> Box<LoopError> {
+    Box::new(LoopError::SendResponseError(res.0, res.1))
+  }
+}
+
+impl From<Vec<(u64, Result<Value, Value>)>> for Box<LoopError> {
+  fn from(v: Vec<(u64, Result<Value, Value>)>) -> Box<LoopError> {
+    Box::new(LoopError::SendToCallersError(v))
+  }
+}
+
+impl From<u64> for Box<LoopError> {
+  fn from(i: u64) -> Box<LoopError> {
+    Box::new(LoopError::MsgidNotFoundError(i))
+  }
+}
+
+impl From<Box<EncodeError>> for Box<LoopError> {
+  fn from(e: Box<EncodeError>) -> Box<LoopError> {
+    Box::new(LoopError::EncodeError(*e))
   }
 }

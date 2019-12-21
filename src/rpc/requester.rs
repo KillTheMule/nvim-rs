@@ -9,7 +9,7 @@ use std::{
 use crate::runtime::{oneshot, spawn, AsyncRead, AsyncWrite, BufWriter, Mutex};
 
 use crate::{
-  callerror::{CallError, DecodeError, EncodeError},
+  callerror::{CallError, DecodeError, EncodeError, LoopError},
   rpc::{handler::Handler, model},
 };
 use rmpv::Value;
@@ -46,7 +46,8 @@ where
     reader: R,
     writer: H::Writer,
     handler: H,
-  ) -> (Requester<<H as Handler>::Writer>, impl Future<Output = ()>)
+  ) -> (Requester<<H as Handler>::Writer>, impl Future<Output = Result<(),
+  Box<LoopError>>>)
   where
     R: AsyncRead + Send + Unpin + 'static,
     H: Handler + Send + 'static,
@@ -108,17 +109,29 @@ where
     }
   }
 
-  async fn send_error_to_callers(&self, queue: &Queue, err: &DecodeError) {
+  async fn send_error_to_callers(&self, queue: &Queue, err: &DecodeError) ->
+    Result<(), Box<LoopError>> {
+    let mut v:Vec<(u64, Result<Value, Value>)> = vec![];
+
     let mut queue = queue.lock().await;
     queue.drain(0..).for_each(|sender| {
+      // TODO: Really send the error, not just a string
       let e = format!("Error read response: {}", err);
-      sender.1.send(Err(Value::from(e))).unwrap();
+      let msgid = sender.0;
+      sender.1.send(Err(Value::from(e))).unwrap_or_else(|e| v.push((msgid, e)));
     });
+
+    if v.is_empty() {
+      Ok(())
+    } else {
+      Err(v)?
+    }
   }
 
   async fn io_loop<H, R>(handler: H, mut reader: R, req: Requester<H::Writer>)
+    -> Result<(), Box<LoopError>>
   where
-    H: Handler + Sync + 'static,
+    H: Handler + Sync + 'static, // TODO: Check bounds on the handler
     R: AsyncRead + Send + Unpin + 'static,
     H::Writer: AsyncWrite + Send + Sync + Unpin + 'static,
   {
@@ -130,8 +143,7 @@ where
         Ok(msg) => msg,
         Err(err) => {
           error!("Error while reading: {}", err);
-          req.send_error_to_callers(&req.queue, &err).await;
-          return;
+          return Ok(req.send_error_to_callers(&req.queue, &err).await?);
         }
       };
 
@@ -164,7 +176,9 @@ where
               };
 
             let w = req.writer;
-            model::encode(w, response).await.unwrap(); //.expect("Error sending message");
+            model::encode(w, response).await.unwrap_or_else(|e| {
+              error!("Error sending response to request {}: '{}'", msgid, e);
+            });
           });
         }
         model::RpcMessage::RpcResponse {
@@ -172,11 +186,11 @@ where
           result,
           error,
         } => {
-          let sender = find_sender(&req.queue, msgid).await;
+          let sender = find_sender(&req.queue, msgid).await?;
           if error != Value::Nil {
-            sender.send(Err(error)).unwrap();
+            sender.send(Err(error)).map_err(|e| (msgid, e))?;
           } else {
-            sender.send(Ok(result)).unwrap();
+            sender.send(Ok(result)).map_err(|e| (msgid, e))?;
           }
         }
         model::RpcMessage::RpcNotification { method, params } => {
@@ -198,11 +212,14 @@ where
 async fn find_sender(
   queue: &Queue,
   msgid: u64,
-) -> oneshot::Sender<Result<Value, Value>> {
+) -> Result<oneshot::Sender<Result<Value, Value>>, Box<LoopError>> {
   let mut queue = queue.lock().await;
 
-  let pos = queue.iter().position(|req| req.0 == msgid).unwrap();
-  queue.remove(pos).1
+  let pos = match queue.iter().position(|req| req.0 == msgid) {
+    Some(p) => p,
+    None => return Err(msgid)?
+  };
+  Ok(queue.remove(pos).1)
 }
 
 #[cfg(test)]
@@ -232,5 +249,12 @@ mod tests {
     assert_eq!(1, queue.lock().await.len());
     find_sender(&queue, 3).await;
     assert!(queue.lock().await.is_empty());
+
+    if let LoopError::MsgidNotFoundError(17) = *find_sender(&queue,
+      17).await.unwrap_err() {
+    } else {
+      panic!()
+    }
+    
   }
 }
