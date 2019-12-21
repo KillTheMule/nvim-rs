@@ -1,8 +1,7 @@
-use rmpv::Value;
-use std::{error::Error, fmt};
 use rmpv::{
-  decode::Error as RmpvDecodeError, encode::Error as RmpvEncodeError,
+  decode::Error as RmpvDecodeError, encode::Error as RmpvEncodeError, Value,
 };
+use std::{error::Error, fmt};
 
 use std::{fmt::Display, io, ops::RangeInclusive};
 
@@ -200,13 +199,15 @@ impl Display for CallError {
       Self::ReceiveError(_, ref s) => {
         write!(fmt, "Error receiving response for '{}'", s)
       }
-      Self::NeovimError(ref i, ref s) => {
-        match i {
-          Some(i) => write!(fmt, "Error processing request: {} - '{}')", i, s),
-          None => write!(fmt, "Error processing request, unknown error format:
-            '{}'", s),
-        }
-      }
+      Self::NeovimError(ref i, ref s) => match i {
+        Some(i) => write!(fmt, "Error processing request: {} - '{}')", i, s),
+        None => write!(
+          fmt,
+          "Error processing request, unknown error format:
+            '{}'",
+          s
+        ),
+      },
     }
   }
 }
@@ -214,13 +215,14 @@ impl Display for CallError {
 impl From<Value> for CallError {
   fn from(val: Value) -> CallError {
     match val {
-      Value::Array(mut arr) if arr.len() == 2 && arr[0].is_i64() &&
-        arr[1].is_str() => {
-          let s = arr.pop().unwrap().as_str().unwrap().into();
-          let i = arr.pop().unwrap().as_i64();
-          CallError::NeovimError(i, s)
+      Value::Array(mut arr)
+        if arr.len() == 2 && arr[0].is_i64() && arr[1].is_str() =>
+      {
+        let s = arr.pop().unwrap().as_str().unwrap().into();
+        let i = arr.pop().unwrap().as_i64();
+        CallError::NeovimError(i, s)
       }
-    val => CallError::NeovimError(None, format!("{:?}", val))
+      val => CallError::NeovimError(None, format!("{:?}", val)),
     }
   }
 }

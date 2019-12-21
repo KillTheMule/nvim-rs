@@ -84,7 +84,7 @@ where
 
     self.queue.lock().await.push((msgid, sender));
 
-    let writer = self.writer.clone(); //&mut *self.writer.lock().unwrap();
+    let writer = self.writer.clone();
     model::encode(writer, req).await?;
 
     Ok(receiver)

@@ -1099,10 +1099,7 @@ where
     )
   }
 
-  pub async fn set_current_dir(
-    &self,
-    dir: &str,
-  ) -> Result<(), Box<CallError>> {
+  pub async fn set_current_dir(&self, dir: &str) -> Result<(), Box<CallError>> {
     Ok(
       self
         .call("nvim_set_current_dir", call_args![dir])
@@ -1768,10 +1765,7 @@ where
     self.requester().list_runtime_paths().await
   }
 
-  pub async fn set_current_dir(
-    &self,
-    dir: &str,
-  ) -> Result<(), Box<CallError>> {
+  pub async fn set_current_dir(&self, dir: &str) -> Result<(), Box<CallError>> {
     // TODO: This will clone always, make it a ref
     self.requester().set_current_dir(dir).await
   }

@@ -1,9 +1,6 @@
 use crate::{
-  callerror::{CallError},
-  exttypes::Window,
-  rpc::model::IntoVal,
-  runtime::AsyncWrite,
-  Requester,
+  callerror::CallError, exttypes::Window, rpc::model::IntoVal,
+  runtime::AsyncWrite, Requester,
 };
 use rmpv::Value;
 
@@ -22,29 +19,33 @@ where
 {
   /// since: 1
   pub async fn list_wins(&self) -> Result<Vec<Window<W>>, Box<CallError>> {
-    Ok(self
-      .requester
-      .call("nvim_tabpage_list_wins", call_args![self.code_data.clone()])
-      .await?
-      .map(|val| {
-        if let Value::Array(arr) = val {
-          arr
-            .into_iter()
-            .map(|v| Window::new(v, self.requester.clone()))
-            .collect()
-        } else {
-          // TODO: Introduce UnexpectedValueError
-          panic!("Non-array return value in nvim_tabpage_list_wins!");
-        }
-      })?)
-    }
+    Ok(
+      self
+        .requester
+        .call("nvim_tabpage_list_wins", call_args![self.code_data.clone()])
+        .await?
+        .map(|val| {
+          if let Value::Array(arr) = val {
+            arr
+              .into_iter()
+              .map(|v| Window::new(v, self.requester.clone()))
+              .collect()
+          } else {
+            // TODO: Introduce UnexpectedValueError
+            panic!("Non-array return value in nvim_tabpage_list_wins!");
+          }
+        })?,
+    )
+  }
   /// since: 1
   pub async fn get_win(&self) -> Result<Window<W>, Box<CallError>> {
-    Ok(self
-      .requester
-      .call("nvim_tabpage_get_win", call_args![self.code_data.clone()])
-      .await?
-      .map(|val| Window::new(val, self.requester.clone()))?)
+    Ok(
+      self
+        .requester
+        .call("nvim_tabpage_get_win", call_args![self.code_data.clone()])
+        .await?
+        .map(|val| Window::new(val, self.requester.clone()))?,
+    )
   }
 }
 

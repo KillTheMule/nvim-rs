@@ -1,7 +1,7 @@
 use std::{clone::Clone, result};
 
 use crate::{
-  callerror::{CallError},
+  callerror::CallError,
   rpc::{model::IntoVal, Requester},
   uioptions::UiAttachOptions,
 };
