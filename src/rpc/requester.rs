@@ -14,7 +14,9 @@ use crate::{
 };
 use rmpv::Value;
 
-type Queue = Arc<Mutex<Vec<(u64, oneshot::Sender<Result<Value, Value>>)>>>;
+type ResponseResult = Result<Result<Value, Value>, Arc<DecodeError>>; 
+
+type Queue = Arc<Mutex<Vec<(u64, oneshot::Sender<ResponseResult>)>>>;
 
 pub struct Requester<W>
 where
@@ -72,7 +74,7 @@ where
     &self,
     method: &str,
     args: Vec<Value>,
-  ) -> Result<oneshot::Receiver<Result<Value, Value>>, Box<EncodeError>> {
+  ) -> Result<oneshot::Receiver<ResponseResult>, Box<EncodeError>> {
     let msgid = self.msgid_counter.fetch_add(1, Ordering::SeqCst);
 
     let req = model::RpcMessage::RpcRequest {
@@ -101,24 +103,26 @@ where
       .await
       .map_err(|e| CallError::SendError(*e, method.to_string()))?;
 
-    match receiver.await {
-      Ok(res) => Ok(res), // Ok(Result<Value, Value>)
-      Err(err) => {
+    match receiver.await { // Result<Result<Result<Value, Value>, Arc<DecodeError>>, RecvError>
+      Ok(Ok(r)) => Ok(r), // r is Result<Value, Value>, i.e. we got an answer 
+      Ok(Err(err)) => {       // err is a Decode Error, i.e. the answer wasn't decodable
+        Err(Box::new(CallError::DecodeError(err, method.to_string())))
+      }
+      Err(err) => { // err is RecvError
         Err(Box::new(CallError::ReceiveError(err, method.to_string())))
       }
     }
   }
 
-  async fn send_error_to_callers(&self, queue: &Queue, err: &DecodeError) ->
+  async fn send_error_to_callers(&self, queue: &Queue, err: DecodeError) ->
     Result<(), Box<LoopError>> {
-    let mut v:Vec<(u64, Result<Value, Value>)> = vec![];
+    let err = Arc::new(err);
+    let mut v:Vec<(u64, ResponseResult)> = vec![];
 
     let mut queue = queue.lock().await;
     queue.drain(0..).for_each(|sender| {
-      // TODO: Really send the error, not just a string
-      let e = format!("Error read response: {}", err);
       let msgid = sender.0;
-      sender.1.send(Err(Value::from(e))).unwrap_or_else(|e| v.push((msgid, e)));
+      sender.1.send(Err(err.clone())).unwrap_or_else(|e| v.push((msgid, e)));
     });
 
     if v.is_empty() {
@@ -143,7 +147,7 @@ where
         Ok(msg) => msg,
         Err(err) => {
           error!("Error while reading: {}", err);
-          return Ok(req.send_error_to_callers(&req.queue, &err).await?);
+          return Ok(req.send_error_to_callers(&req.queue, *err).await?);
         }
       };
 
@@ -188,9 +192,11 @@ where
         } => {
           let sender = find_sender(&req.queue, msgid).await?;
           if error != Value::Nil {
-            sender.send(Err(error)).map_err(|e| (msgid, e))?;
+            sender.send(Ok(Err(error))).map_err(|r| (msgid, r.expect("This was
+            an OK(_)")))?;
           } else {
-            sender.send(Ok(result)).map_err(|e| (msgid, e))?;
+            sender.send(Ok(Ok(result))).map_err(|r| (msgid, r.expect("This was an
+                OK(_)")))?;
           }
         }
         model::RpcMessage::RpcNotification { method, params } => {
@@ -212,7 +218,7 @@ where
 async fn find_sender(
   queue: &Queue,
   msgid: u64,
-) -> Result<oneshot::Sender<Result<Value, Value>>, Box<LoopError>> {
+) -> Result<oneshot::Sender<ResponseResult>, Box<LoopError>> {
   let mut queue = queue.lock().await;
 
   let pos = match queue.iter().position(|req| req.0 == msgid) {

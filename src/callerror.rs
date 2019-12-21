@@ -2,6 +2,7 @@ use rmpv::{
   decode::Error as RmpvDecodeError, encode::Error as RmpvEncodeError, Value,
 };
 use std::{error::Error, fmt};
+use std::sync::Arc;
 
 use std::{fmt::Display, io, ops::RangeInclusive};
 
@@ -179,6 +180,7 @@ impl From<io::Error> for Box<EncodeError> {
 pub enum CallError {
   SendError(EncodeError, String),
   ReceiveError(oneshot::error::RecvError, String),
+  DecodeError(Arc<DecodeError>, String),
   NeovimError(Option<i64>, String),
 }
 
@@ -187,6 +189,7 @@ impl Error for CallError {
     match *self {
       CallError::SendError(ref e, _) => Some(e),
       CallError::ReceiveError(ref e, _) => Some(e),
+      CallError::DecodeError(ref e, _) => Some(e.as_ref()),
       CallError::NeovimError(_, _) => None,
     }
   }
@@ -199,6 +202,7 @@ impl Display for CallError {
       Self::ReceiveError(_, ref s) => {
         write!(fmt, "Error receiving response for '{}'", s)
       }
+      Self::DecodeError(_, ref s) => write!(fmt, "Error decoding response to request '{}'", s),
       Self::NeovimError(ref i, ref s) => match i {
         Some(i) => write!(fmt, "Error processing request: {} - '{}')", i, s),
         None => write!(
@@ -248,7 +252,7 @@ pub enum LoopError {
   MsgidNotFoundError(u64),
   /// Could not send an error to all callers in the Queue. The first element is
   /// the msgid of the waiting request
-  SendToCallersError(Vec<(u64, Result<Value, Value>)>),
+  SendToCallersError(Vec<(u64, Result<Result<Value, Value>, Arc<DecodeError>>)>),
   /// Failed to send a Response through the sender from the Queue
   SendResponseError(u64, Result<Value, Value>),
   /// Encoding a response faile
@@ -297,8 +301,8 @@ impl From<(u64, Result<Value, Value>)> for Box<LoopError> {
   }
 }
 
-impl From<Vec<(u64, Result<Value, Value>)>> for Box<LoopError> {
-  fn from(v: Vec<(u64, Result<Value, Value>)>) -> Box<LoopError> {
+impl From<Vec<(u64, Result<Result<Value, Value>, Arc<DecodeError>>)>> for Box<LoopError> {
+  fn from(v: Vec<(u64, Result<Result<Value, Value>, Arc<DecodeError>>)>) -> Box<LoopError> {
     Box::new(LoopError::SendToCallersError(v))
   }
 }
