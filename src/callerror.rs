@@ -1,9 +1,7 @@
 use rmpv::{
   decode::Error as RmpvDecodeError, encode::Error as RmpvEncodeError, Value,
 };
-use std::{error::Error, fmt};
-use std::io::ErrorKind;
-use std::sync::Arc;
+use std::{error::Error, fmt, io::ErrorKind, sync::Arc};
 
 use std::{fmt::Display, io, ops::RangeInclusive};
 
@@ -162,8 +160,8 @@ impl From<io::Error> for Box<EncodeError> {
   }
 }
 
-/// Error to communicate the failure of a [`call`](crate::neovim::Neovim::call) to
-/// neovim. The API functions return this, as they are just
+/// Error to communicate the failure of a [`call`](crate::neovim::Neovim::call)
+/// to neovim. The API functions return this, as they are just
 /// proxies for [`call`](crate::neovim::Neovim::call).
 #[derive(Debug)]
 pub enum CallError {
@@ -172,7 +170,7 @@ pub enum CallError {
   /// Fields:
   ///
   /// 0. The underlying error
-  /// 1. The name of the called method 
+  /// 1. The name of the called method
   SendError(EncodeError, String),
   /// The internal channel to send the response to the right task was closed.
   /// This really should not happen, unless someone manages to kill individual
@@ -181,14 +179,14 @@ pub enum CallError {
   /// Fields:
   ///
   /// 0. The underlying error
-  /// 1. The name of the called method 
+  /// 1. The name of the called method
   InternalReceiveError(oneshot::error::RecvError, String),
   /// Decoding neovim's response failed.
   ///
   /// Fields:
   ///
   /// 0. The underlying error
-  /// 1. The name of the called method 
+  /// 1. The name of the called method
   ///
   /// *Note*: DecodeError can't be Clone, so we Arc-wrap it
   DecodeError(Arc<DecodeError>, String),
@@ -215,16 +213,17 @@ impl Error for CallError {
 impl CallError {
   pub fn is_channel_closed(&self) -> bool {
     match *self {
-      CallError::SendError(EncodeError::WriterError(ref e), _) if e.kind() ==
-        ErrorKind::UnexpectedEof => {
-          return true
+      CallError::SendError(EncodeError::WriterError(ref e), _)
+        if e.kind() == ErrorKind::UnexpectedEof =>
+      {
+        return true
       }
       CallError::DecodeError(ref err, _) => {
-         if let DecodeError::ReaderError(ref e) = err.as_ref() {
-           if e.kind() == ErrorKind::UnexpectedEof {
-             return true
-           }
-         }
+        if let DecodeError::ReaderError(ref e) = err.as_ref() {
+          if e.kind() == ErrorKind::UnexpectedEof {
+            return true;
+          }
+        }
       }
       _ => {}
     }
@@ -240,7 +239,9 @@ impl Display for CallError {
       Self::InternalReceiveError(_, ref s) => {
         write!(fmt, "Error receiving response for '{}'", s)
       }
-      Self::DecodeError(_, ref s) => write!(fmt, "Error decoding response to request '{}'", s),
+      Self::DecodeError(_, ref s) => {
+        write!(fmt, "Error decoding response to request '{}'", s)
+      }
       Self::NeovimError(ref i, ref s) => match i {
         Some(i) => write!(fmt, "Error processing request: {} - '{}')", i, s),
         None => write!(
@@ -307,7 +308,6 @@ impl LoopError {
     }
     false
   }
-
 }
 
 impl Display for LoopError {

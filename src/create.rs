@@ -6,9 +6,9 @@ use std::{
 };
 
 use crate::{
+  callerror::LoopError,
   runtime::{ChildStdin, Command, Stdout, TcpStream},
   Handler, Neovim, Requester,
-  callerror::LoopError,
 };
 
 #[cfg(unix)]
@@ -19,8 +19,10 @@ pub async fn new_tcp<H>(
   host: &str,
   port: u16,
   handler: H,
-) -> io::Result<(Neovim<TcpStream>, impl Future<Output = Result<(),
-Box<LoopError>>>)>
+) -> io::Result<(
+  Neovim<TcpStream>,
+  impl Future<Output = Result<(), Box<LoopError>>>,
+)>
 where
   H: Handler<Writer = TcpStream> + Send + 'static,
 {
@@ -37,8 +39,10 @@ where
 pub async fn new_unix_socket<H, P: AsRef<Path> + Clone>(
   path: P,
   handler: H,
-) -> io::Result<(Neovim<UnixStream>, impl Future<Output = Result<(),
-Box<LoopError>>>)>
+) -> io::Result<(
+  Neovim<UnixStream>,
+  impl Future<Output = Result<(), Box<LoopError>>>,
+)>
 where
   H: Handler<Writer = UnixStream> + Send + 'static,
 {
@@ -54,8 +58,10 @@ where
 /// Connect to a Neovim instance by spawning a new one.
 pub async fn new_child<H>(
   handler: H,
-) -> io::Result<(Neovim<ChildStdin>, impl Future<Output = Result<(),
-Box<LoopError>>>)>
+) -> io::Result<(
+  Neovim<ChildStdin>,
+  impl Future<Output = Result<(), Box<LoopError>>>,
+)>
 where
   H: Handler<Writer = ChildStdin> + Send + 'static,
 {
@@ -70,8 +76,10 @@ where
 pub async fn new_child_path<H, S: AsRef<Path>>(
   program: S,
   handler: H,
-) -> io::Result<(Neovim<ChildStdin>, impl Future<Output = Result<(),
-Box<LoopError>>>)>
+) -> io::Result<(
+  Neovim<ChildStdin>,
+  impl Future<Output = Result<(), Box<LoopError>>>,
+)>
 where
   H: Handler<Writer = ChildStdin> + Send + 'static,
 {
@@ -84,8 +92,10 @@ where
 pub async fn new_child_cmd<H>(
   cmd: &mut Command,
   handler: H,
-) -> io::Result<(Neovim<ChildStdin>, impl Future<Output = Result<(),
-Box<LoopError>>>)>
+) -> io::Result<(
+  Neovim<ChildStdin>,
+  impl Future<Output = Result<(), Box<LoopError>>>,
+)>
 where
   H: Handler<Writer = ChildStdin> + Send + 'static,
 {
@@ -107,8 +117,10 @@ where
 /// Connect to a Neovim instance that spawned this process over stdin/stdout.
 pub fn new_parent<H>(
   handler: H,
-) -> io::Result<(Neovim<Stdout>, impl Future<Output = Result<(),
-Box<LoopError>>>)>
+) -> io::Result<(
+  Neovim<Stdout>,
+  impl Future<Output = Result<(), Box<LoopError>>>,
+)>
 where
   H: Handler<Writer = Stdout> + Send + 'static,
 {
