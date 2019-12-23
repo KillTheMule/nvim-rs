@@ -1,12 +1,11 @@
 //! Scorched earth. See src/examples/scorched_earth.rs for documentation
-use std::{error::Error, process::exit as std_exit, sync::Arc};
+use std::{error::Error, sync::Arc};
 
 use async_trait::async_trait;
 
 use rmpv::Value;
 
 use nvim_rs::{
-  callerror::LoopError,
   create,
   runtime::{Mutex, Stdout},
   Handler, Requester,
@@ -111,10 +110,7 @@ async fn main() {
 
   // Any error should probably be logged, as stderr is not visible to users.
   if let Err(err) = fut.await {
-    eprintln!("Error: '{}'", err);
-
-    if let LoopError::EncodeError(_) = *err {
-    } else {
+    if !err.is_reader_error() {
       // One last try, since there wasn't an error with writing to the stream
       nvim
         .err_writeln(&format!("Error: '{}'", err))
@@ -127,11 +123,18 @@ async fn main() {
         });
     }
 
-    let mut source = err.source();
+    if !err.is_channel_closed() {
+      // Closed channel usually means neovim quit itself, or this plugin was
+      // told to quit by closing the channel, so it's not always an error
+      // condition.
+      eprintln!("Error: '{}'", err);
 
-    while let Some(e) = source {
-      eprintln!("Caused by: '{}'", e);
-      source = e.source();
+      let mut source = err.source();
+
+      while let Some(e) = source {
+        eprintln!("Caused by: '{}'", e);
+        source = e.source();
+      }
     }
   }
 }

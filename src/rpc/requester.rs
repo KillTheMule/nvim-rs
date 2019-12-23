@@ -272,7 +272,7 @@ mod tests {
     find_sender(&queue, 3).await.unwrap();
     assert!(queue.lock().await.is_empty());
 
-    if let LoopError::MsgidNotFoundError(17) =
+    if let LoopError::MsgidNotFound(17) =
       *find_sender(&queue, 17).await.unwrap_err()
     {
     } else {

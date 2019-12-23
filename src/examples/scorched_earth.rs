@@ -63,3 +63,12 @@
 //!   the IO task has finished. Note that we're loosing access to our
 //!   [`Handler`](crate::Handler), which isn't optimal and will need to be
 //!   fixed.
+//!
+//! * After the IO task has finished, we're inspecting the errors to see why it
+//! went. First, if we did not see a general reader error, we try to send some
+//! last notification to the neovim user. Secondly, we quietly ignore the
+//! channel being closed, because this usually means that it was closed by
+//! neovim, which isn't always an error.
+//!
+//!   *Note*: A closed channel could still mean an error, so the plugin has the
+//!   option to react to this.

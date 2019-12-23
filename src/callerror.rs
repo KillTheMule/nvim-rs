@@ -313,6 +313,15 @@ impl LoopError {
     }
     false
   }
+
+  pub fn is_reader_error(&self) -> bool {
+    if let LoopError::DecodeError(ref err, _) = *self {
+      if let DecodeError::ReaderError(_) = err.as_ref() {
+        return true;
+      }
+    }
+    false
+  }
 }
 
 impl Display for LoopError {
