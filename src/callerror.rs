@@ -112,21 +112,9 @@ impl From<RmpvDecodeError> for Box<DecodeError> {
   }
 }
 
-impl From<RmpvDecodeError> for DecodeError {
-  fn from(err: RmpvDecodeError) -> DecodeError {
-    Self::BufferReadError(err)
-  }
-}
-
 impl From<InvalidMessageError> for Box<DecodeError> {
   fn from(err: InvalidMessageError) -> Box<DecodeError> {
     Box::new(DecodeError::InvalidMessage(err))
-  }
-}
-
-impl From<io::Error> for DecodeError {
-  fn from(err: io::Error) -> DecodeError {
-    Self::ReaderError(err)
   }
 }
 
@@ -165,21 +153,9 @@ impl Display for EncodeError {
   }
 }
 
-impl From<RmpvEncodeError> for EncodeError {
-  fn from(err: RmpvEncodeError) -> EncodeError {
-    Self::BufferWriteError(err)
-  }
-}
-
 impl From<RmpvEncodeError> for Box<EncodeError> {
   fn from(err: RmpvEncodeError) -> Box<EncodeError> {
     Box::new(EncodeError::BufferWriteError(err))
-  }
-}
-
-impl From<io::Error> for EncodeError {
-  fn from(err: io::Error) -> EncodeError {
-    Self::WriterError(err)
   }
 }
 
@@ -277,21 +253,6 @@ impl Display for CallError {
           s
         ),
       },
-    }
-  }
-}
-
-impl From<Value> for CallError {
-  fn from(val: Value) -> CallError {
-    match val {
-      Value::Array(mut arr)
-        if arr.len() == 2 && arr[0].is_i64() && arr[1].is_str() =>
-      {
-        let s = arr.pop().unwrap().as_str().unwrap().into();
-        let i = arr.pop().unwrap().as_i64();
-        CallError::NeovimError(i, s)
-      }
-      val => CallError::NeovimError(None, format!("{:?}", val)),
     }
   }
 }
