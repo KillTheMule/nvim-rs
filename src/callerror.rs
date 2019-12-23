@@ -182,7 +182,7 @@ pub enum CallError {
   ///
   /// 0. The underlying error
   /// 1. The name of the called method 
-  ReceiveError(oneshot::error::RecvError, String),
+  InternalReceiveError(oneshot::error::RecvError, String),
   /// Decoding neovim's response failed.
   ///
   /// Fields:
@@ -205,7 +205,7 @@ impl Error for CallError {
   fn source(&self) -> Option<&(dyn Error + 'static)> {
     match *self {
       CallError::SendError(ref e, _) => Some(e),
-      CallError::ReceiveError(ref e, _) => Some(e),
+      CallError::InternalReceiveError(ref e, _) => Some(e),
       CallError::DecodeError(ref e, _) => Some(e.as_ref()),
       CallError::NeovimError(_, _) => None,
     }
@@ -237,7 +237,7 @@ impl Display for CallError {
   fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
     match *self {
       Self::SendError(_, ref s) => write!(fmt, "Error sending request '{}'", s),
-      Self::ReceiveError(_, ref s) => {
+      Self::InternalReceiveError(_, ref s) => {
         write!(fmt, "Error receiving response for '{}'", s)
       }
       Self::DecodeError(_, ref s) => write!(fmt, "Error decoding response to request '{}'", s),
@@ -272,13 +272,13 @@ impl From<Value> for Box<CallError> {
 #[derive(Debug)]
 pub enum LoopError {
   /// A Msgid could not be found in the Queue
-  MsgidNotFoundError(u64),
+  MsgidNotFound(u64),
   /// Could not send an error to all callers in the Queue. Contains the msgids
   /// of the waiting requests as well as the error to send
   /// Note: DecodeError can't be clone, so we Arc-wrap it.
-  SendToCallersError(Vec<u64>, Arc<DecodeError>),
+  InternalErrToCallersError(Vec<u64>, Arc<DecodeError>),
   /// Failed to send a Response (from neovim) through the sender from the Queue
-  SendResponseError(u64, Result<Value, Value>),
+  InternalSendResponseError(u64, Result<Value, Value>),
   /// Sending a response to neovim failed
   EncodeError(EncodeError),
 }
@@ -286,10 +286,20 @@ pub enum LoopError {
 impl Error for LoopError {
   fn source(&self) -> Option<&(dyn Error + 'static)> {
     match *self {
-      LoopError::MsgidNotFoundError(_) => None,
-      LoopError::SendToCallersError(_, ref e) => Some(e.as_ref()),
-      LoopError::SendResponseError(_, _) => None,
+      LoopError::MsgidNotFound(_) => None,
+      LoopError::InternalErrToCallersError(_, ref e) => Some(e.as_ref()),
+      LoopError::InternalSendResponseError(_, _) => None,
       LoopError::EncodeError(ref e) => Some(e),
+    }
+  }
+}
+
+impl LoopError {
+  pub fn is_channel_closed(&self) -> bool {
+    match *self {
+      LoopError::EncodeError(EncodeError::WriterError(ref e)) if e.kind() ==
+        ErrorKind::UnexpectedEof =>  true,
+      _ => false
     }
   }
 }
@@ -297,18 +307,18 @@ impl Error for LoopError {
 impl Display for LoopError {
   fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
     match *self {
-      Self::MsgidNotFoundError(i) => write!(
+      Self::MsgidNotFound(i) => write!(
         fmt,
         "Could not find Msgid '{}' in
         the Qeue",
         i
       ),
-      Self::SendToCallersError(ref v, _) => write!(
+      Self::InternalErrToCallersError(ref v, _) => write!(
         fmt,
         "Could not send responses to their callers: '{:?}'",
         v
       ),
-      Self::SendResponseError(i, ref res) => write!(
+      Self::InternalSendResponseError(i, ref res) => write!(
         fmt,
         "Request {}: Could not send response, which was {:?}", 
         i,
@@ -321,19 +331,19 @@ impl Display for LoopError {
 
 impl From<(u64, Result<Value, Value>)> for Box<LoopError> {
   fn from(res: (u64, Result<Value, Value>)) -> Box<LoopError> {
-    Box::new(LoopError::SendResponseError(res.0, res.1))
+    Box::new(LoopError::InternalSendResponseError(res.0, res.1))
   }
 }
 
 impl From<(Vec<u64>, Arc<DecodeError>)> for Box<LoopError> {
   fn from(v: (Vec<u64>, Arc<DecodeError>)) -> Box<LoopError> {
-    Box::new(LoopError::SendToCallersError(v.0, v.1))
+    Box::new(LoopError::InternalErrToCallersError(v.0, v.1))
   }
 }
 
 impl From<u64> for Box<LoopError> {
   fn from(i: u64) -> Box<LoopError> {
-    Box::new(LoopError::MsgidNotFoundError(i))
+    Box::new(LoopError::MsgidNotFound(i))
   }
 }
 

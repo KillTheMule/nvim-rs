@@ -109,7 +109,7 @@ where
         Err(Box::new(CallError::DecodeError(err, method.to_string())))
       }
       Err(err) => { // err is RecvError
-        Err(Box::new(CallError::ReceiveError(err, method.to_string())))
+        Err(Box::new(CallError::InternalReceiveError(err, method.to_string())))
       }
     }
   }
