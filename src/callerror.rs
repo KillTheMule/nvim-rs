@@ -246,8 +246,7 @@ impl Display for CallError {
         Some(i) => write!(fmt, "Error processing request: {} - '{}')", i, s),
         None => write!(
           fmt,
-          "Error processing request, unknown error format:
-            '{}'",
+          "Error processing request, unknown error format: '{}'",
           s
         ),
       },
@@ -272,7 +271,7 @@ impl From<Value> for Box<CallError> {
 
 #[derive(Debug)]
 pub enum LoopError {
-  /// A Msgid could not be found in the Queue
+  /// A Msgid could not be found in the request queue
   MsgidNotFound(u64),
   /// Decoding a message failed.
   ///
@@ -283,7 +282,13 @@ pub enum LoopError {
   ///
   /// Note: DecodeError can't be clone, so we Arc-wrap it.
   DecodeError(Arc<DecodeError>, Option<Vec<u64>>),
-  /// Failed to send a Response (from neovim) through the sender from the Queue
+  /// Failed to send a Response (from neovim) through the sender from the
+  /// request queue
+  ///
+  /// Fields:
+  ///
+  /// 0. The msgid of the request the response was sent for
+  /// 1. The response from neovim
   InternalSendResponseError(u64, Result<Value, Value>),
 }
 
@@ -313,23 +318,22 @@ impl LoopError {
 impl Display for LoopError {
   fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
     match *self {
-      Self::MsgidNotFound(i) => write!(
-        fmt,
-        "Could not find Msgid '{}' in
-        the Qeue",
-        i
-      ),
-      Self::DecodeError(_, ref o) => {
-        match o {
-          None => write!(fmt, "Error reading message"),
-          Some(v) => write!(fmt, "Error reading message, could not forward error to the following requests: '{:?}'", v)
-        }
+      Self::MsgidNotFound(i) => {
+        write!(fmt, "Could not find Msgid '{}' in the Qeue", i)
       }
+      Self::DecodeError(_, ref o) => match o {
+        None => write!(fmt, "Error reading message"),
+        Some(v) => write!(
+          fmt,
+          "Error reading message, could not forward \
+           error to the following requests: '{:?}'",
+          v
+        ),
+      },
       Self::InternalSendResponseError(i, ref res) => write!(
         fmt,
-        "Request {}: Could not send response, which was {:?}", 
-        i,
-        res
+        "Request {}: Could not send response, which was {:?}",
+        i, res
       ),
     }
   }
