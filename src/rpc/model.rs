@@ -68,7 +68,7 @@ pub async fn decode<R: AsyncRead + Send + Unpin + 'static>(
             *rest = rest.split_off(pos as usize); // TODO: more efficiency
             return Ok(msg);
           }
-          Err(DecodeError::BufferReadError(e))
+          Err(DecodeError::BufferError(e))
             if e.kind() == ErrorKind::UnexpectedEof =>
           {
             debug!("Not enough data, reading more!");

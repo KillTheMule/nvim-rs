@@ -71,11 +71,8 @@ impl Display for InvalidMessageError {
 /// An error to communicate the failure to decode a message from neovim.
 #[derive(Debug)]
 pub enum DecodeError {
-  /// Reading from the internal buffer failed. This is recovered from by trying
-  /// to read from the stream again and should never surface to the user.
-  ///
-  /// **TODO**: Can we remove this from the public interface?
-  BufferReadError(RmpvDecodeError),
+  /// Reading from the internal buffer failed.
+  BufferError(RmpvDecodeError),
   /// Reading from the stream failed. This is probably unrecoverable from, but
   /// might also mean that neovim closed the stream and wants the plugin to
   /// finish. See examples/quitting.rs on how this might be caught.
@@ -87,7 +84,7 @@ pub enum DecodeError {
 impl Error for DecodeError {
   fn source(&self) -> Option<&(dyn Error + 'static)> {
     match *self {
-      DecodeError::BufferReadError(ref e) => Some(e),
+      DecodeError::BufferError(ref e) => Some(e),
       DecodeError::InvalidMessage(ref e) => Some(e),
       DecodeError::ReaderError(ref e) => Some(e),
     }
@@ -97,7 +94,7 @@ impl Error for DecodeError {
 impl Display for DecodeError {
   fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
     let s = match *self {
-      DecodeError::BufferReadError(_) => "Error while reading from buffer",
+      DecodeError::BufferError(_) => "Error while reading from buffer",
       DecodeError::InvalidMessage(_) => "Error while decoding",
       DecodeError::ReaderError(_) => "Error while reading from Reader",
     };
@@ -108,7 +105,7 @@ impl Display for DecodeError {
 
 impl From<RmpvDecodeError> for Box<DecodeError> {
   fn from(err: RmpvDecodeError) -> Box<DecodeError> {
-    Box::new(DecodeError::BufferReadError(err))
+    Box::new(DecodeError::BufferError(err))
   }
 }
 
@@ -128,7 +125,7 @@ impl From<io::Error> for Box<DecodeError> {
 #[derive(Debug)]
 pub enum EncodeError {
   /// Encoding the message into the internal buffer has failed.
-  BufferWriteError(RmpvEncodeError),
+  BufferError(RmpvEncodeError),
   /// Writing the encoded message to the stream failed.
   WriterError(io::Error),
 }
@@ -136,7 +133,7 @@ pub enum EncodeError {
 impl Error for EncodeError {
   fn source(&self) -> Option<&(dyn Error + 'static)> {
     match *self {
-      EncodeError::BufferWriteError(ref e) => Some(e),
+      EncodeError::BufferError(ref e) => Some(e),
       EncodeError::WriterError(ref e) => Some(e),
     }
   }
@@ -145,7 +142,7 @@ impl Error for EncodeError {
 impl Display for EncodeError {
   fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
     let s = match *self {
-      Self::BufferWriteError(_) => "Error writing to buffer",
+      Self::BufferError(_) => "Error writing to buffer",
       Self::WriterError(_) => "Error writing to the Writer",
     };
 
@@ -155,7 +152,7 @@ impl Display for EncodeError {
 
 impl From<RmpvEncodeError> for Box<EncodeError> {
   fn from(err: RmpvEncodeError) -> Box<EncodeError> {
-    Box::new(EncodeError::BufferWriteError(err))
+    Box::new(EncodeError::BufferError(err))
   }
 }
 
