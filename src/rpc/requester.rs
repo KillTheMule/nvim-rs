@@ -115,7 +115,7 @@ where
   }
 
   async fn send_error_to_callers(&self, queue: &Queue, err: DecodeError) ->
-    Result<(), Box<LoopError>> {
+    Result<Arc<DecodeError>, Box<LoopError>> {
     let err = Arc::new(err);
     let mut v:Vec<u64> = vec![];
 
@@ -126,9 +126,9 @@ where
     });
 
     if v.is_empty() {
-      Ok(())
+      Ok(err)
     } else {
-      Err((v, err))?
+      Err((err, v))?
     }
   }
 
@@ -147,7 +147,8 @@ where
         Ok(msg) => msg,
         Err(err) => {
           error!("Error while reading: {}", err);
-          return Ok(req.send_error_to_callers(&req.queue, *err).await?);
+          let e = req.send_error_to_callers(&req.queue, *err).await?;
+          return Err(Box::new(LoopError::DecodeError(e, None)));
         }
       };
 

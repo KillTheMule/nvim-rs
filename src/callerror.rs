@@ -273,35 +273,41 @@ impl From<Value> for Box<CallError> {
 pub enum LoopError {
   /// A Msgid could not be found in the Queue
   MsgidNotFound(u64),
-  /// Could not send an error to all callers in the Queue. Contains the msgids
-  /// of the waiting requests as well as the error to send
+  /// Decoding a message failed.
+  ///
+  /// Fields:
+  ///
+  /// 0. The underlying error
+  /// 1. The msgids of the requests we could not send the error to.
+  ///
   /// Note: DecodeError can't be clone, so we Arc-wrap it.
-  InternalErrToCallersError(Vec<u64>, Arc<DecodeError>),
+  DecodeError(Arc<DecodeError>, Option<Vec<u64>>),
   /// Failed to send a Response (from neovim) through the sender from the Queue
   InternalSendResponseError(u64, Result<Value, Value>),
-  /// Sending a response to neovim failed
-  EncodeError(EncodeError),
 }
 
 impl Error for LoopError {
   fn source(&self) -> Option<&(dyn Error + 'static)> {
     match *self {
       LoopError::MsgidNotFound(_) => None,
-      LoopError::InternalErrToCallersError(_, ref e) => Some(e.as_ref()),
+      LoopError::DecodeError(ref e, _) => Some(e.as_ref()),
       LoopError::InternalSendResponseError(_, _) => None,
-      LoopError::EncodeError(ref e) => Some(e),
     }
   }
 }
 
 impl LoopError {
   pub fn is_channel_closed(&self) -> bool {
-    match *self {
-      LoopError::EncodeError(EncodeError::WriterError(ref e)) if e.kind() ==
-        ErrorKind::UnexpectedEof =>  true,
-      _ => false
+    if let LoopError::DecodeError(ref err, _) = *self {
+      if let DecodeError::ReaderError(ref e) = err.as_ref() {
+        if e.kind() == ErrorKind::UnexpectedEof {
+          return true;
+        }
+      }
     }
+    false
   }
+
 }
 
 impl Display for LoopError {
@@ -313,18 +319,18 @@ impl Display for LoopError {
         the Qeue",
         i
       ),
-      Self::InternalErrToCallersError(ref v, _) => write!(
-        fmt,
-        "Could not send responses to their callers: '{:?}'",
-        v
-      ),
+      Self::DecodeError(_, ref o) => {
+        match o {
+          None => write!(fmt, "Error reading message"),
+          Some(v) => write!(fmt, "Error reading message, could not forward error to the following requests: '{:?}'", v)
+        }
+      }
       Self::InternalSendResponseError(i, ref res) => write!(
         fmt,
         "Request {}: Could not send response, which was {:?}", 
         i,
         res
       ),
-      Self::EncodeError(_) => write!(fmt, "Error encoding response"),
     }
   }
 }
@@ -335,20 +341,14 @@ impl From<(u64, Result<Value, Value>)> for Box<LoopError> {
   }
 }
 
-impl From<(Vec<u64>, Arc<DecodeError>)> for Box<LoopError> {
-  fn from(v: (Vec<u64>, Arc<DecodeError>)) -> Box<LoopError> {
-    Box::new(LoopError::InternalErrToCallersError(v.0, v.1))
+impl From<(Arc<DecodeError>, Vec<u64>)> for Box<LoopError> {
+  fn from(v: (Arc<DecodeError>, Vec<u64>)) -> Box<LoopError> {
+    Box::new(LoopError::DecodeError(v.0, Some(v.1)))
   }
 }
 
 impl From<u64> for Box<LoopError> {
   fn from(i: u64) -> Box<LoopError> {
     Box::new(LoopError::MsgidNotFound(i))
-  }
-}
-
-impl From<Box<EncodeError>> for Box<LoopError> {
-  fn from(e: Box<EncodeError>) -> Box<LoopError> {
-    Box::new(LoopError::EncodeError(*e))
   }
 }
