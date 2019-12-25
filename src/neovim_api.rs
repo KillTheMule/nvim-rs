@@ -11,7 +11,7 @@ impl<W> Buffer<W>
 where
   W: AsyncWrite + Send + Sync + Unpin + 'static,
 {
-  pub fn new(code_data: Value, requester: Requester<W>) -> Buffer<W> {
+  pub fn new(code_data: Value, requester: Neovim<W>) -> Buffer<W> {
     Buffer {
       code_data,
       requester,
@@ -510,7 +510,7 @@ impl<W> Window<W>
 where
   W: AsyncWrite + Send + Sync + Unpin + 'static,
 {
-  pub fn new(code_data: Value, requester: Requester<W>) -> Window<W> {
+  pub fn new(code_data: Value, requester: Neovim<W>) -> Window<W> {
     Window {
       code_data,
       requester,
@@ -751,7 +751,7 @@ impl<W> Tabpage<W>
 where
   W: AsyncWrite + Send + Sync + Unpin + 'static,
 {
-  pub fn new(code_data: Value, requester: Requester<W>) -> Tabpage<W> {
+  pub fn new(code_data: Value, requester: Neovim<W>) -> Tabpage<W> {
     Tabpage {
       code_data,
       requester,
@@ -831,7 +831,7 @@ where
   }
 }
 
-impl<W> Requester<W>
+impl<W> Neovim<W>
 where
   W: AsyncWrite + Send + Sync + Unpin + 'static,
 {

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use nvim_rs::{create, Handler, Requester, runtime::spawn};
+use nvim_rs::{create, Handler, Neovim, runtime::spawn};
 use tokio;
 use rmpv::Value;
 
@@ -23,7 +23,7 @@ impl Handler for NH {
     &self,
     name: String,
     mut args: Vec<Value>,
-    _req: Requester<ChildStdin>,
+    _req: Neovim<ChildStdin>,
   ) -> Result<Value, Value> {
     eprintln!("Request: {}", name);
     let mut to_main = self.to_main.clone();
@@ -44,7 +44,7 @@ impl Handler for NH {
     &self,
     name: String,
     args: Vec<Value>,
-    _req: Requester<ChildStdin>,
+    _req: Neovim<ChildStdin>,
   ) {
     eprintln!("Notification: {}", name);
     let mut to_main = self.to_main.clone();
@@ -163,7 +163,7 @@ impl Handler for NH2 {
     &self,
     name: String,
     args: Vec<Value>,
-    req: Requester<ChildStdin>,
+    req: Neovim<ChildStdin>,
   ) -> Result<Value, Value> {
     eprintln!("Request: {}", name);
 
@@ -220,7 +220,7 @@ impl Handler for NH2 {
     &self,
     name: String,
     args: Vec<Value>,
-    req: Requester<ChildStdin>,
+    req: Neovim<ChildStdin>,
   ) {
     eprintln!("Notification: {}", name);
     match name.as_ref() {

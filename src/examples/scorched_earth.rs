@@ -46,7 +46,7 @@
 //! version](crate::runtime::Stdout) re-exported from Tokio.
 //!
 //! * We only implement `handle_notify` since we don't want to serve requests.
-//! It gets a [`Requester`](crate::Requester) passed that we can use to send
+//! It gets a [`Neovim`](crate::Neovim) passed that we can use to send
 //! requests to neovim. All requests are async methods, so we need to `await`
 //! them.
 //!

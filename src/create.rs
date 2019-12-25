@@ -8,7 +8,7 @@ use std::{
 use crate::{
   callerror::LoopError,
   runtime::{ChildStdin, Command, Stdout, TcpStream, Child},
-  Handler, neovim::Requester,
+  Handler, neovim::Neovim,
 };
 
 #[cfg(unix)]
@@ -20,7 +20,7 @@ pub async fn new_tcp<H>(
   port: u16,
   handler: H,
 ) -> io::Result<(
-  Requester<TcpStream>,
+  Neovim<TcpStream>,
   impl Future<Output = Result<(), Box<LoopError>>>,
 )>
 where
@@ -29,7 +29,7 @@ where
   let stream = TcpStream::connect((host, port)).await?;
   let read = TcpStream::connect((host, port)).await?;
   //let read = stream.try_clone()?;
-  let (requester, fut) = Requester::<TcpStream>::new(stream, read, handler);
+  let (requester, fut) = Neovim::<TcpStream>::new(stream, read, handler);
 
   Ok((requester, fut))
 }
@@ -40,7 +40,7 @@ pub async fn new_unix_socket<H, P: AsRef<Path> + Clone>(
   path: P,
   handler: H,
 ) -> io::Result<(
-  Requester<UnixStream>,
+  Neovim<UnixStream>,
   impl Future<Output = Result<(), Box<LoopError>>>,
 )>
 where
@@ -50,7 +50,7 @@ where
   let read = UnixStream::connect(path).await?;
   //let read = stream.try_clone()?;
 
-  let (requester, fut) = Requester::<UnixStream>::new(stream, read, handler);
+  let (requester, fut) = Neovim::<UnixStream>::new(stream, read, handler);
 
   Ok((requester, fut))
 }
@@ -59,7 +59,7 @@ where
 pub async fn new_child<H>(
   handler: H,
 ) -> io::Result<(
-  Requester<ChildStdin>,
+  Neovim<ChildStdin>,
   impl Future<Output = Result<(), Box<LoopError>>>,
   Child,
 )>
@@ -78,7 +78,7 @@ pub async fn new_child_path<H, S: AsRef<Path>>(
   program: S,
   handler: H,
 ) -> io::Result<(
-  Requester<ChildStdin>,
+  Neovim<ChildStdin>,
   impl Future<Output = Result<(), Box<LoopError>>>,
   Child
 )>
@@ -95,7 +95,7 @@ pub async fn new_child_cmd<H>(
   cmd: &mut Command,
   handler: H,
 ) -> io::Result<(
-  Requester<ChildStdin>,
+  Neovim<ChildStdin>,
   impl Future<Output = Result<(), Box<LoopError>>>,
   Child,
 )>
@@ -112,7 +112,7 @@ where
     .take()
     .ok_or_else(|| Error::new(ErrorKind::Other, "Can't open stdin"))?;
 
-  let (requester, fut) = Requester::<ChildStdin>::new(stdout, stdin, handler);
+  let (requester, fut) = Neovim::<ChildStdin>::new(stdout, stdin, handler);
 
   Ok((requester, fut, child))
 }
@@ -121,13 +121,13 @@ where
 pub fn new_parent<H>(
   handler: H,
 ) -> io::Result<(
-  Requester<Stdout>,
+  Neovim<Stdout>,
   impl Future<Output = Result<(), Box<LoopError>>>,
 )>
 where
   H: Handler<Writer = Stdout> + Send + 'static,
 {
-  let (requester, fut) = Requester::<Stdout>::new(stdin(), stdout(), handler);
+  let (requester, fut) = Neovim::<Stdout>::new(stdin(), stdout(), handler);
 
   Ok((requester, fut))
 }

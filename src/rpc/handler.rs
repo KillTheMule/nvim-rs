@@ -3,7 +3,7 @@ use std::{marker::PhantomData, sync::Arc};
 use async_trait::async_trait;
 use rmpv::Value;
 
-use crate::{runtime::AsyncWrite, Requester};
+use crate::{runtime::AsyncWrite, Neovim};
 
 #[async_trait]
 pub trait Handler: Send + Sync {
@@ -13,7 +13,7 @@ pub trait Handler: Send + Sync {
     &self,
     _name: String,
     _args: Vec<Value>,
-    _req: Requester<Self::Writer>,
+    _req: Neovim<Self::Writer>,
   ) -> Result<Value, Value> {
     Err(Value::from("Not implemented"))
   }
@@ -22,7 +22,7 @@ pub trait Handler: Send + Sync {
     &self,
     _name: String,
     _args: Vec<Value>,
-    _req: Requester<<Self as Handler>::Writer>,
+    _req: Neovim<<Self as Handler>::Writer>,
   ) {
   }
 }
@@ -73,7 +73,7 @@ impl<H: Handler> Handler for ChannelHandler<H> {
     &self,
     name: String,
     args: Vec<Value>,
-    _req: Requester<H::Writer>,
+    _req: Neovim<H::Writer>,
   ) {
     self.sender.send((name.to_owned(), args)).await
   }
@@ -87,7 +87,7 @@ impl<H: Handler> Handler for ChannelHandler<H> {
     &self,
     name: String,
     args: Vec<Value>,
-    req: Requester<<H as Handler>::Writer>,
+    req: Neovim<<H as Handler>::Writer>,
   ) -> Result<Value, Value> {
     (&*self)
       .request_handler

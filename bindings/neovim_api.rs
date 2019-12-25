@@ -15,7 +15,7 @@ fn map_result<T: FromVal<Value>>(val: Value) -> T {
 impl<W> {{ etype.name }}<W>
   where W: AsyncWrite + Send + Sync + Unpin + 'static
   {
-    pub fn new(code_data: Value, requester: Requester<W>) -> {{ etype.name }}<W>
+    pub fn new(code_data: Value, requester: Neovim<W>) -> {{ etype.name }}<W>
     {
         {{ etype.name }} {
             code_data,
@@ -47,7 +47,7 @@ impl<W> {{ etype.name }}<W>
 {% endfor %}
 
 
-impl<W> Requester<W>
+impl<W> Neovim<W>
 where
       W: AsyncWrite + Send + Sync + Unpin + 'static,
 {

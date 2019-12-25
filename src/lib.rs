@@ -20,7 +20,7 @@
  * ## Process notify events from neovim
  *
  * ```no_run
- * use neovim_lib::{create, Handler, Value, Requester};
+ * use neovim_lib::{create, Handler, Value, Neovim};
  * use neovim_lib::runtime::{Sender, channel};
  * use async_std::task::block_on;
  * use async_trait::async_trait;
@@ -36,7 +36,7 @@
  *     &self,
  *     name: String,
  *     args: Vec<Value>,
- *     _: Requester<TcpStream>
+ *     _: Neovim<TcpStream>
  *   ) {
  *     self.0.send((name, args)).await;
  *   }
@@ -71,7 +71,7 @@ pub mod uioptions;
 
 pub use crate::{
   exttypes::{Buffer, Tabpage, Window},
-  neovim::Requester,
+  neovim::Neovim,
   rpc::{handler::DefaultHandler},
   uioptions::{UiAttachOptions, UiOption},
 };

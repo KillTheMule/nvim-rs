@@ -1,4 +1,4 @@
-use crate::{rpc::model::IntoVal, runtime::AsyncWrite, Requester};
+use crate::{rpc::model::IntoVal, runtime::AsyncWrite, Neovim};
 use rmpv::Value;
 
 #[derive(Clone)]
@@ -7,7 +7,7 @@ where
   W: AsyncWrite + Send + Sync + Unpin + 'static,
 {
   pub(crate) code_data: Value,
-  pub requester: Requester<W>,
+  pub requester: Neovim<W>,
 }
 
 impl<W> IntoVal<Value> for &Buffer<W>

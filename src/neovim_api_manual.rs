@@ -1,13 +1,13 @@
 use crate::{
   callerror::CallError,
   rpc::{model::IntoVal},
-  neovim::Requester,
+  neovim::Neovim,
   runtime::AsyncWrite,
   Buffer, Tabpage, Window,
 };
 use rmpv::Value;
 
-impl<W> Requester<W>
+impl<W> Neovim<W>
 where
   W: AsyncWrite + Send + Sync + Unpin + 'static,
 {

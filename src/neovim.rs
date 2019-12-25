@@ -33,7 +33,7 @@ type ResponseResult = Result<Result<Value, Value>, Arc<DecodeError>>;
 type Queue = Arc<Mutex<Vec<(u64, oneshot::Sender<ResponseResult>)>>>;
 
 /// An active Neovim session.
-pub struct Requester<W>
+pub struct Neovim<W>
 where
   W: AsyncWrite + Send + Unpin + 'static,
 {
@@ -42,12 +42,12 @@ where
   pub(crate) msgid_counter: Arc<AtomicU64>,
 }
 
-impl<W> Clone for Requester<W>
+impl<W> Clone for Neovim<W>
 where
   W: AsyncWrite + Send + Unpin + 'static,
 {
   fn clone(&self) -> Self {
-    Requester {
+    Neovim {
       writer: self.writer.clone(),
       queue: self.queue.clone(),
       msgid_counter: self.msgid_counter.clone(),
@@ -55,7 +55,7 @@ where
   }
 }
 
-impl<W> Requester<W>
+impl<W> Neovim<W>
 where
   W: AsyncWrite + Send + Sync + Unpin + 'static,
 {
@@ -64,14 +64,14 @@ where
     writer: W,
     handler: H,
   ) -> (
-    Requester<<H as Handler>::Writer>,
+    Neovim<<H as Handler>::Writer>,
     impl Future<Output = Result<(), Box<LoopError>>>,
   )
   where
     R: AsyncRead + Send + Unpin + 'static,
     H: Handler<Writer = W> + Send + 'static,
   {
-    let req = Requester {
+    let req = Neovim {
       writer: Arc::new(Mutex::new(BufWriter::new(writer))),
       msgid_counter: Arc::new(AtomicU64::new(0)),
       queue: Arc::new(Mutex::new(Vec::new())),
@@ -160,7 +160,7 @@ where
   async fn io_loop<H, R>(
     handler: H,
     mut reader: R,
-    req: Requester<H::Writer>,
+    req: Neovim<H::Writer>,
   ) -> Result<(), Box<LoopError>>
   where
     H: Handler + Sync + 'static, // TODO: Check bounds on the handler

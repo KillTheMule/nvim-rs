@@ -8,7 +8,7 @@ use rmpv::Value;
 use nvim_rs::{
   create,
   runtime::{Mutex, Stdout},
-  Handler, Requester,
+  Handler, Neovim,
 };
 
 struct Posis {
@@ -48,7 +48,7 @@ impl Handler for NeovimHandler {
     &self,
     name: String,
     args: Vec<Value>,
-    req: Requester<Stdout>,
+    req: Neovim<Stdout>,
   ) {
     match name.as_ref() {
       "cursor-moved-i" => {

@@ -1,6 +1,6 @@
 use crate::{
   callerror::CallError, exttypes::Window, rpc::model::IntoVal,
-  runtime::AsyncWrite, Requester,
+  runtime::AsyncWrite, Neovim,
 };
 use rmpv::Value;
 
@@ -10,7 +10,7 @@ where
   W: AsyncWrite + Send + Sync + Unpin + 'static,
 {
   pub(crate) code_data: Value,
-  pub requester: Requester<W>,
+  pub requester: Neovim<W>,
 }
 
 impl<W> Tabpage<W>
