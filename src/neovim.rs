@@ -10,14 +10,29 @@ use crate::runtime::{oneshot, spawn, AsyncRead, AsyncWrite, BufWriter, Mutex};
 
 use crate::{
   callerror::{CallError, DecodeError, EncodeError, LoopError},
-  rpc::{handler::Handler, model},
+  rpc::{handler::Handler, model, model::IntoVal},
+  uioptions::UiAttachOptions,
 };
 use rmpv::Value;
+
+#[macro_export]
+macro_rules! call_args {
+    () => (Vec::new());
+    ($($e:expr), +,) => (call_args![$($e),*]);
+    ($($e:expr), +) => {{
+        let mut vec = Vec::new();
+        $(
+            vec.push($e.into_val());
+        )*
+        vec
+    }};
+}
 
 type ResponseResult = Result<Result<Value, Value>, Arc<DecodeError>>;
 
 type Queue = Arc<Mutex<Vec<(u64, oneshot::Sender<ResponseResult>)>>>;
 
+/// An active Neovim session.
 pub struct Requester<W>
 where
   W: AsyncWrite + Send + Unpin + 'static,
@@ -224,6 +239,32 @@ where
       };
     }
   }
+
+  /// Register as a remote UI.
+  ///
+  /// After this method is called, the client will receive redraw notifications.
+  pub async fn ui_attach(
+    &mut self,
+    width: i64,
+    height: i64,
+    opts: &UiAttachOptions,
+  ) -> Result<(), Box<CallError>> {
+    self
+      .call(
+        "nvim_ui_attach",
+        call_args!(width, height, opts.to_value_map()),
+      )
+      .await?
+      .map(|_| Ok(()))?
+  }
+
+  /// Send a quit command to Nvim.
+  /// The quit command is 'qa!' which will make Nvim quit without
+  /// saving anything.
+  pub async fn quit_no_save(&mut self) -> Result<(), Box<CallError>> {
+    self.command("qa!").await
+  }
+
 }
 
 /* The idea to use Vec here instead of HashMap

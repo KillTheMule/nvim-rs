@@ -32,16 +32,15 @@ fn simple_requests(c: &mut Criterion) {
   .unwrap();
 
   rt.spawn(io);
-  let req = nvim.requester(); 
 
-  let req1 = req.clone();
-  rt.block_on(async move {req1.command("set noswapfile").await}).expect("0");
+  let nvim1 = nvim.clone();
+  rt.block_on(async move {nvim1.command("set noswapfile").await}).expect("0");
 
   c.bench_function("simple_requests", move |b| {
     b.iter(|| {
-        let req = nvim.requester();
+        let nvim = nvim.clone();
         let _curbuf = rt.block_on(async move {
-          req.get_current_buf().await.expect("1");
+          nvim.get_current_buf().await.expect("1");
         });
       })
     });
@@ -67,21 +66,20 @@ fn request_file(c: &mut Criterion) {
   .unwrap();
 
   rt.spawn(io);
-  let req = nvim.requester(); 
 
-  let req1 = req.clone();
-  rt.block_on(async move {req1.command("set noswapfile").await}).expect("0");
+  let nvim1 = nvim.clone();
+  rt.block_on(async move {nvim1.command("set noswapfile").await}).expect("0");
 
   c.bench_function("request_file", move |b| {
     b.iter(|| {
-        let req = nvim.requester();
+        let nvim = nvim.clone();
         let _lines = rt.block_on(async move {
           // Using `call` is not recommended. It returns a
           // Result<Result<Value, Value, CallError>> that needs to be massaged
           // in a proper Result<Value, CallError> at least. That's what the API
           // is for, but for now we don't want to deal with getting a buffer
           // from the API
-          let _ = req.call("nvim_buf_get_lines",
+          let _ = nvim.call("nvim_buf_get_lines",
             call_args![0i64, 0i64, -1i64, false]).await.expect("1");
         });
       })

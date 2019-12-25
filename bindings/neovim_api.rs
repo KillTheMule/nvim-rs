@@ -61,16 +61,3 @@ where
 
     {% endfor %}
 }
-
-impl<W> Neovim<W>
-where
-      W: AsyncWrite + Send + Sync + Unpin + 'static,
-{
-    {% for f in functions if not f.ext %}
-    pub async fn {{f.name|replace('nvim_', '')}}(&self, {{f.argstring}}) -> Result<{{f.return_type.native_type_ret}}, Box<CallError>> {
-      // TODO: This will clone always, make it a ref
-        self.requester().{{f.name|replace('nvim_', '')}}({{f.callstring}}).await
-    }
-
-    {% endfor %}
-}

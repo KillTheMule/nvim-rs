@@ -1,6 +1,7 @@
 use crate::{
   callerror::CallError,
-  rpc::{model::IntoVal, Requester},
+  rpc::{model::IntoVal},
+  neovim::Requester,
   runtime::AsyncWrite,
   Buffer, Tabpage, Window,
 };

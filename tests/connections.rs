@@ -270,7 +270,7 @@ async fn can_connect_to_child_2() {
   .await
   .unwrap();
 
-  let nv = nvim.requester().clone();
+  let nv = nvim.clone();
 
   spawn(async move { nv.set_var("oogle", Value::from("doodle")).await });
 

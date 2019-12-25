@@ -8,7 +8,7 @@ use std::{
 use crate::{
   callerror::LoopError,
   runtime::{ChildStdin, Command, Stdout, TcpStream, Child},
-  Handler, Neovim, Requester,
+  Handler, neovim::Requester,
 };
 
 #[cfg(unix)]
@@ -20,7 +20,7 @@ pub async fn new_tcp<H>(
   port: u16,
   handler: H,
 ) -> io::Result<(
-  Neovim<TcpStream>,
+  Requester<TcpStream>,
   impl Future<Output = Result<(), Box<LoopError>>>,
 )>
 where
@@ -31,7 +31,7 @@ where
   //let read = stream.try_clone()?;
   let (requester, fut) = Requester::<TcpStream>::new(stream, read, handler);
 
-  Ok((Neovim::Tcp(requester), fut))
+  Ok((requester, fut))
 }
 
 #[cfg(unix)]
@@ -40,7 +40,7 @@ pub async fn new_unix_socket<H, P: AsRef<Path> + Clone>(
   path: P,
   handler: H,
 ) -> io::Result<(
-  Neovim<UnixStream>,
+  Requester<UnixStream>,
   impl Future<Output = Result<(), Box<LoopError>>>,
 )>
 where
@@ -52,14 +52,14 @@ where
 
   let (requester, fut) = Requester::<UnixStream>::new(stream, read, handler);
 
-  Ok((Neovim::UnixSocket(requester), fut))
+  Ok((requester, fut))
 }
 
 /// Connect to a Neovim instance by spawning a new one.
 pub async fn new_child<H>(
   handler: H,
 ) -> io::Result<(
-  Neovim<ChildStdin>,
+  Requester<ChildStdin>,
   impl Future<Output = Result<(), Box<LoopError>>>,
   Child,
 )>
@@ -78,7 +78,7 @@ pub async fn new_child_path<H, S: AsRef<Path>>(
   program: S,
   handler: H,
 ) -> io::Result<(
-  Neovim<ChildStdin>,
+  Requester<ChildStdin>,
   impl Future<Output = Result<(), Box<LoopError>>>,
   Child
 )>
@@ -95,7 +95,7 @@ pub async fn new_child_cmd<H>(
   cmd: &mut Command,
   handler: H,
 ) -> io::Result<(
-  Neovim<ChildStdin>,
+  Requester<ChildStdin>,
   impl Future<Output = Result<(), Box<LoopError>>>,
   Child,
 )>
@@ -114,14 +114,14 @@ where
 
   let (requester, fut) = Requester::<ChildStdin>::new(stdout, stdin, handler);
 
-  Ok((Neovim::Child(requester), fut, child))
+  Ok((requester, fut, child))
 }
 
 /// Connect to a Neovim instance that spawned this process over stdin/stdout.
 pub fn new_parent<H>(
   handler: H,
 ) -> io::Result<(
-  Neovim<Stdout>,
+  Requester<Stdout>,
   impl Future<Output = Result<(), Box<LoopError>>>,
 )>
 where
@@ -129,5 +129,5 @@ where
 {
   let (requester, fut) = Requester::<Stdout>::new(stdin(), stdout(), handler);
 
-  Ok((Neovim::Parent(requester), fut))
+  Ok((requester, fut))
 }
