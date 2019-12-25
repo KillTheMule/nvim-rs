@@ -50,18 +50,6 @@ where
     }
   }
 
-  /*
-  pub fn join_dispatch_guard(self) -> thread::Result<()> {
-    use Neovim::*;
-
-    match self {
-      Child(_, j, _) | Parent(_, j) | Tcp(_, j) => j.join(),
-      #[cfg(unix)]
-      UnixSocket(_, j) => j.join(),
-    }
-  }
-  */
-
   /// Call can be made only after event loop begin processing
   pub async fn call(
     &self,
