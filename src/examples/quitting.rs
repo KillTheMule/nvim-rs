@@ -10,11 +10,6 @@
 //!
 //! Also note that all other pending requests will receive an EOF error as well.
 //!
-//! ## Problems
-//!
-//! Nvim-rs does not yet have good error handling, so requests can'd distinguish
-//! between an EOF error and other read errors very well.
-//!
 //! ## Usage
 //!
 //! First, build the neovim included as a submodule:

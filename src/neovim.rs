@@ -264,7 +264,6 @@ where
   pub async fn quit_no_save(&mut self) -> Result<(), Box<CallError>> {
     self.command("qa!").await
   }
-
 }
 
 /* The idea to use Vec here instead of HashMap

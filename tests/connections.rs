@@ -1,13 +1,13 @@
 use async_trait::async_trait;
-use nvim_rs::{create, Handler, Neovim, runtime::spawn};
-use tokio;
+use nvim_rs::{create, runtime::spawn, Handler, Neovim};
 use rmpv::Value;
+use tokio;
 
 const NVIMPATH: &str = "neovim/build/bin/nvim";
 
+use nvim_rs::runtime::ChildStdin;
 #[cfg(unix)]
 use nvim_rs::runtime::Command;
-use nvim_rs::runtime::{ChildStdin};
 use std::process::exit as std_exit;
 
 /*
@@ -62,8 +62,8 @@ impl Handler for NH {
 #[cfg(unix)]
 #[test]
 fn can_connect_to_child_1() {
-  let rs = r#"exe ":fun M(timer) 
-      call rpcrequest(1, 'req', 'y') 
+  let rs = r#"exe ":fun M(timer)
+      call rpcrequest(1, 'req', 'y')
     endfun""#;
 
   let (handler_to_main, mut main_from_handler) = channel(2);
@@ -176,7 +176,13 @@ impl Handler for NH2 {
         let req = req.clone();
         match v {
           "y" => {
-            let mut x: String = req.get_vvar("progname").await.unwrap().as_str().unwrap().into();
+            let mut x: String = req
+              .get_vvar("progname")
+              .await
+              .unwrap()
+              .as_str()
+              .unwrap()
+              .into();
             x.push_str(" - ");
             x.push_str(req.get_var("oogle").await.unwrap().as_str().unwrap());
             x.push_str(" - ");
@@ -226,14 +232,19 @@ impl Handler for NH2 {
     match name.as_ref() {
       "not" => eprintln!("Not: {}", args[0].as_str().unwrap()),
       "quit" => {
-        let res:String = req.get_var("froodle").await.unwrap().as_str().unwrap().into();
+        let res: String = req
+          .get_var("froodle")
+          .await
+          .unwrap()
+          .as_str()
+          .unwrap()
+          .into();
         assert_eq!("nvim - doodle - o - nvim", res);
         std_exit(0);
       }
       _ => {}
     };
   }
-
 }
 
 #[cfg(unix)]
@@ -274,7 +285,7 @@ async fn can_connect_to_child_2() {
 
   spawn(async move { nv.set_var("oogle", Value::from("doodle")).await });
 
-  fut.await.unwrap(); 
+  fut.await.unwrap();
 
   eprintln!("Quitting");
 }

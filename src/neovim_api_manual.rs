@@ -1,9 +1,6 @@
 use crate::{
-  callerror::CallError,
-  rpc::{model::IntoVal},
-  neovim::Neovim,
-  runtime::AsyncWrite,
-  Buffer, Tabpage, Window,
+  callerror::CallError, neovim::Neovim, rpc::model::IntoVal,
+  runtime::AsyncWrite, Buffer, Tabpage, Window,
 };
 use rmpv::Value;
 

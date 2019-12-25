@@ -7,8 +7,9 @@ use std::{
 
 use crate::{
   callerror::LoopError,
-  runtime::{ChildStdin, Command, Stdout, TcpStream, Child},
-  Handler, neovim::Neovim,
+  neovim::Neovim,
+  runtime::{Child, ChildStdin, Command, Stdout, TcpStream},
+  Handler,
 };
 
 #[cfg(unix)]
@@ -80,7 +81,7 @@ pub async fn new_child_path<H, S: AsRef<Path>>(
 ) -> io::Result<(
   Neovim<ChildStdin>,
   impl Future<Output = Result<(), Box<LoopError>>>,
-  Child
+  Child,
 )>
 where
   H: Handler<Writer = ChildStdin> + Send + 'static,

@@ -1,7 +1,8 @@
 //! # Scorched earth
 //!
-//! A minimal port of [scorched earth by boxofrox](https://github.com/boxofrox/neovim-scorched-earth) to
-//! nvim-rs. Works the same, but foregoes any error handling, removes the
+//! A minimal port of
+//! [scorched earth by boxofrox](https://github.com/boxofrox/neovim-scorched-earth)
+//! to nvim-rs. Works the same, but foregoes any error handling, removes the
 //! customisation of color, and removes some abstractions that aren't helpfull
 //! in an example.
 //!
