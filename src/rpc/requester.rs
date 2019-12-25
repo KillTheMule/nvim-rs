@@ -42,11 +42,11 @@ where
 
 impl<W> Requester<W>
 where
-  W: AsyncWrite + Send + Unpin + 'static,
+  W: AsyncWrite + Send + Sync + Unpin + 'static,
 {
   pub fn new<H, R>(
     reader: R,
-    writer: H::Writer,
+    writer: W,
     handler: H,
   ) -> (
     Requester<<H as Handler>::Writer>,
@@ -54,8 +54,7 @@ where
   )
   where
     R: AsyncRead + Send + Unpin + 'static,
-    H: Handler + Send + 'static,
-    H::Writer: AsyncWrite + Send + Unpin + 'static,
+    H: Handler<Writer = W> + Send + 'static,
   {
     let req = Requester {
       writer: Arc::new(Mutex::new(BufWriter::new(writer))),
