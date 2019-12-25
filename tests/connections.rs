@@ -248,7 +248,7 @@ async fn can_connect_to_child_2() {
 
   let handler = NH2 {};
 
-  let (nvim, fut) = create::new_child_cmd(
+  let (nvim, fut, _child) = create::new_child_cmd(
     Command::new(NVIMPATH)
       .args(&[
         "-u",

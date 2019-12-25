@@ -19,7 +19,7 @@ fn simple_requests(c: &mut Criterion) {
 
   let mut rt = Builder::new().threaded_scheduler().enable_io().build().unwrap();
 
-  let (nvim, io) = rt.block_on(create::new_child_cmd(
+  let (nvim, io, _child) = rt.block_on(create::new_child_cmd(
     Command::new(NVIMPATH)
       .args(&[
         "-u",
@@ -53,7 +53,7 @@ fn request_file(c: &mut Criterion) {
   //let mut rt = Runtime::new().unwrap();
   let mut rt = Builder::new().threaded_scheduler().enable_io().build().unwrap();
 
-  let (nvim, io) = rt.block_on(create::new_child_cmd(
+  let (nvim, io, _child) = rt.block_on(create::new_child_cmd(
     Command::new(NVIMPATH)
       .args(&[
         "-u",

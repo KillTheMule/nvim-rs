@@ -21,7 +21,7 @@ impl Handler for NeovimHandler {
 async fn main() {
   let handler = NeovimHandler {};
 
-  let (nvim, fut) = create::new_child_cmd(
+  let (nvim, fut, _child) = create::new_child_cmd(
     Command::new(NVIMPATH)
       .args(&["-u", "NONE", "--embed", "--headless"])
       .env("NVIM_LOG_FILE", "nvimlog"),

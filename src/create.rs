@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
   callerror::LoopError,
-  runtime::{ChildStdin, Command, Stdout, TcpStream},
+  runtime::{ChildStdin, Command, Stdout, TcpStream, Child},
   Handler, Neovim, Requester,
 };
 
@@ -61,6 +61,7 @@ pub async fn new_child<H>(
 ) -> io::Result<(
   Neovim<ChildStdin>,
   impl Future<Output = Result<(), Box<LoopError>>>,
+  Child,
 )>
 where
   H: Handler<Writer = ChildStdin> + Send + 'static,
@@ -79,6 +80,7 @@ pub async fn new_child_path<H, S: AsRef<Path>>(
 ) -> io::Result<(
   Neovim<ChildStdin>,
   impl Future<Output = Result<(), Box<LoopError>>>,
+  Child
 )>
 where
   H: Handler<Writer = ChildStdin> + Send + 'static,
@@ -95,6 +97,7 @@ pub async fn new_child_cmd<H>(
 ) -> io::Result<(
   Neovim<ChildStdin>,
   impl Future<Output = Result<(), Box<LoopError>>>,
+  Child,
 )>
 where
   H: Handler<Writer = ChildStdin> + Send + 'static,
@@ -111,7 +114,7 @@ where
 
   let (requester, fut) = Requester::<ChildStdin>::new(stdout, stdin, handler);
 
-  Ok((Neovim::Child(requester, child), fut))
+  Ok((Neovim::Child(requester), fut, child))
 }
 
 /// Connect to a Neovim instance that spawned this process over stdin/stdout.
