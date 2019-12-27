@@ -50,33 +50,33 @@ pub async fn decode<R: AsyncRead + Send + Unpin + 'static>(
   rest: &mut Vec<u8>,
 ) -> std::result::Result<RpcMessage, Box<DecodeError>> {
   let mut buf = Box::new([0u8; 80 * 1024]);
-  let mut bytes_read = reader.read(&mut *buf).await;
+  let mut bytes_read;
 
   loop {
-    match bytes_read {
-      Ok(n) => {
-        if n == 0 {
-          return Err(io::Error::new(ErrorKind::UnexpectedEof, "EOF").into());
-        }
-        rest.extend_from_slice(&buf[..n]);
-        let mut c = Cursor::new(&rest);
+    let mut c = Cursor::new(&rest);
 
-        match decode_buffer(&mut c).map_err(|b| *b) {
-          Ok(msg) => {
-            let pos = c.position();
-            // Following cast is save since we got this from a vec index
-            *rest = rest.split_off(pos as usize); // TODO: more efficiency
-            return Ok(msg);
-          }
-          Err(DecodeError::BufferError(e))
-            if e.kind() == ErrorKind::UnexpectedEof =>
-          {
-            debug!("Not enough data, reading more!");
-            bytes_read = reader.read(&mut *buf).await;
-            continue;
-          }
-          Err(err) => return Err(err)?,
-        }
+    match decode_buffer(&mut c).map_err(|b| *b) {
+      Ok(msg) => {
+        let pos = c.position();
+        // Following cast is save since we got this from a vec index
+        *rest = rest.split_off(pos as usize); // TODO: more efficiency
+        return Ok(msg);
+      }
+      Err(DecodeError::BufferError(e))
+        if e.kind() == ErrorKind::UnexpectedEof =>
+      {
+        debug!("Not enough data, reading more!");
+        bytes_read = reader.read(&mut *buf).await;
+      }
+      Err(err) => return Err(err)?,
+    }
+
+    match bytes_read {
+      Ok(n) if n == 0 => {
+        return Err(io::Error::new(ErrorKind::UnexpectedEof, "EOF").into());
+      }
+      Ok(n) => {
+        rest.extend_from_slice(&buf[..n]);
       }
       Err(err) => return Err(err)?,
     }
