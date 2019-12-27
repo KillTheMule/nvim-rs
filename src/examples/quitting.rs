@@ -43,5 +43,6 @@
 //!
 //! * Any shutdown logic should be handled after the channel was closed. We
 //! don't actually need to inspect the error, since the application will shut
-//! down no matter what. We don't have access to our `Handler` anymore though,
-//! so nvim-rs will need to be extended.
+//! down no matter what. If we need access to our handler for that, we should
+//! implement [`Drop`](std::ops::Drop) for it, see
+//! [`handler_drop`](crate::examples::handler_drop).
