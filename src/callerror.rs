@@ -211,6 +211,9 @@ impl Error for CallError {
 }
 
 impl CallError {
+  /// Determine if the error originated from a closed channel. This is generally
+  /// used to close a plugin from neovim's side, and so most of the time should
+  /// not be treated as a real error, but a signal to finish the program.
   pub fn is_channel_closed(&self) -> bool {
     match *self {
       CallError::SendError(EncodeError::WriterError(ref e), _)

@@ -37,12 +37,14 @@
 //! type `Handler::Writer`, which is `nvim_rs::runtime::ChildStdin` here since
 //! we connect to a neovim subprocess.
 //!
-//! * We need to spawn the io future still, because it runs the loop that
-//! notices the EOF and subsequently sends the errors to the pending requests.
-//! We could not bother, and run the `command` with a timeout.
-//!
 //! * Any shutdown logic should be handled after the channel was closed. We
 //! don't actually need to inspect the error, since the application will shut
 //! down no matter what. If we need access to our handler for that, we should
 //! implement [`Drop`](std::ops::Drop) for it, see
 //! [`handler_drop`](crate::examples::handler_drop).
+//!
+//! * The last command (the one that instructs neovim to close the channel) will
+//! not receive an answer anymore, but an error. We just show the error and its
+//! source for demonstation purposes. We use the
+//! [`is_channel_closed`](crate::callerror::CallError::is_channel_closed) method
+//! to verify that the error originates from this.

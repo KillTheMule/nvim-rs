@@ -30,6 +30,7 @@ async fn main() {
   .await
   .unwrap();
 
+  // This needs to happen before any request
   spawn(fut);
 
   let chan = nvim.get_api_info().await.unwrap()[0].as_i64().unwrap();

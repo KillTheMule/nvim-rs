@@ -43,5 +43,6 @@
 //! * There's basically no error handling, other than `unwrap`ing all the
 //! `Result`s.
 //!
-//! * `await`ing the io future is probably not necessary, but feels like a nice
+//! * `await`ing the io future handle is probably not necessary, but feels like
+//! a nice
 //! thing to do.
