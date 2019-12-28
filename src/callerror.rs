@@ -6,6 +6,7 @@ use std::{error::Error, fmt, io::ErrorKind, sync::Arc};
 use std::{fmt::Display, io, ops::RangeInclusive};
 
 use crate::runtime::oneshot;
+use crate::runtime::JoinError;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum InvalidMessageError {
@@ -366,5 +367,61 @@ impl From<(Arc<DecodeError>, Vec<u64>)> for Box<LoopError> {
 impl From<u64> for Box<LoopError> {
   fn from(i: u64) -> Box<LoopError> {
     Box::new(LoopError::MsgidNotFound(i))
+  }
+}
+
+#[derive(Debug)]
+pub enum EnterError {
+  CallError(CallError),
+  LoopError(LoopError),
+  JoinError(JoinError),
+}
+
+impl Error for EnterError {
+  fn source(&self) -> Option<&(dyn Error + 'static)> {
+    match *self {
+      EnterError::CallError(ref e) => Some(e),
+      EnterError::LoopError(ref e) => Some(e),
+      EnterError::JoinError(ref e) => Some(e),
+    }
+  }
+}
+
+impl Display for EnterError {
+  fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    match *self {
+      EnterError::CallError(_) =>  write!(fmt, "A request failed"),
+      EnterError::LoopError(_) => write!(fmt, "Error in the IO loop"),
+      EnterError::JoinError(_) => write!(fmt, "Failed to run the IO loop to
+      completion")
+    }
+  }
+}
+
+impl EnterError {
+  pub fn is_channel_closed(&self) -> bool {
+    match *self {
+      EnterError::CallError(ref e) => e.is_channel_closed(),
+      EnterError::LoopError(ref e) => e.is_channel_closed(),
+      _ => false,
+    }
+  }
+}
+
+impl From<Box<CallError>> for Box<EnterError> {
+  fn from(err: Box<CallError>) -> Box<EnterError> {
+    Box::new(EnterError::CallError(*err))
+  }
+}
+
+impl From<Box<LoopError>> for Box<EnterError> {
+  fn from(err: Box<LoopError>) -> Box<EnterError> {
+    Box::new(EnterError::LoopError(*err))
+  }
+}
+
+impl From<JoinError> for Box<EnterError> {
+  fn from(err: JoinError) -> Box<EnterError> {
+    Box::new(EnterError::JoinError(err))
   }
 }

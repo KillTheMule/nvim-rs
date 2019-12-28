@@ -3,7 +3,7 @@ use async_trait::async_trait;
 
 use nvim_rs::{
   create,
-  runtime::{spawn, ChildStdin, Command},
+  runtime::{ChildStdin, Command},
   Handler,
 };
 
@@ -21,22 +21,22 @@ impl Handler for NeovimHandler {
 async fn main() {
   let handler = NeovimHandler {};
 
-  let (nvim, fut, _child) = create::new_child_cmd(
+  let res = create::enter_child_cmd(
     Command::new(NVIMPATH)
       .args(&["-u", "NONE", "--embed", "--headless"])
       .env("NVIM_LOG_FILE", "nvimlog"),
     handler,
+    |nvim| {
+      async move {
+        let chan = nvim.get_api_info().await.unwrap()[0].as_i64().unwrap();
+        let close = format!("call chanclose({})", chan);
+        Ok(nvim.command(&close).await?)
+      }
+    },
   )
-  .await
-  .unwrap();
+  .await;
 
-  // This needs to happen before any request
-  spawn(fut);
-
-  let chan = nvim.get_api_info().await.unwrap()[0].as_i64().unwrap();
-  let close = format!("call chanclose({})", chan);
-
-  if let Err(e) = nvim.command(&close).await {
+  if let Err(e) = res {
     eprintln!("Error in last command: {}", e);
     eprintln!("Caused by : {:?}", e.as_ref().source());
 
