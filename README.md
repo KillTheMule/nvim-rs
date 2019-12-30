@@ -7,8 +7,6 @@ Useable, see the `examples/` and `tests/` folders for examples. The `nvim_rs::ex
 
 The **API** is unstable, see the [Roadmap](https://github.com/KillTheMule/nvim-rs/issues/1) for things being planned.
 
-The **Documentation** is in a state of disarray and should not be used. The examples are the one exception.
-
 Supported **Operating Systems** should include Linux, Windows, Mac OS, \*BSD as supported by neovim and rust. Right now, CI is not set up, so it might be the case that only Linux really works.
 
 ## Contributing
