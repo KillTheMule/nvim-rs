@@ -55,21 +55,23 @@
 //! it would be perfectly feasible to explicitely create a runtime and use that.
 //!
 //! * After creation of the handler, we connect to neovim via one of the
-//! [`create`](crate::create) functions. It gives back a
+//! [`new_*`](crate::create) functions. It gives back a
 //! [`Neovim`](crate::Neovim) instance which we could use for requests, and a
-//! `Future` which implements the IO, so we need to run it.
+//! handle for the io loop.
 //!
 //! * The plugin quits by ending the IO task when neovim closes the channel, so
 //!   we don't need to do anything special. Any cleanup-logic can happen after
 //!   the IO task has finished. Note that we're loosing access to our
-//!   [`Handler`](crate::Handler), which isn't optimal and will need to be
-//!   fixed.
+//!   [`Handler`](crate::Handler), so we might need to implement
+//!   [`Drop`](std::ops::Drop) for it, see the
+//!   [example](crate::examples::handler_drop).
 //!
 //! * After the IO task has finished, we're inspecting the errors to see why it
-//! went. First, if we did not see a general reader error, we try to send some
-//! last notification to the neovim user. Secondly, we quietly ignore the
-//! channel being closed, because this usually means that it was closed by
-//! neovim, which isn't always an error.
+//! went. A join error simply gets printed, then we inspect potential errors
+//! from the io loop itself. First, if we did not see a general reader error, we
+//! try to send some last notification to the neovim user. Secondly, we quietly
+//! ignore the channel being closed, because this usually means that it was
+//! closed by neovim, which isn't always an error.
 //!
 //!   *Note*: A closed channel could still mean an error, so the plugin has the
 //!   option to react to this.

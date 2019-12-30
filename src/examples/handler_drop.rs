@@ -44,5 +44,4 @@
 //! `Result`s.
 //!
 //! * `await`ing the io future handle is probably not necessary, but feels like
-//! a nice
-//! thing to do.
+//! a nice thing to do.

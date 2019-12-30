@@ -1,25 +1,13 @@
 //! Quitting. See src/examples/quitting.rs for documentation
-use async_trait::async_trait;
-
-use nvim_rs::{
-  create,
-  runtime::{ChildStdin, Command},
-  Handler,
-};
+use nvim_rs::{create, runtime::Command, DefaultHandler};
 
 use std::error::Error;
 
 const NVIMPATH: &str = "neovim/build/bin/nvim";
-struct NeovimHandler {}
-
-#[async_trait]
-impl Handler for NeovimHandler {
-  type Writer = ChildStdin;
-}
 
 #[tokio::main]
 async fn main() {
-  let handler = NeovimHandler {};
+  let handler = DefaultHandler::new();
 
   let (nvim, _io_handle, _child) = create::new_child_cmd(
     Command::new(NVIMPATH)

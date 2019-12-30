@@ -34,15 +34,6 @@ where
   _q: Arc<PhantomData<Q>>,
 }
 
-/*
-impl<Q> Handler for DefaultHandler<Q>
-where
-  Q: Write + Send + Sync + 'static,
-{
-  type Writer = Q;
-}
-*/
-
 impl<Q> Handler for DefaultHandler<Q>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
