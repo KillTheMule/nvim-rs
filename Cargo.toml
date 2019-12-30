@@ -17,8 +17,8 @@ edition = "2018"
 bench = false
 
 [dependencies]
-rmp = "0.8"
-rmpv = { version ="0.4"}
+rmp = "0.8.9"
+rmpv = "0.4.3"
 log = "0.4"
 tokio = { version = "0.2.3", features = ["sync", "rt-core", "macros", "io-util", "tcp", "uds", "process", "io-std", "dns", "rt-threaded", "io-driver", "fs"] }
 async-trait = "0.1.18"
