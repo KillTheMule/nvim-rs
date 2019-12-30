@@ -2,3 +2,5 @@
   wrap it in an Arc, which we're doing now anyways.
   * Caveeat: If they have counters like usize in there, cloning might just copy them. Is that
     a problem? Not sure, can't be mutable anyways unless wrapped in an additional Mutex
+
+* Check what we're doing with outgoing request parameters, there are 2 allocations going on in call_args! and rpc_args!, and we're just reading it in the end.
