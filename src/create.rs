@@ -3,13 +3,12 @@ use std::{
   io::{self, Error, ErrorKind},
   path::Path,
   process::Stdio,
-  self,
 };
 
 use crate::{
-  callerror::{LoopError, EnterError},
+  callerror::LoopError,
   neovim::Neovim,
-  runtime::{Child, ChildStdin, Command, Stdout, TcpStream, spawn},
+  runtime::{Child, ChildStdin, Command, Stdout, TcpStream},
   Handler,
 };
 
@@ -132,57 +131,4 @@ where
   let (requester, fut) = Neovim::<Stdout>::new(stdin(), stdout(), handler);
 
   Ok((requester, fut))
-}
-
-pub async fn enter_parent<H, F>(
-  handler: H,
-  plugin: impl FnOnce(Neovim<Stdout>) -> F,
-) -> std::result::Result<(), Box<EnterError>>
-where
-  H: Handler<Writer = Stdout> + Send + 'static,
-  F: Future<Output=Result<(), Box<LoopError>>>, 
-{
-  let (requester, fut) = Neovim::<Stdout>::new(stdin(), stdout(), handler);
-
-  let io_handle = spawn(fut); 
-  plugin(requester).await?;
-  match io_handle.await { // Result<Result<(), Box<LoopError>>, JoinErr>
-    Ok(Ok(r)) => Ok(r),
-    Ok(Err(e)) => Err(e)?,
-    Err(e) => Err(e)?
-  }
-}
-
-pub async fn enter_child_cmd<H, F>(
-  cmd: &mut Command,
-  handler: H,
-  plugin: impl FnOnce(Neovim<ChildStdin>) -> F,
-) -> std::result::Result<(), Box<EnterError>>
-where
-  H: Handler<Writer = ChildStdin> + Send + 'static,
-  F: Future<Output=Result<(), Box<EnterError>>>, 
-  //Neovim<ChildStdin>,
-  //impl Future<Output = Result<(), Box<LoopError>>>,
-  //Child,
-{
-  let mut child =
-    cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
-  let stdout = child
-    .stdout()
-    .take()
-    .ok_or_else(|| Error::new(ErrorKind::Other, "Can't open stdout")).unwrap();
-  let stdin = child
-    .stdin()
-    .take()
-    .ok_or_else(|| Error::new(ErrorKind::Other, "Can't open stdin")).unwrap();
-
-  let (requester, fut) = Neovim::<ChildStdin>::new(stdout, stdin, handler);
-
-  let io_handle = spawn(fut); 
-  plugin(requester).await?;
-  match io_handle.await { // Result<Result<(), Box<LoopError>>, JoinErr>
-    Ok(Ok(r)) => Ok(r),
-    Ok(Err(e)) => Err(e)?,
-    Err(e) => Err(e)?
-  }
 }
