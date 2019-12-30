@@ -272,6 +272,7 @@ impl From<Value> for Box<CallError> {
   }
 }
 
+/// Error to communicate a failure in the io loop.
 #[derive(Debug)]
 pub enum LoopError {
   /// A Msgid could not be found in the request queue

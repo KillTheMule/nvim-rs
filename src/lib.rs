@@ -60,7 +60,7 @@ extern crate unix_socket;
 pub mod rpc;
 #[macro_use]
 pub mod neovim;
-pub mod callerror;
+pub mod error;
 pub mod create;
 pub mod examples;
 pub mod exttypes;

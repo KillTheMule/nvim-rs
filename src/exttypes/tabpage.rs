@@ -1,5 +1,5 @@
 use crate::{
-  callerror::CallError, exttypes::Window, rpc::model::IntoVal,
+  error::CallError, exttypes::Window, rpc::model::IntoVal,
   runtime::AsyncWrite, Neovim,
 };
 use rmpv::Value;

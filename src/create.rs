@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-  callerror::LoopError,
+  error::LoopError,
   neovim::Neovim,
   runtime::{spawn, Child, ChildStdin, Command, JoinHandle, Stdout, TcpStream},
   Handler,

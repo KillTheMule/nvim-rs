@@ -46,5 +46,5 @@
 //! * The last command (the one that instructs neovim to close the channel) will
 //! not receive an answer anymore, but an error. We just show the error and its
 //! source for demonstation purposes. We use the
-//! [`is_channel_closed`](crate::callerror::CallError::is_channel_closed) method
+//! [`is_channel_closed`](crate::error::CallError::is_channel_closed) method
 //! to verify that the error originates from this.

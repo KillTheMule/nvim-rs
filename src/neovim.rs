@@ -9,7 +9,7 @@ use std::{
 use crate::runtime::{oneshot, spawn, AsyncRead, AsyncWrite, BufWriter, Mutex};
 
 use crate::{
-  callerror::{CallError, DecodeError, EncodeError, LoopError},
+  error::{CallError, DecodeError, EncodeError, LoopError},
   rpc::{handler::Handler, model, model::IntoVal},
   uioptions::UiAttachOptions,
 };

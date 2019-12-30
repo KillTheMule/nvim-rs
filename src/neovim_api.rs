@@ -1,7 +1,7 @@
 // Auto generated 2019-12-25 23:35:50.987612
 use crate::{runtime::AsyncWrite, Buffer, Tabpage, Window};
 
-use crate::{callerror::CallError, neovim::*, rpc::*};
+use crate::{error::CallError, neovim::*, rpc::*};
 
 fn map_result<T: FromVal<Value>>(val: Value) -> T {
   T::from_val(val)

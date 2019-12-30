@@ -4,7 +4,7 @@ use crate::{Buffer, Window, Tabpage};
 
 use crate::neovim::*;
 use crate::rpc::*;
-use crate::callerror::{CallError};
+use crate::error::{CallError};
 
 fn map_result<T: FromVal<Value>>(val: Value) -> T {
     T::from_val(val)

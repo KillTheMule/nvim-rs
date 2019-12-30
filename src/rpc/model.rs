@@ -1,5 +1,5 @@
 use crate::{
-  callerror::{DecodeError, EncodeError},
+  error::{DecodeError, EncodeError},
   runtime::{
     AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufWriter, Mutex,
   },
@@ -88,7 +88,7 @@ pub async fn decode<R: AsyncRead + Send + Unpin + 'static>(
 fn decode_buffer<R: Read>(
   reader: &mut R,
 ) -> std::result::Result<RpcMessage, Box<DecodeError>> {
-  use crate::callerror::InvalidMessageError::*;
+  use crate::error::InvalidMessageError::*;
 
   let arr = match read_value(reader)? {
     Value::Array(v) => v,

@@ -1,6 +1,6 @@
 use super::{Buffer, Tabpage};
 use crate::{
-  callerror::CallError, rpc::model::IntoVal, runtime::AsyncWrite, Neovim,
+  error::CallError, rpc::model::IntoVal, runtime::AsyncWrite, Neovim,
 };
 use rmpv::Value;
 
