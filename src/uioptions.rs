@@ -1,3 +1,7 @@
+//! Options for UI implementations
+//!
+//! This should be used with the manually implemented
+//! [`ui_attach`](crate::neovim::Neovim::ui_attach)
 use rmpv::Value;
 
 pub enum UiOption {

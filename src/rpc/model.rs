@@ -1,3 +1,4 @@
+//! Decoding and encoding msgpack rpc messages from/to neovim.
 use crate::{
   error::{DecodeError, EncodeError},
   runtime::{
@@ -12,8 +13,8 @@ use std::{
   sync::Arc,
 };
 
-// A msgpack-rpc message, se
-// https://github.com/msgpack-rpc/msgpack-rpc/blob/master/spec.md
+/// A msgpack-rpc message, se
+/// https://github.com/msgpack-rpc/msgpack-rpc/blob/master/spec.md
 #[derive(Debug, PartialEq, Clone)]
 pub enum RpcMessage {
   RpcRequest {
@@ -42,10 +43,12 @@ macro_rules! rpc_args {
     }}
 }
 
-// Continously reads from reader, pushing onto rest. Then tries to decode the
-// contents of rest. If it succeeds, returns the message, and leaves any
-// non-decoded bytes in rest. If we did not read enough for a full message, read
-// more. Return on all other errors.
+/// Continously reads from reader, pushing onto `rest`. Then tries to decode the
+/// contents of `rest`. If it succeeds, returns the message, and leaves any
+/// non-decoded bytes in `rest`. If we did not read enough for a full message,
+/// read more. Return on all other errors.
+//
+// TODO: This might be inefficient. Can't we read into `rest` directly?
 pub async fn decode<R: AsyncRead + Send + Unpin + 'static>(
   reader: &mut R,
   rest: &mut Vec<u8>,
@@ -59,7 +62,6 @@ pub async fn decode<R: AsyncRead + Send + Unpin + 'static>(
     match decode_buffer(&mut c).map_err(|b| *b) {
       Ok(msg) => {
         let pos = c.position();
-        // Following cast is save since we got this from a vec index
         *rest = rest.split_off(pos as usize); // TODO: more efficiency
         return Ok(msg);
       }
@@ -84,8 +86,8 @@ pub async fn decode<R: AsyncRead + Send + Unpin + 'static>(
   }
 }
 
-// Syncronously decode the content of a reader into an rpc message. Tries to
-// give detailed errors if something went wrong.
+/// Syncronously decode the content of a reader into an rpc message. Tries to
+/// give detailed errors if something went wrong.
 fn decode_buffer<R: Read>(
   reader: &mut R,
 ) -> std::result::Result<RpcMessage, Box<DecodeError>> {
@@ -105,7 +107,7 @@ fn decode_buffer<R: Read>(
 
   match msgtyp {
     0 => {
-      let msgid:u64 = arr
+      let msgid: u64 = arr
         .next()
         .ok_or(WrongArrayLength(4..=4, 1))?
         .try_into()
@@ -130,7 +132,7 @@ fn decode_buffer<R: Read>(
       })
     }
     1 => {
-      let msgid:u64 = arr
+      let msgid: u64 = arr
         .next()
         .ok_or(WrongArrayLength(4..=4, 1))?
         .try_into()
@@ -162,8 +164,8 @@ fn decode_buffer<R: Read>(
   }
 }
 
-// Encode the given message into the BufWriter. Flushes the writer when
-// finished.
+/// Encode the given message into the BufWriter. Flushes the writer when
+/// finished.
 pub async fn encode<W: AsyncWrite + Send + Unpin + 'static>(
   writer: Arc<Mutex<BufWriter<W>>>,
   msg: RpcMessage,

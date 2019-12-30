@@ -1,3 +1,8 @@
+//! Functions to spawn a [`neovim`](crate::neovim::Neovim) session.
+//!
+//! This implements various possibilities to connect to neovim, including
+//! spawning an own child process. Available capabilities might depend on your
+//! OS.
 use std::{
   io::{self, Error, ErrorKind},
   path::Path,
@@ -84,7 +89,7 @@ where
 
 /// Connect to a Neovim instance by spawning a new one
 ///
-/// stdin/stdout settings will be rewrited to `Stdio::piped()`
+/// stdin/stdout will be rewritten to `Stdio::piped()`
 pub async fn new_child_cmd<H>(
   cmd: &mut Command,
   handler: H,

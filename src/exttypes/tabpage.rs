@@ -1,16 +1,19 @@
 use crate::{
-  error::CallError, exttypes::Window, rpc::model::IntoVal,
-  runtime::AsyncWrite, Neovim,
+  error::CallError, exttypes::Window, rpc::model::IntoVal, runtime::AsyncWrite,
+  Neovim,
 };
 use rmpv::Value;
 
+/// A struct representing a neovim tabpage. It is specific to a
+/// [`Neovim`](crate::neovim::Neovim) instance, and calling a method on it will
+/// always use this instance.
 #[derive(Clone)]
 pub struct Tabpage<W>
 where
   W: AsyncWrite + Send + Sync + Unpin + 'static,
 {
   pub(crate) code_data: Value,
-  pub requester: Neovim<W>,
+  pub(crate) neovim: Neovim<W>,
 }
 
 impl<W> Tabpage<W>
@@ -21,14 +24,14 @@ where
   pub async fn list_wins(&self) -> Result<Vec<Window<W>>, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call("nvim_tabpage_list_wins", call_args![self.code_data.clone()])
         .await?
         .map(|val| {
           if let Value::Array(arr) = val {
             arr
               .into_iter()
-              .map(|v| Window::new(v, self.requester.clone()))
+              .map(|v| Window::new(v, self.neovim.clone()))
               .collect()
           } else {
             // TODO: Introduce UnexpectedValueError
@@ -41,10 +44,10 @@ where
   pub async fn get_win(&self) -> Result<Window<W>, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call("nvim_tabpage_get_win", call_args![self.code_data.clone()])
         .await?
-        .map(|val| Window::new(val, self.requester.clone()))?,
+        .map(|val| Window::new(val, self.neovim.clone()))?,
     )
   }
 }

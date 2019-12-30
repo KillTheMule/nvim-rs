@@ -1,4 +1,6 @@
-// Auto generated 2019-12-25 23:35:50.987612
+//! The auto generated API for [`neovim`](crate::neovim::Neovim)
+//!
+//! Auto generated 2019-12-30 21:06:27.159865
 use crate::{runtime::AsyncWrite, Buffer, Tabpage, Window};
 
 use crate::{error::CallError, neovim::*, rpc::*};
@@ -11,11 +13,8 @@ impl<W> Buffer<W>
 where
   W: AsyncWrite + Send + Sync + Unpin + 'static,
 {
-  pub fn new(code_data: Value, requester: Neovim<W>) -> Buffer<W> {
-    Buffer {
-      code_data,
-      requester,
-    }
+  pub fn new(code_data: Value, neovim: Neovim<W>) -> Buffer<W> {
+    Buffer { code_data, neovim }
   }
 
   /// Internal value, that represent type
@@ -27,7 +26,7 @@ where
   pub async fn line_count(&self) -> Result<i64, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call("nvim_buf_line_count", call_args![self.code_data.clone()])
         .await?
         .map(map_result)?,
@@ -41,7 +40,7 @@ where
   ) -> Result<bool, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_attach",
           call_args![self.code_data.clone(), send_buffer, opts],
@@ -54,7 +53,7 @@ where
   pub async fn detach(&self) -> Result<bool, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call("nvim_buf_detach", call_args![self.code_data.clone()])
         .await?
         .map(map_result)?,
@@ -69,7 +68,7 @@ where
   ) -> Result<Vec<String>, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_get_lines",
           call_args![self.code_data.clone(), start, end, strict_indexing],
@@ -88,7 +87,7 @@ where
   ) -> Result<(), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_set_lines",
           call_args![
@@ -107,7 +106,7 @@ where
   pub async fn get_offset(&self, index: i64) -> Result<i64, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_get_offset",
           call_args![self.code_data.clone(), index],
@@ -120,7 +119,7 @@ where
   pub async fn get_var(&self, name: &str) -> Result<Value, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call("nvim_buf_get_var", call_args![self.code_data.clone(), name])
         .await?
         .map(map_result)?,
@@ -130,7 +129,7 @@ where
   pub async fn get_changedtick(&self) -> Result<i64, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_get_changedtick",
           call_args![self.code_data.clone()],
@@ -146,7 +145,7 @@ where
   ) -> Result<Vec<Vec<(Value, Value)>>, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_get_keymap",
           call_args![self.code_data.clone(), mode],
@@ -165,7 +164,7 @@ where
   ) -> Result<(), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_set_keymap",
           call_args![self.code_data.clone(), mode, lhs, rhs, opts],
@@ -182,7 +181,7 @@ where
   ) -> Result<(), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_del_keymap",
           call_args![self.code_data.clone(), mode, lhs],
@@ -198,7 +197,7 @@ where
   ) -> Result<Vec<(Value, Value)>, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_get_commands",
           call_args![self.code_data.clone(), opts],
@@ -215,7 +214,7 @@ where
   ) -> Result<(), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_set_var",
           call_args![self.code_data.clone(), name, value],
@@ -228,7 +227,7 @@ where
   pub async fn del_var(&self, name: &str) -> Result<(), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call("nvim_buf_del_var", call_args![self.code_data.clone(), name])
         .await?
         .map(map_result)?,
@@ -238,7 +237,7 @@ where
   pub async fn get_option(&self, name: &str) -> Result<Value, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_get_option",
           call_args![self.code_data.clone(), name],
@@ -255,7 +254,7 @@ where
   ) -> Result<(), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_set_option",
           call_args![self.code_data.clone(), name, value],
@@ -268,7 +267,7 @@ where
   pub async fn get_number(&self) -> Result<i64, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call("nvim_buf_get_number", call_args![self.code_data.clone()])
         .await?
         .map(map_result)?,
@@ -278,7 +277,7 @@ where
   pub async fn get_name(&self) -> Result<String, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call("nvim_buf_get_name", call_args![self.code_data.clone()])
         .await?
         .map(map_result)?,
@@ -288,7 +287,7 @@ where
   pub async fn set_name(&self, name: &str) -> Result<(), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_set_name",
           call_args![self.code_data.clone(), name],
@@ -301,7 +300,7 @@ where
   pub async fn is_loaded(&self) -> Result<bool, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call("nvim_buf_is_loaded", call_args![self.code_data.clone()])
         .await?
         .map(map_result)?,
@@ -311,7 +310,7 @@ where
   pub async fn is_valid(&self) -> Result<bool, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call("nvim_buf_is_valid", call_args![self.code_data.clone()])
         .await?
         .map(map_result)?,
@@ -324,7 +323,7 @@ where
   ) -> Result<(i64, i64), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_get_mark",
           call_args![self.code_data.clone(), name],
@@ -341,7 +340,7 @@ where
   ) -> Result<Vec<i64>, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_get_extmark_by_id",
           call_args![self.code_data.clone(), ns_id, id],
@@ -360,7 +359,7 @@ where
   ) -> Result<Vec<Value>, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_get_extmarks",
           call_args![self.code_data.clone(), ns_id, start, end, opts],
@@ -380,7 +379,7 @@ where
   ) -> Result<i64, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_set_extmark",
           call_args![self.code_data.clone(), ns_id, id, line, col, opts],
@@ -397,7 +396,7 @@ where
   ) -> Result<bool, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_del_extmark",
           call_args![self.code_data.clone(), ns_id, id],
@@ -417,7 +416,7 @@ where
   ) -> Result<i64, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_add_highlight",
           call_args![
@@ -442,7 +441,7 @@ where
   ) -> Result<(), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_clear_namespace",
           call_args![self.code_data.clone(), ns_id, line_start, line_end],
@@ -460,7 +459,7 @@ where
   ) -> Result<(), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_clear_highlight",
           call_args![self.code_data.clone(), ns_id, line_start, line_end],
@@ -479,7 +478,7 @@ where
   ) -> Result<i64, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_set_virtual_text",
           call_args![self.code_data.clone(), ns_id, line, chunks, opts],
@@ -495,7 +494,7 @@ where
   ) -> Result<Vec<Value>, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_buf_get_virtual_text",
           call_args![self.code_data.clone(), lnum],
@@ -510,11 +509,8 @@ impl<W> Window<W>
 where
   W: AsyncWrite + Send + Sync + Unpin + 'static,
 {
-  pub fn new(code_data: Value, requester: Neovim<W>) -> Window<W> {
-    Window {
-      code_data,
-      requester,
-    }
+  pub fn new(code_data: Value, neovim: Neovim<W>) -> Window<W> {
+    Window { code_data, neovim }
   }
 
   /// Internal value, that represent type
@@ -529,7 +525,7 @@ where
   ) -> Result<(), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_win_set_buf",
           call_args![self.code_data.clone(), buffer],
@@ -542,7 +538,7 @@ where
   pub async fn get_cursor(&self) -> Result<(i64, i64), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call("nvim_win_get_cursor", call_args![self.code_data.clone()])
         .await?
         .map(map_result)?,
@@ -555,7 +551,7 @@ where
   ) -> Result<(), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_win_set_cursor",
           call_args![self.code_data.clone(), pos],
@@ -568,7 +564,7 @@ where
   pub async fn get_height(&self) -> Result<i64, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call("nvim_win_get_height", call_args![self.code_data.clone()])
         .await?
         .map(map_result)?,
@@ -578,7 +574,7 @@ where
   pub async fn set_height(&self, height: i64) -> Result<(), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_win_set_height",
           call_args![self.code_data.clone(), height],
@@ -591,7 +587,7 @@ where
   pub async fn get_width(&self) -> Result<i64, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call("nvim_win_get_width", call_args![self.code_data.clone()])
         .await?
         .map(map_result)?,
@@ -601,7 +597,7 @@ where
   pub async fn set_width(&self, width: i64) -> Result<(), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_win_set_width",
           call_args![self.code_data.clone(), width],
@@ -614,7 +610,7 @@ where
   pub async fn get_var(&self, name: &str) -> Result<Value, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call("nvim_win_get_var", call_args![self.code_data.clone(), name])
         .await?
         .map(map_result)?,
@@ -628,7 +624,7 @@ where
   ) -> Result<(), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_win_set_var",
           call_args![self.code_data.clone(), name, value],
@@ -641,7 +637,7 @@ where
   pub async fn del_var(&self, name: &str) -> Result<(), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call("nvim_win_del_var", call_args![self.code_data.clone(), name])
         .await?
         .map(map_result)?,
@@ -651,7 +647,7 @@ where
   pub async fn get_option(&self, name: &str) -> Result<Value, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_win_get_option",
           call_args![self.code_data.clone(), name],
@@ -668,7 +664,7 @@ where
   ) -> Result<(), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_win_set_option",
           call_args![self.code_data.clone(), name, value],
@@ -681,7 +677,7 @@ where
   pub async fn get_position(&self) -> Result<(i64, i64), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call("nvim_win_get_position", call_args![self.code_data.clone()])
         .await?
         .map(map_result)?,
@@ -691,7 +687,7 @@ where
   pub async fn get_number(&self) -> Result<i64, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call("nvim_win_get_number", call_args![self.code_data.clone()])
         .await?
         .map(map_result)?,
@@ -701,7 +697,7 @@ where
   pub async fn is_valid(&self) -> Result<bool, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call("nvim_win_is_valid", call_args![self.code_data.clone()])
         .await?
         .map(map_result)?,
@@ -714,7 +710,7 @@ where
   ) -> Result<(), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_win_set_config",
           call_args![self.code_data.clone(), config],
@@ -729,7 +725,7 @@ where
   ) -> Result<Vec<(Value, Value)>, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call("nvim_win_get_config", call_args![self.code_data.clone()])
         .await?
         .map(map_result)?,
@@ -739,7 +735,7 @@ where
   pub async fn close(&self, force: bool) -> Result<(), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call("nvim_win_close", call_args![self.code_data.clone(), force])
         .await?
         .map(map_result)?,
@@ -751,11 +747,8 @@ impl<W> Tabpage<W>
 where
   W: AsyncWrite + Send + Sync + Unpin + 'static,
 {
-  pub fn new(code_data: Value, requester: Neovim<W>) -> Tabpage<W> {
-    Tabpage {
-      code_data,
-      requester,
-    }
+  pub fn new(code_data: Value, neovim: Neovim<W>) -> Tabpage<W> {
+    Tabpage { code_data, neovim }
   }
 
   /// Internal value, that represent type
@@ -767,7 +760,7 @@ where
   pub async fn get_var(&self, name: &str) -> Result<Value, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_tabpage_get_var",
           call_args![self.code_data.clone(), name],
@@ -784,7 +777,7 @@ where
   ) -> Result<(), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_tabpage_set_var",
           call_args![self.code_data.clone(), name, value],
@@ -797,7 +790,7 @@ where
   pub async fn del_var(&self, name: &str) -> Result<(), Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_tabpage_del_var",
           call_args![self.code_data.clone(), name],
@@ -810,7 +803,7 @@ where
   pub async fn get_number(&self) -> Result<i64, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call(
           "nvim_tabpage_get_number",
           call_args![self.code_data.clone()],
@@ -823,7 +816,7 @@ where
   pub async fn is_valid(&self) -> Result<bool, Box<CallError>> {
     Ok(
       self
-        .requester
+        .neovim
         .call("nvim_tabpage_is_valid", call_args![self.code_data.clone()])
         .await?
         .map(map_result)?,

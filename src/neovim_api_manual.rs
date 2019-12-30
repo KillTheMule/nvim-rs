@@ -1,6 +1,7 @@
+//! Some manually implemented API functions
 use crate::{
-  error::CallError, neovim::Neovim, rpc::model::IntoVal,
-  runtime::AsyncWrite, Buffer, Tabpage, Window,
+  error::CallError, neovim::Neovim, rpc::model::IntoVal, runtime::AsyncWrite,
+  Buffer, Tabpage, Window,
 };
 use rmpv::Value;
 

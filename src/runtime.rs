@@ -1,4 +1,8 @@
-//use std::future::Future;
+//! Re-exports of runtime functionality for async
+//!
+//! This tries to somehow encapsulate what we're using from [`tokio`](tokio).
+//! Maybe this is of use when we try to port this to async-std or another
+//! runtime, or even make it generic over the runtime.
 
 pub use tokio::{
   io::{
@@ -8,37 +12,9 @@ pub use tokio::{
   net::{TcpStream, UnixStream},
   process::{Child, ChildStdin, ChildStdout, Command},
   spawn,
-  task::JoinHandle,
   sync::{
     mpsc::{channel, Receiver, Sender},
     oneshot, Mutex,
   },
+  task::JoinHandle,
 };
-
-/*
-pub use async_std::sync::{Sender, Receiver, channel};
-//pub use async_std::task::Builder as Runtime;
-use async_std::task::JoinHandle;
-
-
-pub struct Runtime {}
-
-impl Runtime {
-  pub fn new() -> Self {
-    Runtime {}
-  }
-
-  pub fn spawn<F>(&self, future: F) -> JoinHandle<F::Output>
-  where
-    F: Future + Send + 'static,
-    F::Output: Send + 'static,
-  {
-    async_std::task::spawn(future)
-  }
-
-  pub fn block_on<F: Future>(&mut self, future: F) -> F::Output
-  {
-    async_std::task::block_on(future)
-  }
-}
-*/

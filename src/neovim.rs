@@ -1,3 +1,4 @@
+//! An active neovim session.
 use std::{
   future::Future,
   sync::{
@@ -15,6 +16,8 @@ use crate::{
 };
 use rmpv::Value;
 
+/// Pack the given arguments into a `Vec<Value>`, suitable for using it for a
+/// [`call`](crate::neovim::Neovim::call) to neovim.
 #[macro_export]
 macro_rules! call_args {
     () => (Vec::new());
@@ -160,7 +163,7 @@ where
   async fn io_loop<H, R>(
     handler: H,
     mut reader: R,
-    req: Neovim<H::Writer>,
+    neovim: Neovim<H::Writer>,
   ) -> Result<(), Box<LoopError>>
   where
     H: Handler + Sync + 'static, // TODO: Check bounds on the handler
@@ -174,7 +177,7 @@ where
       let msg = match model::decode(&mut reader, &mut rest).await {
         Ok(msg) => msg,
         Err(err) => {
-          let e = req.send_error_to_callers(&req.queue, *err).await?;
+          let e = neovim.send_error_to_callers(&neovim.queue, *err).await?;
           return Err(Box::new(LoopError::DecodeError(e, None)));
         }
       };
@@ -186,20 +189,17 @@ where
           method,
           params,
         } => {
-          let req = req.clone();
+          let neovim = neovim.clone();
           let handler = handler.clone();
           spawn(async move {
-            let req_t = req.clone();
+            let neovim_t = neovim.clone();
             let response =
-              match handler.handle_request(method, params, req_t).await {
-                Ok(result) => {
-                  let r = model::RpcMessage::RpcResponse {
-                    msgid,
-                    result,
-                    error: Value::Nil,
-                  };
-                  r
-                }
+              match handler.handle_request(method, params, neovim_t).await {
+                Ok(result) => model::RpcMessage::RpcResponse {
+                  msgid,
+                  result,
+                  error: Value::Nil,
+                },
                 Err(error) => model::RpcMessage::RpcResponse {
                   msgid,
                   result: Value::Nil,
@@ -207,10 +207,11 @@ where
                 },
               };
 
-            let w = req.writer;
-            model::encode(w, response).await.unwrap_or_else(|e| {
-              error!("Error sending response to request {}: '{}'", msgid, e);
-            });
+            model::encode(neovim.writer, response)
+              .await
+              .unwrap_or_else(|e| {
+                error!("Error sending response to request {}: '{}'", msgid, e);
+              });
           });
         }
         model::RpcMessage::RpcResponse {
@@ -218,7 +219,7 @@ where
           result,
           error,
         } => {
-          let sender = find_sender(&req.queue, msgid).await?;
+          let sender = find_sender(&neovim.queue, msgid).await?;
           if error != Value::Nil {
             sender
               .send(Ok(Err(error)))
@@ -231,9 +232,9 @@ where
         }
         model::RpcMessage::RpcNotification { method, params } => {
           let handler = handler.clone();
-          let req = req.clone();
+          let neovim = neovim.clone();
           spawn(
-            async move { handler.handle_notify(method, params, req).await },
+            async move { handler.handle_notify(method, params, neovim).await },
           );
         }
       };

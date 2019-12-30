@@ -1,4 +1,6 @@
-// Auto generated {{date}}
+//! The auto generated API for [`neovim`](crate::neovim::Neovim)
+//!
+//! Auto generated {{date}}
 use crate::runtime::AsyncWrite;
 use crate::{Buffer, Window, Tabpage};
 
@@ -15,11 +17,11 @@ fn map_result<T: FromVal<Value>>(val: Value) -> T {
 impl<W> {{ etype.name }}<W>
   where W: AsyncWrite + Send + Sync + Unpin + 'static
   {
-    pub fn new(code_data: Value, requester: Neovim<W>) -> {{ etype.name }}<W>
+    pub fn new(code_data: Value, neovim: Neovim<W>) -> {{ etype.name }}<W>
     {
         {{ etype.name }} {
             code_data,
-            requester
+            neovim
         }
     }
 
@@ -32,7 +34,7 @@ impl<W> {{ etype.name }}<W>
     /// since: {{f.since}}
     pub async fn {{f.name|replace(etype.prefix, '')}}(&self, {{f.argstring}}) -> Result<{{f.return_type.native_type_ret}}, Box<CallError>>
     {
-        Ok(self.requester.call("{{f.name}}",
+        Ok(self.neovim.call("{{f.name}}",
                           call_args![self.code_data.clone()
                           {% if f.parameters|count > 0 %}
                           , {{ f.parameters|map(attribute = "name")|join(", ") }}
