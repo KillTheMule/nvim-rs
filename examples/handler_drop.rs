@@ -2,7 +2,7 @@
 //! src/examples/handler_drop.rs for documentation.
 use nvim_rs::{
   create,
-  runtime::{spawn, ChildStdin, Command},
+  runtime::{ChildStdin, Command},
   Handler, Neovim, Value,
 };
 
@@ -66,7 +66,7 @@ async fn main() {
     buf: Arc::new(Mutex::new(vec![])),
   };
 
-  let (nvim, fut, _child) = create::new_child_cmd(
+  let (nvim, io_handle, _child) = create::new_child_cmd(
     Command::new(NVIMPATH)
       .args(&["-u", "NONE", "--embed", "--headless"])
       .env("NVIM_LOG_FILE", "nvimlog"),
@@ -74,9 +74,6 @@ async fn main() {
   )
   .await
   .unwrap();
-
-  // This needs to happen before any request.
-  let io = spawn(fut);
 
   let chan = nvim.get_api_info().await.unwrap()[0].as_i64().unwrap();
   let close = format!("call chanclose({})", chan);
@@ -93,5 +90,5 @@ async fn main() {
   // The next 2 calls will return an error because the channel is closed, so we
   // need to explicitely ignore it rather than unwrap it.
   let _ = nvim.command(&close).await;
-  let _ = io.await;
+  let _ = io_handle.await;
 }

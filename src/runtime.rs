@@ -8,6 +8,7 @@ pub use tokio::{
   net::{TcpStream, UnixStream},
   process::{Child, ChildStdin, ChildStdout, Command},
   spawn,
+  task::JoinHandle,
   sync::{
     mpsc::{channel, Receiver, Sender},
     oneshot, Mutex,

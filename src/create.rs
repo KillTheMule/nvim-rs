@@ -1,5 +1,4 @@
 use std::{
-  future::Future,
   io::{self, Error, ErrorKind},
   path::Path,
   process::Stdio,
@@ -8,7 +7,7 @@ use std::{
 use crate::{
   callerror::LoopError,
   neovim::Neovim,
-  runtime::{Child, ChildStdin, Command, Stdout, TcpStream},
+  runtime::{spawn, Child, ChildStdin, Command, JoinHandle, Stdout, TcpStream},
   Handler,
 };
 
@@ -20,19 +19,16 @@ pub async fn new_tcp<H>(
   host: &str,
   port: u16,
   handler: H,
-) -> io::Result<(
-  Neovim<TcpStream>,
-  impl Future<Output = Result<(), Box<LoopError>>>,
-)>
+) -> io::Result<(Neovim<TcpStream>, JoinHandle<Result<(), Box<LoopError>>>)>
 where
   H: Handler<Writer = TcpStream> + Send + 'static,
 {
   let stream = TcpStream::connect((host, port)).await?;
   let read = TcpStream::connect((host, port)).await?;
-  //let read = stream.try_clone()?;
-  let (requester, fut) = Neovim::<TcpStream>::new(stream, read, handler);
+  let (neovim, io) = Neovim::<TcpStream>::new(stream, read, handler);
+  let io_handle = spawn(io);
 
-  Ok((requester, fut))
+  Ok((neovim, io_handle))
 }
 
 #[cfg(unix)]
@@ -40,20 +36,17 @@ where
 pub async fn new_unix_socket<H, P: AsRef<Path> + Clone>(
   path: P,
   handler: H,
-) -> io::Result<(
-  Neovim<UnixStream>,
-  impl Future<Output = Result<(), Box<LoopError>>>,
-)>
+) -> io::Result<(Neovim<UnixStream>, JoinHandle<Result<(), Box<LoopError>>>)>
 where
   H: Handler<Writer = UnixStream> + Send + 'static,
 {
   let stream = UnixStream::connect(path.clone()).await?;
   let read = UnixStream::connect(path).await?;
-  //let read = stream.try_clone()?;
 
-  let (requester, fut) = Neovim::<UnixStream>::new(stream, read, handler);
+  let (neovim, io) = Neovim::<UnixStream>::new(stream, read, handler);
+  let io_handle = spawn(io);
 
-  Ok((requester, fut))
+  Ok((neovim, io_handle))
 }
 
 /// Connect to a Neovim instance by spawning a new one.
@@ -61,7 +54,7 @@ pub async fn new_child<H>(
   handler: H,
 ) -> io::Result<(
   Neovim<ChildStdin>,
-  impl Future<Output = Result<(), Box<LoopError>>>,
+  JoinHandle<Result<(), Box<LoopError>>>,
   Child,
 )>
 where
@@ -80,7 +73,7 @@ pub async fn new_child_path<H, S: AsRef<Path>>(
   handler: H,
 ) -> io::Result<(
   Neovim<ChildStdin>,
-  impl Future<Output = Result<(), Box<LoopError>>>,
+  JoinHandle<Result<(), Box<LoopError>>>,
   Child,
 )>
 where
@@ -97,7 +90,7 @@ pub async fn new_child_cmd<H>(
   handler: H,
 ) -> io::Result<(
   Neovim<ChildStdin>,
-  impl Future<Output = Result<(), Box<LoopError>>>,
+  JoinHandle<Result<(), Box<LoopError>>>,
   Child,
 )>
 where
@@ -113,22 +106,21 @@ where
     .take()
     .ok_or_else(|| Error::new(ErrorKind::Other, "Can't open stdin"))?;
 
-  let (requester, fut) = Neovim::<ChildStdin>::new(stdout, stdin, handler);
+  let (neovim, io) = Neovim::<ChildStdin>::new(stdout, stdin, handler);
+  let io_handle = spawn(io);
 
-  Ok((requester, fut, child))
+  Ok((neovim, io_handle, child))
 }
 
 /// Connect to a Neovim instance that spawned this process over stdin/stdout.
 pub fn new_parent<H>(
   handler: H,
-) -> io::Result<(
-  Neovim<Stdout>,
-  impl Future<Output = Result<(), Box<LoopError>>>,
-)>
+) -> io::Result<(Neovim<Stdout>, JoinHandle<Result<(), Box<LoopError>>>)>
 where
   H: Handler<Writer = Stdout> + Send + 'static,
 {
-  let (requester, fut) = Neovim::<Stdout>::new(stdin(), stdout(), handler);
+  let (neovim, io) = Neovim::<Stdout>::new(stdin(), stdout(), handler);
+  let io_handle = spawn(io);
 
-  Ok((requester, fut))
+  Ok((neovim, io_handle))
 }

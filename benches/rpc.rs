@@ -27,14 +27,12 @@ fn simple_requests(c: &mut Criterion) {
     .build()
     .unwrap();
 
-  let (nvim, io, _child) = rt
+  let (nvim, _io_handler, _child) = rt
     .block_on(create::new_child_cmd(
       Command::new(NVIMPATH).args(&["-u", "NONE", "--embed", "--headless"]),
       handler,
     ))
     .unwrap();
-
-  rt.spawn(io);
 
   let nvim1 = nvim.clone();
   rt.block_on(async move { nvim1.command("set noswapfile").await })
@@ -59,7 +57,7 @@ fn request_file(c: &mut Criterion) {
     .build()
     .unwrap();
 
-  let (nvim, io, _child) = rt
+  let (nvim, _io_handler, _child) = rt
     .block_on(create::new_child_cmd(
       Command::new(NVIMPATH).args(&[
         "-u",
@@ -71,8 +69,6 @@ fn request_file(c: &mut Criterion) {
       handler,
     ))
     .unwrap();
-
-  rt.spawn(io);
 
   let nvim1 = nvim.clone();
   rt.block_on(async move { nvim1.command("set noswapfile").await })

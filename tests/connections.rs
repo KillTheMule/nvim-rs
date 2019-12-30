@@ -285,7 +285,7 @@ async fn can_connect_to_child_2() {
 
   spawn(async move { nv.set_var("oogle", Value::from("doodle")).await });
 
-  fut.await.unwrap();
+  fut.await.unwrap().unwrap();
 
   eprintln!("Quitting");
 }
