@@ -1,3 +1,40 @@
+//! # Errors of nvim-rs.
+//!
+//! Nvim-rs reports very detailed errors, to facilitate debugging by logging
+//! even in rare edge cases, and to enable clients to handle errors according to
+//! their needs. Errors are boxed to not overly burden the size of the
+//! `Result`s.
+//!
+//! ### Overview
+//!
+//! Errors can originate in three ways:
+//!
+//!   1. Failure of a request to neovim is communicated by a
+//!      [`CallError`](crate::error::CallError).
+//!   2. A failure in the io loop is communicated by a
+//!      [`LoopError`](crate::error::LoopError).
+//!   3. A failure to connect to neovim when starting up via one of the
+//!      [`new_*`](crate::create) functions  is communicated by an
+//!      [`io::Error`](std::io::Error).
+//!
+//! Most errors should probably be treated as fatal, and the application should
+//! just exit.
+//!
+//!
+//! ### Special errors
+//!
+//! Use [`is_reader_error`](crate::error::LoopError::is_reader_error)
+//! to check if it might sense to try to show an error message to the neovim
+//! user (see [this example](crate::examples::scorched_earth)).
+//!
+//! Use
+//! [`CallError::is_channel_closed`](crate::error::CallError::is_channel_closed)
+//! or
+//! [`LoopError::is_channel_closed`](crate::error::LoopError::is_channel_closed)
+//! to determine if the error originates from a closed channel. This means
+//! either neovim closed the channel actively, or neovim was closed. Often, this
+//! is not seen as a real error, but the signal for the plugin to quit. Again,
+//! see the [example](crate::examples::scorched_earth).
 use rmpv::{
   decode::Error as RmpvDecodeError, encode::Error as RmpvEncodeError, Value,
 };
@@ -7,6 +44,10 @@ use std::{fmt::Display, io, ops::RangeInclusive};
 
 use crate::runtime::oneshot;
 
+/// A message from neovim had an invalid format
+///
+/// This should be very basically non-existent, since it would indicate a bug in
+/// neovim.
 #[derive(Debug, PartialEq, Clone)]
 pub enum InvalidMessageError {
   /// The value read was not an array
@@ -14,27 +55,19 @@ pub enum InvalidMessageError {
   /// WrongArrayLength(should, is) means that the array should have length in
   /// the range `should`, but has length `is`
   WrongArrayLength(RangeInclusive<u64>, u64),
-  // TODO: Make a method on value that returns the value on error, so we can
-  // recover the non-decodable value here.
   /// The first array element (=the message type) was not decodable into a u64
-  InvalidMessageType,
+  InvalidMessageType(Value),
   /// The first array element (=the message type) was decodable into a u64
   /// larger than 2
   UnknownMessageType(u64),
   /// The params of a request or notification weren't an array
   InvalidParams(Value, String),
-  // TODO: Make a method on value that returns the value on error, so we can
-  // recover the non-decodable value here.
-  /// The method name of a notification was not a string
-  InvalidNotificationName,
-  // TODO: Make a method on value that returns the value on error, so we can
-  // recover the non-decodable value here.
-  /// The method name of a request was not a string
-  InvalidRequestName(u64),
-  // TODO: Make a method on value that returns the value on error, so we can
-  // recover the non-decodable value here.
+  /// The method name of a notification was not decodable into a String
+  InvalidNotificationName(Value),
+  /// The method name of a request was not decodable into a String
+  InvalidRequestName(u64, Value),
   /// The msgid of a request or response was not decodable into a u64
-  InvalidMsgid,
+  InvalidMsgid(Value),
 }
 
 impl Error for InvalidMessageError {}
@@ -50,23 +83,32 @@ impl Display for InvalidMessageError {
         "Array should have length {:?}, has length {}",
         should, is
       ),
-      InvalidMessageType => write!(fmt, "Message type not decodable into u64"),
+      InvalidMessageType(val) => {
+        write!(fmt, "Message type not decodable into u64: {}", val)
+      }
       UnknownMessageType(m) => {
         write!(fmt, "Message type {} is not 0, 1 or 2", m)
       }
       InvalidParams(val, s) => {
         write!(fmt, "Params of method '{}' not an Array: '{}'", s, val)
       }
-      InvalidNotificationName => write!(fmt, "Notification name invalid utf8"),
-      InvalidRequestName(id) => {
-        write!(fmt, "Request id {}: name invalid utf8", id)
+      InvalidNotificationName(val) => write!(
+        fmt,
+        "Notification name not a
+        string: '{}'",
+        val
+      ),
+      InvalidRequestName(id, val) => {
+        write!(fmt, "Request id {}: name not valid String: '{}'", id, val)
       }
-      InvalidMsgid => write!(fmt, "Msgid of message not decodable into u64"),
+      InvalidMsgid(val) => {
+        write!(fmt, "Msgid of message not decodable into u64: '{}'", val)
+      }
     }
   }
 }
 
-/// An error to communicate the failure to decode a message from neovim.
+/// Receiving a message from neovim failed
 #[derive(Debug)]
 pub enum DecodeError {
   /// Reading from the internal buffer failed.
@@ -119,7 +161,7 @@ impl From<io::Error> for Box<DecodeError> {
   }
 }
 
-/// An error to communicate that sending a message to neovim has failed.
+/// Sending a message to neovim failed
 #[derive(Debug)]
 pub enum EncodeError {
   /// Encoding the message into the internal buffer has failed.
@@ -160,8 +202,9 @@ impl From<io::Error> for Box<EncodeError> {
   }
 }
 
-/// Error to communicate the failure of a [`call`](crate::neovim::Neovim::call)
-/// to neovim. The API functions return this, as they are just
+/// A [`call`](crate::neovim::Neovim::call) to neovim failed
+///
+/// The API functions return this, as they are just
 /// proxies for [`call`](crate::neovim::Neovim::call).
 #[derive(Debug)]
 pub enum CallError {
@@ -272,7 +315,7 @@ impl From<Value> for Box<CallError> {
   }
 }
 
-/// Error to communicate a failure in the io loop.
+/// A failure in the io loop
 #[derive(Debug)]
 pub enum LoopError {
   /// A Msgid could not be found in the request queue
