@@ -60,16 +60,15 @@ impl Handler for NeovimHandler {
         posis.cursor_start = the_smaller(posis.cursor_start, (line, column));
         posis.cursor_end = the_larger(posis.cursor_end, (line, column));
 
-        req
-          .command(&format!(
+        let cmd = format!(
           "syntax region ScorchedEarth start=/\\%{}l\\%{}c/ end=/\\%{}l\\%{}c/",
           posis.cursor_start.unwrap().0,
           posis.cursor_start.unwrap().1,
           posis.cursor_end.unwrap().0,
           posis.cursor_end.unwrap().1
-        ))
-          .await
-          .unwrap();
+        );
+
+        req.command(&cmd).await.unwrap();
       }
       "insert-enter" => {
         let _mode = args[0].as_str().unwrap();
