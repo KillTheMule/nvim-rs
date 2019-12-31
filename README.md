@@ -1,4 +1,4 @@
-# nvim-rs
+# nvim-rs [![Build Status](https://travis-ci.org/KillTheMule/nvim-rs.svg?branch=master)](https://travis-ci.org/KillTheMule/nvim-rs)
 Rust library for Neovim msgpack-rpc clients. Utilizes async to allow for arbitrary nesting of requests.
 
 ## Status
