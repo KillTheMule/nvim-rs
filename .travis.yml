@@ -1,0 +1,40 @@
+language: rust
+
+#test on all 3 channels
+rust:
+  - stable
+  - beta
+  - nightly
+
+env:
+  global:
+    - RUST_BACKTRACE=1
+    - NVIMRS_LOG_FILE=nvim-rs.log
+    - NVIMRS_LOG_LEVEL=debug
+    - NVIMRS_STDERR=nvim-rs.stderr
+
+matrix:
+  allow_failures:
+    - rust: nightly
+
+before_script: cd neovim && git submodule init
+               && git submodule update --remote --depth 50
+               && if [ $TRAVIS_OS_NAME == "linux" ]; then sudo apt-get install -y libtool-bin; fi
+               && make
+
+script: cargo test && cargo check --examples
+        && RUSTFLAGS="-C opt-level=0" cargo bench -- --test
+
+after_script: echo $NVIMRS_STDERR && cat $NVIMRS_STDERR
+
+# should speed it up a bit, not sure what depth is good
+git:
+  depth: 3
+
+# more speedup by caching dependencies as long as the compiler isn't upgraded
+cache: cargo
+
+#run on both linux and osx
+os:
+  - linux
+  - osx
