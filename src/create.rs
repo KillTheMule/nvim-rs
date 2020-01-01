@@ -12,12 +12,15 @@ use std::{
 use crate::{
   error::LoopError,
   neovim::Neovim,
-  runtime::{spawn, Child, ChildStdin, Command, JoinHandle, Stdout, TcpStream},
+  runtime::{
+    spawn, stdin, stdout, Child, ChildStdin, Command, JoinHandle, Stdout,
+    TcpStream,
+  },
   Handler,
 };
 
 #[cfg(unix)]
-use crate::runtime::{stdin, stdout, UnixStream};
+use crate::runtime::UnixStream;
 
 /// Connect to nvim instance via tcp
 pub async fn new_tcp<H>(

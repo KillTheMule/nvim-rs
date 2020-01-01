@@ -9,7 +9,7 @@ pub use tokio::{
     stdin, stdout, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt,
     BufReader, BufWriter, Result, Stdin, Stdout,
   },
-  net::{TcpStream, UnixStream},
+  net::TcpStream,
   process::{Child, ChildStdin, ChildStdout, Command},
   spawn,
   sync::{
@@ -18,3 +18,6 @@ pub use tokio::{
   },
   task::JoinHandle,
 };
+
+#[cfg(unix)]
+pub use tokio::net::UnixStream;
