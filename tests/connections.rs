@@ -1,182 +1,38 @@
 use async_trait::async_trait;
-use nvim_rs::{create, runtime::spawn, Handler, Neovim};
+use nvim_rs::{
+  create,
+  runtime::{spawn, ChildStdin, Command, Mutex},
+  Handler, Neovim,
+};
 use rmpv::Value;
+use std::sync::Arc;
 use tokio;
 
 const NVIMPATH: &str = "neovim/build/bin/nvim";
 
-use nvim_rs::runtime::ChildStdin;
-#[cfg(unix)]
-use nvim_rs::runtime::Command;
-use std::process::exit as std_exit;
-
-/*
-struct NH {
-  pub to_main: Sender<(Value, Sender<Value>)>,
+struct NeovimHandler {
+  froodle: Arc<Mutex<String>>,
 }
 
 #[async_trait]
-impl Handler for NH {
-  type Writer = ChildStdin;
-
-  async fn handle_request(
-    &self,
-    name: String,
-    mut args: Vec<Value>,
-    _req: Neovim<ChildStdin>,
-  ) -> Result<Value, Value> {
-    eprintln!("Request: {}", name);
-    let mut to_main = self.to_main.clone();
-    match name.as_ref() {
-      "dummy" => Ok(Value::from("o")),
-      "req" => {
-        let (sender, mut receiver) = channel(1);
-        to_main.send((args.pop().unwrap(), sender)).await.unwrap();
-        let ret = receiver.recv().await.unwrap();
-        eprintln!("Sending {}", ret.as_str().unwrap());
-        Ok(ret)
-      }
-      _ => Ok(Value::from(2)),
-    }
-  }
-
-  async fn handle_notify(
-    &self,
-    name: String,
-    args: Vec<Value>,
-    _req: Neovim<ChildStdin>,
-  ) {
-    eprintln!("Notification: {}", name);
-    let mut to_main = self.to_main.clone();
-    match name.as_ref() {
-      "not" => eprintln!("Not: {}", args[0].as_str().unwrap()),
-      "quit" => {
-        let (sender, _receiver) = channel(1);
-        to_main.send((Value::from("quit"), sender)).await.unwrap();
-      }
-      _ => {}
-    };
-  }
-}
-
-#[cfg(unix)]
-#[test]
-fn can_connect_to_child_1() {
-  let rs = r#"exe ":fun M(timer)
-      call rpcrequest(1, 'req', 'y')
-    endfun""#;
-
-  let (handler_to_main, mut main_from_handler) = channel(2);
-  let handler = NH {
-    to_main: handler_to_main,
-  };
-
-  let (nvim, fut) = create::new_child_cmd(
-    Command::new(NVIMPATH)
-      .args(&[
-        "-u",
-        "NONE",
-        "--embed",
-        "--headless",
-        "-c",
-        rs,
-        "-c",
-        ":let timer = timer_start(500, 'M')",
-      ])
-      .env("NVIM_LOG_FILE", "nvimlog"),
-    handler,
-  )
-  .unwrap();
-
-  let nv = nvim.requester().clone();
-  let rt = nvim.runtime().clone();
-  rt.spawn(async move { nv.set_var("oogle", Value::from("doodle")).await });
-  rt.spawn(fut);
-
-  rt.spawn(async move {
-    while let Some((v, mut c)) = main_from_handler.recv().await {
-      let v = v.as_str().unwrap();
-      eprintln!("Req {}", v);
-
-      let rt = nvim.runtime().clone();
-      let nvim = nvim.requester().clone();
-      match v {
-        "y" => rt.spawn(async move {
-          let mut x: String = nvim
-            .get_vvar("servername")
-            .await
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .into();
-          x.push_str(" - ");
-          x.push_str(
-            nvim.get_vvar("progname").await.unwrap().as_str().unwrap(),
-          );
-          x.push_str(" - ");
-          x.push_str(nvim.get_var("oogle").await.unwrap().as_str().unwrap());
-          x.push_str(" - ");
-          x.push_str(
-            nvim
-              .eval("rpcrequest(1,'dummy')")
-              .await
-              .unwrap()
-              .as_str()
-              .unwrap(),
-          );
-          x.push_str(" - ");
-          x.push_str(
-            nvim
-              .eval("rpcrequest(1,'req', 'z')")
-              .await
-              .unwrap()
-              .as_str()
-              .unwrap(),
-          );
-          c.send(Value::from(x)).await.unwrap();
-          nvim.command("call rpcnotify(1, 'quit')").await.unwrap();
-        }),
-        "z" => rt.spawn(async move {
-          let x: String = nvim
-            .get_vvar("progname")
-            .await
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .into();
-          c.send(Value::from(x)).await.unwrap();
-        }),
-        _ => break,
-      };
-    }
-  });
-  eprintln!("Quitting");
-}
-*/
-struct NH2 {}
-
-#[async_trait]
-impl Handler for NH2 {
+impl Handler for NeovimHandler {
   type Writer = ChildStdin;
 
   async fn handle_request(
     &self,
     name: String,
     args: Vec<Value>,
-    req: Neovim<ChildStdin>,
+    neovim: Neovim<ChildStdin>,
   ) -> Result<Value, Value> {
-    eprintln!("Request: {}", name);
-
     match name.as_ref() {
       "dummy" => Ok(Value::from("o")),
       "req" => {
         let v = args[0].as_str().unwrap();
-        eprintln!("Req {}", v);
 
-        let req = req.clone();
+        let neovim = neovim.clone();
         match v {
           "y" => {
-            let mut x: String = req
+            let mut x: String = neovim
               .get_vvar("progname")
               .await
               .unwrap()
@@ -184,10 +40,12 @@ impl Handler for NH2 {
               .unwrap()
               .into();
             x.push_str(" - ");
-            x.push_str(req.get_var("oogle").await.unwrap().as_str().unwrap());
+            x.push_str(
+              neovim.get_var("oogle").await.unwrap().as_str().unwrap(),
+            );
             x.push_str(" - ");
             x.push_str(
-              req
+              neovim
                 .eval("rpcrequest(1,'dummy')")
                 .await
                 .unwrap()
@@ -196,7 +54,7 @@ impl Handler for NH2 {
             );
             x.push_str(" - ");
             x.push_str(
-              req
+              neovim
                 .eval("rpcrequest(1,'req', 'z')")
                 .await
                 .unwrap()
@@ -206,7 +64,7 @@ impl Handler for NH2 {
             Ok(Value::from(x))
           }
           "z" => {
-            let x: String = req
+            let x: String = neovim
               .get_vvar("progname")
               .await
               .unwrap()
@@ -226,40 +84,32 @@ impl Handler for NH2 {
     &self,
     name: String,
     args: Vec<Value>,
-    req: Neovim<ChildStdin>,
+    _neovim: Neovim<ChildStdin>,
   ) {
-    eprintln!("Notification: {}", name);
     match name.as_ref() {
-      "not" => eprintln!("Not: {}", args[0].as_str().unwrap()),
-      "quit" => {
-        let res: String = req
-          .get_var("froodle")
-          .await
-          .unwrap()
-          .as_str()
-          .unwrap()
-          .into();
-        assert_eq!("nvim - doodle - o - nvim", res);
-        std_exit(0);
+      "set_froodle" => {
+        *self.froodle.lock().await = args[0].as_str().unwrap().to_string()
       }
       _ => {}
     };
   }
 }
 
-#[cfg(unix)]
 #[tokio::test(basic_scheduler)]
-async fn can_connect_to_child_2() {
+async fn nested_requests() {
   let rs = r#"exe ":fun M(timer) 
-      let g:froodle = rpcrequest(1, 'req', 'y') 
+      call rpcnotify(1, 'set_froodle', rpcrequest(1, 'req', 'y'))
     endfun""#;
   let rs2 = r#"exe ":fun N(timer) 
-      call rpcnotify(1, 'quit') 
+      call chanclose(1)
     endfun""#;
 
-  let handler = NH2 {};
+  let froodle = Arc::new(Mutex::new(String::new()));
+  let handler = NeovimHandler {
+    froodle: froodle.clone(),
+  };
 
-  let (nvim, fut, _child) = create::new_child_cmd(
+  let (nvim, io_handler, _child) = create::new_child_cmd(
     Command::new(NVIMPATH)
       .args(&[
         "-u",
@@ -282,10 +132,15 @@ async fn can_connect_to_child_2() {
   .unwrap();
 
   let nv = nvim.clone();
-
   spawn(async move { nv.set_var("oogle", Value::from("doodle")).await });
 
-  fut.await.unwrap().unwrap();
+  // The 2nd timer closes the channel, which will be returned as an error from
+  // the io handler. We only fail the test if we got another error
+  if let Err(err) = io_handler.await.unwrap() {
+    if !err.is_channel_closed() {
+      panic!("{}", err);
+    }
+  }
 
-  eprintln!("Quitting");
+  assert_eq!("nvim - doodle - o - nvim", *froodle.lock().await);
 }
