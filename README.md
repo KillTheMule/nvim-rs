@@ -30,6 +30,10 @@ compiles.
 
 As this is a fork of [neovim-lib](https://github.com/daa84/neovim-lib), it is licensed under the GNU Lesser General Public License v3.0.
 
+**IMPORTANT**: All commits to this project, including all PRs, are
+dual-licensed under the Apache or MIT license. This is to allow the possibility
+of relicensing this project later.
+
 ## CoC
 
 Wherever applicable, this project follows the [rust code of
