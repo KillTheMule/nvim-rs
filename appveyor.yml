@@ -39,7 +39,6 @@ install:
 test_script:
   - cmd: |
       cargo build --examples
-      cp neovim_build.ps1 neovim\ci\build.ps1
       cd neovim
       powershell ci\build.ps1 -NoTests
       cargo test
