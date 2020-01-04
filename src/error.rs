@@ -240,6 +240,9 @@ pub enum CallError {
   /// 0. Neovim's error type (see `:h api`)
   /// 1. Neovim's error message
   NeovimError(Option<i64>, String),
+  /// The response from neovim contained a [`Value`](rmpv::Value) of the wrong
+  /// type
+  WrongValueType(Value)
 }
 
 impl Error for CallError {
@@ -249,6 +252,7 @@ impl Error for CallError {
       CallError::InternalReceiveError(ref e, _) => Some(e),
       CallError::DecodeError(ref e, _) => Some(e.as_ref()),
       CallError::NeovimError(_, _) => None,
+      CallError::WrongValueType(_) => None,
     }
   }
 }
@@ -296,6 +300,9 @@ impl Display for CallError {
           s
         ),
       },
+      CallError::WrongValueType(ref val) => {
+        write!(fmt, "Wrong value type: '{}'", val)
+      }
     }
   }
 }

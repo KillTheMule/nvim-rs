@@ -7,10 +7,7 @@ use crate::{Buffer, Window, Tabpage};
 use crate::neovim::*;
 use crate::rpc::*;
 use crate::error::{CallError};
-
-fn map_result<T: FromVal<Value>>(val: Value) -> T {
-    T::from_val(val)
-}
+use crate::rpc::unpack::TryUnpack;
 
 {% for etype in exttypes %}
 
@@ -34,14 +31,15 @@ impl<W> {{ etype.name }}<W>
     /// since: {{f.since}}
     pub async fn {{f.name|replace(etype.prefix, '')}}(&self, {{f.argstring}}) -> Result<{{f.return_type.native_type_ret}}, Box<CallError>>
     {
-        Ok(self.neovim.call("{{f.name}}",
+        self.neovim.call("{{f.name}}",
                           call_args![self.code_data.clone()
                           {% if f.parameters|count > 0 %}
                           , {{ f.parameters|map(attribute = "name")|join(", ") }}
                           {% endif %}
                           ])
-                    .await?
-                    .map(map_result)?)
+                    .await??
+                    .try_unpack()
+                    .map_err(|v| Box::new(CallError::WrongValueType(v)))
     }
     {% endfor %}
 }
@@ -55,10 +53,11 @@ where
 {
     {% for f in functions if not f.ext %}
     pub async fn {{f.name|replace('nvim_', '')}}(&self, {{f.argstring}}) -> Result<{{f.return_type.native_type_ret}}, Box<CallError>> {
-        Ok(self.call("{{f.name}}",
+        self.call("{{f.name}}",
                           call_args![{{ f.parameters|map(attribute = "name")|join(", ") }}])
-                    .await?
-                    .map(map_result)?)
+                    .await??
+                    .try_unpack()
+                    .map_err(|v| Box::new(CallError::WrongValueType(v)))
     }
 
     {% endfor %}

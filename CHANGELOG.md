@@ -6,5 +6,10 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 ## [Unreleased]
 
+- `CallError` has a new variant `WrongType` to indicate that a message from
+  neovim contained a value of the wrong type. Previously, the lib would panic
+  in this case, now the user has the choice to handle it (or, more probably,
+  log it properly and quit).
+
 ## 0.1.0 - 2020-02-01
 - Initial release

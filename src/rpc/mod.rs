@@ -4,6 +4,7 @@
 //! implementing the [`handler`](crate::rpc::handler::Handler).
 pub mod handler;
 pub mod model;
+pub mod unpack;
 
-pub use self::model::{FromVal, IntoVal, RpcMessage};
+pub use self::model::{IntoVal, RpcMessage};
 pub use rmpv::Value;
