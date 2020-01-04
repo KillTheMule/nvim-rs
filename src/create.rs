@@ -13,8 +13,8 @@ use crate::{
   error::LoopError,
   neovim::Neovim,
   runtime::{
-    spawn, stdin, stdout, Child, ChildStdin, Command, JoinHandle, Stdout,
-    TcpStream,
+    spawn, stdin, stdout, streamsplit, Child, ChildStdin, Command, JoinHandle,
+    Stdout, TcpStream, ToSocketAddrs, WriteHalf,
   },
   Handler,
 };
@@ -22,42 +22,49 @@ use crate::{
 #[cfg(unix)]
 use crate::runtime::UnixStream;
 
-/// Connect to nvim instance via tcp
-pub async fn new_tcp<H>(
-  host: &str,
-  port: u16,
+/// Connect to a neovim instance via tcp
+pub async fn new_tcp<A, H>(
+  addr: A,
   handler: H,
-) -> io::Result<(Neovim<TcpStream>, JoinHandle<Result<(), Box<LoopError>>>)>
+) -> io::Result<(
+  Neovim<WriteHalf<TcpStream>>,
+  JoinHandle<Result<(), Box<LoopError>>>,
+)>
 where
-  H: Handler<Writer = TcpStream> + Send + 'static,
+  H: Handler<Writer = WriteHalf<TcpStream>> + Send + 'static,
+  A: ToSocketAddrs,
 {
-  let stream = TcpStream::connect((host, port)).await?;
-  let read = TcpStream::connect((host, port)).await?;
-  let (neovim, io) = Neovim::<TcpStream>::new(stream, read, handler);
+  let stream = TcpStream::connect(addr).await?;
+  let (reader, writer) = streamsplit(stream);
+  let (neovim, io) =
+    Neovim::<WriteHalf<TcpStream>>::new(reader, writer, handler);
   let io_handle = spawn(io);
 
   Ok((neovim, io_handle))
 }
 
 #[cfg(unix)]
-/// Connect to nvim instance via unix socket
+/// Connect to a neovim instance via unix socket
 pub async fn new_unix_socket<H, P: AsRef<Path> + Clone>(
   path: P,
   handler: H,
-) -> io::Result<(Neovim<UnixStream>, JoinHandle<Result<(), Box<LoopError>>>)>
+) -> io::Result<(
+  Neovim<WriteHalf<UnixStream>>,
+  JoinHandle<Result<(), Box<LoopError>>>,
+)>
 where
-  H: Handler<Writer = UnixStream> + Send + 'static,
+  H: Handler<Writer = WriteHalf<UnixStream>> + Send + 'static,
 {
-  let stream = UnixStream::connect(path.clone()).await?;
-  let read = UnixStream::connect(path).await?;
-
-  let (neovim, io) = Neovim::<UnixStream>::new(stream, read, handler);
+  let stream = UnixStream::connect(path).await?;
+  let (reader, writer) = streamsplit(stream);
+  let (neovim, io) =
+    Neovim::<WriteHalf<UnixStream>>::new(reader, writer, handler);
   let io_handle = spawn(io);
 
   Ok((neovim, io_handle))
 }
 
-/// Connect to a Neovim instance by spawning a new one.
+/// Connect to a neovim instance by spawning a new one
 pub async fn new_child<H>(
   handler: H,
 ) -> io::Result<(
@@ -75,7 +82,7 @@ where
   }
 }
 
-/// Connect to a Neovim instance by spawning a new one
+/// Connect to a neovim instance by spawning a new one
 pub async fn new_child_path<H, S: AsRef<Path>>(
   program: S,
   handler: H,
@@ -90,7 +97,7 @@ where
   new_child_cmd(Command::new(program.as_ref()).arg("--embed"), handler).await
 }
 
-/// Connect to a Neovim instance by spawning a new one
+/// Connect to a neovim instance by spawning a new one
 ///
 /// stdin/stdout will be rewritten to `Stdio::piped()`
 pub async fn new_child_cmd<H>(
@@ -120,7 +127,7 @@ where
   Ok((neovim, io_handle, child))
 }
 
-/// Connect to a Neovim instance that spawned this process over stdin/stdout.
+/// Connect to the neovim instance that spawned this process over stdin/stdout
 pub fn new_parent<H>(
   handler: H,
 ) -> io::Result<(Neovim<Stdout>, JoinHandle<Result<(), Box<LoopError>>>)>
