@@ -27,9 +27,6 @@ extern crate rmpv;
 #[macro_use]
 extern crate log;
 
-#[cfg(unix)]
-extern crate unix_socket;
-
 pub mod rpc;
 #[macro_use]
 pub mod neovim;

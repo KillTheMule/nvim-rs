@@ -2,7 +2,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use nvim_rs::{
   call_args, create,
   rpc::{IntoVal, handler::Dummy},
-  runtime::{ChildStdin, Command},
+  runtime::Command,
 };
 
 use tokio::runtime::Builder;
