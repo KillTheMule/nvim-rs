@@ -18,7 +18,14 @@ use rmpv::Value;
 
 /// Trait to allow seamless conversion from a [`Value`](rmpv::Value) to the type
 /// it contains. In particular, this should never panic.
+///
+/// This is basically a specialized variant of `TryInto<V> for Value`.
 pub trait TryUnpack<V> {
+  /// Returns the value contained in `self`.
+  ///
+  /// # Errors
+  ///
+  /// Returns `Err(self)` if `self` does not contain a value of type `V`.
   fn try_unpack(self) -> Result<V, Value>;
 }
 
@@ -71,8 +78,7 @@ impl TryUnpack<(i64, i64)> for Value {
 /// implement `TryUnpack<T>` in those cases anyways.
 impl<T> TryUnpack<Vec<T>> for Value
 where
-  Value: TryUnpack<T>,
-  Value: From<T>,
+  Value: TryUnpack<T> + From<T>,
 {
   fn try_unpack(self) -> Result<Vec<T>, Value> {
     match self {

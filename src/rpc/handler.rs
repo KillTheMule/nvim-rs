@@ -40,31 +40,32 @@ pub trait Handler: Send + Sync {
   }
 }
 
-/// The default handler defaults to doing nothing with a notification, and
+/// The dummy handler defaults to doing nothing with a notification, and
 /// returning a generic error for a request. It can be used if a plugin only
 /// wants to send requests to neovim and get responses, but not handle any
 /// notifications or requests.
 #[derive(Default)]
-pub struct DefaultHandler<Q>
+pub struct Dummy<Q>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
 {
   _q: Arc<PhantomData<Q>>,
 }
 
-impl<Q> Handler for DefaultHandler<Q>
+impl<Q> Handler for Dummy<Q>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
 {
   type Writer = Q;
 }
 
-impl<Q> DefaultHandler<Q>
+impl<Q> Dummy<Q>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
 {
-  pub fn new() -> DefaultHandler<Q> {
-    DefaultHandler {
+  #[must_use]
+  pub fn new() -> Dummy<Q> {
+    Dummy {
       _q: Arc::new(PhantomData),
     }
   }

@@ -1,4 +1,4 @@
-//! # handler_drop
+//! # `handler_drop`
 //!
 //! An example of handling cleanup logic by implementing
 //! [`Drop`](std::ops::Drop) for the handler. The plugin attaches to the current
@@ -17,7 +17,7 @@
 //! make
 //! ```
 //!
-//! See https://github.com/neovim/neovim/wiki/Building-Neovim for build options.
+//! See <https://github.com/neovim/neovim/wiki/Building-Neovim> for build options.
 //! Nothing is really needed to run the example.
 //!
 //! After that, run the example via

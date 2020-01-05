@@ -49,14 +49,14 @@ use crate::runtime::oneshot;
 /// This should be very basically non-existent, since it would indicate a bug in
 /// neovim.
 #[derive(Debug, PartialEq, Clone)]
-pub enum InvalidMessageError {
+pub enum InvalidMessage {
   /// The value read was not an array
   NotAnArray(Value),
   /// WrongArrayLength(should, is) means that the array should have length in
   /// the range `should`, but has length `is`
   WrongArrayLength(RangeInclusive<u64>, u64),
   /// The first array element (=the message type) was not decodable into a u64
-  InvalidMessageType(Value),
+  InvalidType(Value),
   /// The first array element (=the message type) was decodable into a u64
   /// larger than 2
   UnknownMessageType(u64),
@@ -70,11 +70,11 @@ pub enum InvalidMessageError {
   InvalidMsgid(Value),
 }
 
-impl Error for InvalidMessageError {}
+impl Error for InvalidMessage {}
 
-impl Display for InvalidMessageError {
+impl Display for InvalidMessage {
   fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-    use InvalidMessageError::*;
+    use InvalidMessage::*;
 
     match self {
       NotAnArray(val) => write!(fmt, "Value not an Array: '{}'", val),
@@ -83,7 +83,7 @@ impl Display for InvalidMessageError {
         "Array should have length {:?}, has length {}",
         should, is
       ),
-      InvalidMessageType(val) => {
+      InvalidType(val) => {
         write!(fmt, "Message type not decodable into u64: {}", val)
       }
       UnknownMessageType(m) => {
@@ -118,7 +118,7 @@ pub enum DecodeError {
   /// finish. See examples/quitting.rs on how this might be caught.
   ReaderError(io::Error),
   /// Neovim sent a message that's not valid.
-  InvalidMessage(InvalidMessageError),
+  InvalidMessage(InvalidMessage),
 }
 
 impl Error for DecodeError {
@@ -149,8 +149,8 @@ impl From<RmpvDecodeError> for Box<DecodeError> {
   }
 }
 
-impl From<InvalidMessageError> for Box<DecodeError> {
-  fn from(err: InvalidMessageError) -> Box<DecodeError> {
+impl From<InvalidMessage> for Box<DecodeError> {
+  fn from(err: InvalidMessage) -> Box<DecodeError> {
     Box::new(DecodeError::InvalidMessage(err))
   }
 }
@@ -251,8 +251,7 @@ impl Error for CallError {
       CallError::SendError(ref e, _) => Some(e),
       CallError::InternalReceiveError(ref e, _) => Some(e),
       CallError::DecodeError(ref e, _) => Some(e.as_ref()),
-      CallError::NeovimError(_, _) => None,
-      CallError::WrongValueType(_) => None,
+      CallError::NeovimError(_, _) | CallError::WrongValueType(_) => None,
     }
   }
 }
@@ -261,6 +260,7 @@ impl CallError {
   /// Determine if the error originated from a closed channel. This is generally
   /// used to close a plugin from neovim's side, and so most of the time should
   /// not be treated as a real error, but a signal to finish the program.
+  #[must_use]
   pub fn is_channel_closed(&self) -> bool {
     match *self {
       CallError::SendError(EncodeError::WriterError(ref e), _)
@@ -349,14 +349,15 @@ pub enum LoopError {
 impl Error for LoopError {
   fn source(&self) -> Option<&(dyn Error + 'static)> {
     match *self {
-      LoopError::MsgidNotFound(_) => None,
+      LoopError::MsgidNotFound(_)
+      | LoopError::InternalSendResponseError(_, _) => None,
       LoopError::DecodeError(ref e, _) => Some(e.as_ref()),
-      LoopError::InternalSendResponseError(_, _) => None,
     }
   }
 }
 
 impl LoopError {
+  #[must_use]
   pub fn is_channel_closed(&self) -> bool {
     if let LoopError::DecodeError(ref err, _) = *self {
       if let DecodeError::ReaderError(ref e) = err.as_ref() {
@@ -368,6 +369,7 @@ impl LoopError {
     false
   }
 
+  #[must_use]
   pub fn is_reader_error(&self) -> bool {
     if let LoopError::DecodeError(ref err, _) = *self {
       if let DecodeError::ReaderError(_) = err.as_ref() {

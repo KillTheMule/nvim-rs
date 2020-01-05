@@ -13,8 +13,8 @@ use std::{
   sync::Arc,
 };
 
-/// A msgpack-rpc message, se
-/// https://github.com/msgpack-rpc/msgpack-rpc/blob/master/spec.md
+/// A msgpack-rpc message, see
+/// <https://github.com/msgpack-rpc/msgpack-rpc/blob/master/spec.md>
 #[derive(Debug, PartialEq, Clone)]
 pub enum RpcMessage {
   RpcRequest {
@@ -53,7 +53,7 @@ pub async fn decode<R: AsyncRead + Send + Unpin + 'static>(
   reader: &mut R,
   rest: &mut Vec<u8>,
 ) -> std::result::Result<RpcMessage, Box<DecodeError>> {
-  let mut buf = Box::new([0u8; 80 * 1024]);
+  let mut buf = Box::new([0_u8; 80 * 1024]);
   let mut bytes_read;
 
   loop {
@@ -91,7 +91,7 @@ pub async fn decode<R: AsyncRead + Send + Unpin + 'static>(
 fn decode_buffer<R: Read>(
   reader: &mut R,
 ) -> std::result::Result<RpcMessage, Box<DecodeError>> {
-  use crate::error::InvalidMessageError::*;
+  use crate::error::InvalidMessage::*;
 
   let arr: Vec<Value> = read_value(reader)?.try_into().map_err(NotAnArray)?;
 
@@ -101,7 +101,7 @@ fn decode_buffer<R: Read>(
     .next()
     .ok_or(WrongArrayLength(3..=4, 0))?
     .try_into()
-    .map_err(InvalidMessageType)?;
+    .map_err(InvalidType)?;
 
   match msgtyp {
     0 => {
@@ -162,7 +162,7 @@ fn decode_buffer<R: Read>(
   }
 }
 
-/// Encode the given message into the BufWriter. Flushes the writer when
+/// Encode the given message into the `BufWriter`. Flushes the writer when
 /// finished.
 pub async fn encode<W: AsyncWrite + Send + Unpin + 'static>(
   writer: Arc<Mutex<BufWriter<W>>>,
@@ -290,13 +290,13 @@ mod test {
 
   #[tokio::test]
   async fn request_test_twice() {
-    let msg = RpcMessage::RpcRequest {
+    let msg_1 = RpcMessage::RpcRequest {
       msgid: 1,
       method: "test_method".to_owned(),
       params: vec![],
     };
 
-    let msg2 = RpcMessage::RpcRequest {
+    let msg_2 = RpcMessage::RpcRequest {
       msgid: 2,
       method: "test_method_2".to_owned(),
       params: vec![],
@@ -304,25 +304,25 @@ mod test {
 
     let buff: Vec<u8> = vec![];
     let tmp = Arc::new(Mutex::new(BufWriter::new(buff)));
-    let tmp_c = tmp.clone();
-    let msg_c = msg.clone();
-    let msg2_c = msg2.clone();
+    let msg_1_c = msg_1.clone();
+    let msg_2_c = msg_2.clone();
 
-    encode(tmp_c, msg_c).await.unwrap();
     let tmp_c = tmp.clone();
-    encode(tmp_c, msg2_c).await.unwrap();
+    encode(tmp_c, msg_1_c).await.unwrap();
+    let tmp_c = tmp.clone();
+    encode(tmp_c, msg_2_c).await.unwrap();
     let len = (*tmp).lock().await.get_ref().len();
     assert_eq!(34, len); // Note: msg2 is 2 longer than msg
 
     let v = &mut *tmp.lock().await;
     let x = v.get_mut();
     let mut cursor = Cursor::new(x.as_slice());
-    let msg_dest = decode_buffer(&mut cursor).unwrap();
+    let msg_dest_1 = decode_buffer(&mut cursor).unwrap();
 
-    assert_eq!(msg, msg_dest);
+    assert_eq!(msg_1, msg_dest_1);
     assert_eq!(16, cursor.position());
 
     let msg_dest_2 = decode_buffer(&mut cursor).unwrap();
-    assert_eq!(msg2, msg_dest_2);
+    assert_eq!(msg_2, msg_dest_2);
   }
 }

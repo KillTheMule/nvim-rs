@@ -19,7 +19,7 @@
 //! make
 //! ```
 //!
-//! See https://github.com/neovim/neovim/wiki/Building-Neovim for build options.
+//! See <https://github.com/neovim/neovim/wiki/Building-Neovim> for build options.
 //! Nothing is really needed to run the example.
 //!
 //! After that, run the example via

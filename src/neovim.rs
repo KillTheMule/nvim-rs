@@ -221,13 +221,13 @@ where
           error,
         } => {
           let sender = find_sender(&neovim.queue, msgid).await?;
-          if error != Value::Nil {
+          if error == Value::Nil {
             sender
-              .send(Ok(Err(error)))
+              .send(Ok(Ok(result)))
               .map_err(|r| (msgid, r.expect("This was an OK(_)")))?;
           } else {
             sender
-              .send(Ok(Ok(result)))
+              .send(Ok(Err(error)))
               .map_err(|r| (msgid, r.expect("This was an OK(_)")))?;
           }
         }

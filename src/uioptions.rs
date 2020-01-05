@@ -39,6 +39,7 @@ pub struct UiAttachOptions {
 }
 
 impl UiAttachOptions {
+  #[must_use]
   pub fn new() -> UiAttachOptions {
     UiAttachOptions {
       options: Vec::new(),
@@ -100,6 +101,7 @@ impl UiAttachOptions {
     self
   }
 
+  #[must_use]
   pub fn to_value_map(&self) -> Value {
     let map = self.options.iter().map(|o| o.1.to_value()).collect();
     Value::Map(map)

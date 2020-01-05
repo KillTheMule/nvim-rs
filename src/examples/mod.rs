@@ -5,18 +5,18 @@
 //!
 //! # Contents
 //!
-//! ### handler_drop
+//! ### `handler_drop`
 //!
 //! An example showing how to implement cleanup-logic by implementing
 //! [`Drop`](std::ops::Drop) for the [`handler`](crate::rpc::handler::Handler).
 //!
-//! ### quitting
+//! ### `quitting`
 //!
 //! An example showing how to handle quitting in a plugin by catching a [`closed
 //! channel`](crate::error::CallError::is_channel_closed).
 //!
 //!
-//! ## scorched_earth
+//! ## `scorched_earth`
 //!
 //! A port of a real existing plugin.
 pub mod handler_drop;

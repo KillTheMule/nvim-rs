@@ -1,5 +1,5 @@
 //! Quitting. See src/examples/quitting.rs for documentation
-use nvim_rs::{create, runtime::Command, DefaultHandler};
+use nvim_rs::{create, runtime::Command, Dummy};
 
 use std::error::Error;
 
@@ -7,7 +7,7 @@ const NVIMPATH: &str = "neovim/build/bin/nvim";
 
 #[tokio::main]
 async fn main() {
-  let handler = DefaultHandler::new();
+  let handler = Dummy::new();
 
   let (nvim, _io_handle, _child) = create::new_child_cmd(
     Command::new(NVIMPATH)
