@@ -21,6 +21,7 @@ where
               .map(|v| Buffer::new(v, self.clone()))
               .collect()
           } else {
+            // TODO: This can return an error now
             panic!("Non-array response in nvim_list_bufs!");
           }
         })?,

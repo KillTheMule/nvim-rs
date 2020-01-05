@@ -11,7 +11,11 @@ use crate::runtime::{oneshot, spawn, AsyncRead, AsyncWrite, BufWriter, Mutex};
 
 use crate::{
   error::{CallError, DecodeError, EncodeError, LoopError},
-  rpc::{handler::Handler, model, model::IntoVal},
+  rpc::{
+    handler::Handler,
+    model,
+    model::{IntoVal, RpcMessage},
+  },
   uioptions::UiAttachOptions,
 };
 use rmpv::Value;
@@ -94,7 +98,7 @@ where
   ) -> Result<oneshot::Receiver<ResponseResult>, Box<EncodeError>> {
     let msgid = self.msgid_counter.fetch_add(1, Ordering::SeqCst);
 
-    let req = model::RpcMessage::RpcRequest {
+    let req = RpcMessage::RpcRequest {
       msgid,
       method: method.to_owned(),
       params: args,
@@ -185,7 +189,7 @@ where
 
       debug!("Get message {:?}", msg);
       match msg {
-        model::RpcMessage::RpcRequest {
+        RpcMessage::RpcRequest {
           msgid,
           method,
           params,
@@ -196,12 +200,12 @@ where
             let neovim_t = neovim.clone();
             let response =
               match handler.handle_request(method, params, neovim_t).await {
-                Ok(result) => model::RpcMessage::RpcResponse {
+                Ok(result) => RpcMessage::RpcResponse {
                   msgid,
                   result,
                   error: Value::Nil,
                 },
-                Err(error) => model::RpcMessage::RpcResponse {
+                Err(error) => RpcMessage::RpcResponse {
                   msgid,
                   result: Value::Nil,
                   error,
@@ -215,7 +219,7 @@ where
               });
           });
         }
-        model::RpcMessage::RpcResponse {
+        RpcMessage::RpcResponse {
           msgid,
           result,
           error,
@@ -231,7 +235,7 @@ where
               .map_err(|r| (msgid, r.expect("This was an OK(_)")))?;
           }
         }
-        model::RpcMessage::RpcNotification { method, params } => {
+        RpcMessage::RpcNotification { method, params } => {
           let handler = handler.clone();
           let neovim = neovim.clone();
           spawn(

@@ -5,7 +5,7 @@
 use rmpv::Value;
 
 pub enum UiOption {
-  RGB(bool),
+  Rgb(bool),
   ExtPopupmenu(bool),
   ExtTabline(bool),
   ExtCmdline(bool),
@@ -22,7 +22,7 @@ impl UiOption {
 
   fn to_name_value(&self) -> (&'static str, Value) {
     match *self {
-      UiOption::RGB(val) => ("rgb", val.into()),
+      UiOption::Rgb(val) => ("rgb", val.into()),
       UiOption::ExtPopupmenu(val) => ("ext_popupmenu", val.into()),
       UiOption::ExtTabline(val) => ("ext_tabline", val.into()),
       UiOption::ExtCmdline(val) => ("ext_cmdline", val.into()),
@@ -58,7 +58,7 @@ impl UiAttachOptions {
   }
 
   pub fn set_rgb(&mut self, rgb: bool) -> &mut Self {
-    self.set_option(UiOption::RGB(rgb));
+    self.set_option(UiOption::Rgb(rgb));
     self
   }
 

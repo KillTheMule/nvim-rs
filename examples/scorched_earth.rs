@@ -48,7 +48,7 @@ impl Handler for NeovimHandler {
     &self,
     name: String,
     args: Vec<Value>,
-    req: Neovim<Stdout>,
+    neovim: Neovim<Stdout>,
   ) {
     match name.as_ref() {
       "cursor-moved-i" => {
@@ -68,7 +68,7 @@ impl Handler for NeovimHandler {
           posis.cursor_end.unwrap().1
         );
 
-        req.command(&cmd).await.unwrap();
+        neovim.command(&cmd).await.unwrap();
       }
       "insert-enter" => {
         let _mode = args[0].as_str().unwrap();
@@ -80,7 +80,7 @@ impl Handler for NeovimHandler {
         posis.cursor_start = Some((line, column));
         posis.cursor_end = Some((line, column));
 
-        req
+        neovim
           .command("highlight link ScorchedEarth Constant")
           .await
           .unwrap();
@@ -90,7 +90,7 @@ impl Handler for NeovimHandler {
 
         posis.cursor_start = None;
         posis.cursor_end = None;
-        req.command("syntax clear ScorchedEarth").await.unwrap();
+        neovim.command("syntax clear ScorchedEarth").await.unwrap();
       }
       _ => {}
     }
