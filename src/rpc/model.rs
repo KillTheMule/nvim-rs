@@ -71,7 +71,7 @@ pub async fn decode<R: AsyncRead + Send + Unpin + 'static>(
         debug!("Not enough data, reading more!");
         bytes_read = reader.read(&mut *buf).await;
       }
-      Err(err) => return Err(err)?,
+      Err(err) => return Err(err.into()),
     }
 
     match bytes_read {
@@ -81,7 +81,7 @@ pub async fn decode<R: AsyncRead + Send + Unpin + 'static>(
       Ok(n) => {
         rest.extend_from_slice(&buf[..n]);
       }
-      Err(err) => return Err(err)?,
+      Err(err) => return Err(err.into()),
     }
   }
 }
@@ -93,9 +93,7 @@ fn decode_buffer<R: Read>(
 ) -> std::result::Result<RpcMessage, Box<DecodeError>> {
   use crate::error::InvalidMessageError::*;
 
-  let arr: Vec<Value> = read_value(reader)?
-    .try_into()
-    .map_err(|val| NotAnArray(val))?;
+  let arr: Vec<Value> = read_value(reader)?.try_into().map_err(NotAnArray)?;
 
   let mut arr = arr.into_iter();
 
@@ -103,7 +101,7 @@ fn decode_buffer<R: Read>(
     .next()
     .ok_or(WrongArrayLength(3..=4, 0))?
     .try_into()
-    .map_err(|val| InvalidMessageType(val))?;
+    .map_err(InvalidMessageType)?;
 
   match msgtyp {
     0 => {
@@ -111,13 +109,13 @@ fn decode_buffer<R: Read>(
         .next()
         .ok_or(WrongArrayLength(4..=4, 1))?
         .try_into()
-        .map_err(|val| InvalidMsgid(val))?;
+        .map_err(InvalidMsgid)?;
       let method = match arr.next() {
         Some(Value::String(s)) if s.is_str() => {
           s.into_str().expect("Can remove using #230 of rmpv")
         }
-        Some(val) => return Err(InvalidRequestName(msgid, val))?,
-        None => return Err(WrongArrayLength(4..=4, 2))?,
+        Some(val) => return Err(InvalidRequestName(msgid, val).into()),
+        None => return Err(WrongArrayLength(4..=4, 2).into()),
       };
       let params: Vec<Value> = arr
         .next()
@@ -136,7 +134,7 @@ fn decode_buffer<R: Read>(
         .next()
         .ok_or(WrongArrayLength(4..=4, 1))?
         .try_into()
-        .map_err(|val| InvalidMsgid(val))?;
+        .map_err(InvalidMsgid)?;
       let error = arr.next().ok_or(WrongArrayLength(4..=4, 2))?;
       let result = arr.next().ok_or(WrongArrayLength(4..=4, 3))?;
       Ok(RpcMessage::RpcResponse {
@@ -150,8 +148,8 @@ fn decode_buffer<R: Read>(
         Some(Value::String(s)) if s.is_str() => {
           s.into_str().expect("Can remove using #230 of rmpv")
         }
-        Some(val) => return Err(InvalidNotificationName(val))?,
-        None => return Err(WrongArrayLength(3..=3, 1))?,
+        Some(val) => return Err(InvalidNotificationName(val).into()),
+        None => return Err(WrongArrayLength(3..=3, 1).into()),
       };
       let params: Vec<Value> = arr
         .next()
@@ -160,7 +158,7 @@ fn decode_buffer<R: Read>(
         .map_err(|val| InvalidParams(val, method.clone()))?;
       Ok(RpcMessage::RpcNotification { method, params })
     }
-    t => Err(UnknownMessageType(t))?,
+    t => Err(UnknownMessageType(t).into()),
   }
 }
 

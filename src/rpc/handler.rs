@@ -44,6 +44,7 @@ pub trait Handler: Send + Sync {
 /// returning a generic error for a request. It can be used if a plugin only
 /// wants to send requests to neovim and get responses, but not handle any
 /// notifications or requests.
+#[derive(Default)]
 pub struct DefaultHandler<Q>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,

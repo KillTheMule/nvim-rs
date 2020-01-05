@@ -121,6 +121,7 @@ where
 }
 
 /// Connect to a Neovim instance that spawned this process over stdin/stdout.
+#[allow(clippy::type_complexity)]
 pub fn new_parent<H>(
   handler: H,
 ) -> io::Result<(Neovim<Stdout>, JoinHandle<Result<(), Box<LoopError>>>)>

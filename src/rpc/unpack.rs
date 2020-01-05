@@ -92,7 +92,7 @@ where
             }
           }
         }
-        return Ok(newvec);
+        Ok(newvec)
       }
       val => Err(val),
     }

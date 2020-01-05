@@ -33,6 +33,7 @@ impl UiOption {
   }
 }
 
+#[derive(Default)]
 pub struct UiAttachOptions {
   options: Vec<(&'static str, UiOption)>,
 }

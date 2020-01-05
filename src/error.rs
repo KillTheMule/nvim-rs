@@ -242,7 +242,7 @@ pub enum CallError {
   NeovimError(Option<i64>, String),
   /// The response from neovim contained a [`Value`](rmpv::Value) of the wrong
   /// type
-  WrongValueType(Value)
+  WrongValueType(Value),
 }
 
 impl Error for CallError {
@@ -278,7 +278,7 @@ impl CallError {
       _ => {}
     }
 
-    return false;
+    false
   }
 }
 

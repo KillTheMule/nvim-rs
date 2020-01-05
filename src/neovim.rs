@@ -62,6 +62,7 @@ impl<W> Neovim<W>
 where
   W: AsyncWrite + Send + Sync + Unpin + 'static,
 {
+  #[allow(clippy::new_ret_no_self)]
   pub fn new<H, R>(
     reader: R,
     writer: W,
@@ -156,7 +157,7 @@ where
     if v.is_empty() {
       Ok(err)
     } else {
-      Err((err, v))?
+      Err((err, v).into())
     }
   }
 
@@ -279,7 +280,7 @@ async fn find_sender(
 
   let pos = match queue.iter().position(|req| req.0 == msgid) {
     Some(p) => p,
-    None => return Err(msgid)?,
+    None => return Err(msgid.into()),
   };
   Ok(queue.remove(pos).1)
 }
