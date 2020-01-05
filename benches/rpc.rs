@@ -1,25 +1,16 @@
-use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
 use nvim_rs::{
   call_args, create,
-  rpc::IntoVal,
+  rpc::{IntoVal, handler::Dummy},
   runtime::{ChildStdin, Command},
-  Handler,
 };
 
 use tokio::runtime::Builder;
 
 const NVIMPATH: &str = "neovim/build/bin/nvim";
 
-struct NH {}
-
-#[async_trait]
-impl Handler for NH {
-  type Writer = ChildStdin;
-}
-
 fn simple_requests(c: &mut Criterion) {
-  let handler = NH {};
+  let handler = Dummy::new();
 
   let mut rt = Builder::new()
     .threaded_scheduler()
@@ -49,8 +40,8 @@ fn simple_requests(c: &mut Criterion) {
 }
 
 fn request_file(c: &mut Criterion) {
-  let handler = NH {};
-  //let mut rt = Runtime::new().unwrap();
+  let handler = Dummy::new();
+
   let mut rt = Builder::new()
     .threaded_scheduler()
     .enable_io()
