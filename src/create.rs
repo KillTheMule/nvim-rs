@@ -13,11 +13,13 @@ use crate::{
   error::LoopError,
   neovim::Neovim,
   runtime::{
-    spawn, stdin, stdout, streamsplit, Child, ChildStdin, Command, JoinHandle,
-    Stdout, TcpStream, ToSocketAddrs, WriteHalf,
+    spawn, stdin, stdout, Child, ChildStdin, Command, JoinHandle,
+    Stdout, TcpStream, ToSocketAddrs, WriteHalf, AsyncReadExt
   },
   Handler,
 };
+
+use futures::compat::AsyncRead01CompatExt;
 
 #[cfg(unix)]
 use crate::runtime::UnixStream;
@@ -35,7 +37,7 @@ where
   A: ToSocketAddrs,
 {
   let stream = TcpStream::connect(addr).await?;
-  let (reader, writer) = streamsplit(stream);
+  let (reader, writer) = stream.split();
   let (neovim, io) =
     Neovim::<WriteHalf<TcpStream>>::new(reader, writer, handler);
   let io_handle = spawn(io);
@@ -56,7 +58,7 @@ where
   H: Handler<Writer = WriteHalf<UnixStream>> + Send + 'static,
 {
   let stream = UnixStream::connect(path).await?;
-  let (reader, writer) = streamsplit(stream);
+  let (reader, writer) = stream.split;
   let (neovim, io) =
     Neovim::<WriteHalf<UnixStream>>::new(reader, writer, handler);
   let io_handle = spawn(io);

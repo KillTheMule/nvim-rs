@@ -30,6 +30,7 @@ extern crate log;
 pub mod rpc;
 #[macro_use]
 pub mod neovim;
+#[cfg(use_tokio)]
 pub mod create;
 pub mod error;
 pub mod examples;

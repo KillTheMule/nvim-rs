@@ -19,6 +19,9 @@ exclude = [
 ]
 edition = "2018"
 
+[features]
+use_tokio = []
+
 [lib]
 bench = false
 
@@ -28,6 +31,7 @@ rmpv = "0.4.3"
 log = "0.4"
 tokio = { version = "0.2.3", features = ["sync", "rt-core", "macros", "io-util", "tcp", "uds", "process", "io-std", "dns", "rt-threaded", "io-driver", "fs"] }
 async-trait = "0.1.18"
+futures = { version = "0.3.1", features = ["io-compat"] }
 
 [dev-dependencies]
 tempdir = "0.3"

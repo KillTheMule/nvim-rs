@@ -7,7 +7,7 @@ use std::{
   },
 };
 
-use crate::runtime::{oneshot, spawn, AsyncRead, AsyncWrite, BufWriter, Mutex};
+use crate::runtime::{oneshot, Spawn, SpawnExt, AsyncRead, AsyncWrite, BufWriter, Mutex};
 
 use crate::{
   error::{CallError, DecodeError, EncodeError, LoopError},
@@ -67,10 +67,11 @@ where
   W: AsyncWrite + Send + Sync + Unpin + 'static,
 {
   #[allow(clippy::new_ret_no_self)]
-  pub fn new<H, R>(
+  pub fn new<H, R, S>(
     reader: R,
     writer: W,
     handler: H,
+    runtime: S,
   ) -> (
     Neovim<<H as Handler>::Writer>,
     impl Future<Output = Result<(), Box<LoopError>>>,
@@ -78,6 +79,7 @@ where
   where
     R: AsyncRead + Send + Unpin + 'static,
     H: Handler<Writer = W> + Send + 'static,
+    S: Spawn
   {
     let req = Neovim {
       writer: Arc::new(Mutex::new(BufWriter::new(writer))),
@@ -86,7 +88,7 @@ where
     };
 
     let req_t = req.clone();
-    let fut = Self::io_loop(handler, reader, req_t);
+    let fut = Self::io_loop(handler, reader, req_t, runtime);
 
     (req, fut)
   }
@@ -165,15 +167,17 @@ where
     }
   }
 
-  async fn io_loop<H, R>(
+  async fn io_loop<H, R, S>(
     handler: H,
     mut reader: R,
     neovim: Neovim<H::Writer>,
+    runtime: S,
   ) -> Result<(), Box<LoopError>>
   where
     H: Handler + Sync + 'static, // TODO: Check bounds on the handler
     R: AsyncRead + Send + Unpin + 'static,
     H::Writer: AsyncWrite + Send + Sync + Unpin + 'static,
+    S: Spawn,
   {
     let handler = Arc::new(handler);
     let mut rest: Vec<u8> = vec![];
@@ -196,7 +200,7 @@ where
         } => {
           let neovim = neovim.clone();
           let handler = handler.clone();
-          spawn(async move {
+          runtime.spawn(async move {
             let neovim_t = neovim.clone();
             let response =
               match handler.handle_request(method, params, neovim_t).await {
@@ -217,7 +221,7 @@ where
               .unwrap_or_else(|e| {
                 error!("Error sending response to request {}: '{}'", msgid, e);
               });
-          });
+          }).unwrap();
         }
         RpcMessage::RpcResponse {
           msgid,
@@ -238,9 +242,9 @@ where
         RpcMessage::RpcNotification { method, params } => {
           let handler = handler.clone();
           let neovim = neovim.clone();
-          spawn(
+          runtime.spawn(
             async move { handler.handle_notify(method, params, neovim).await },
-          );
+          ).unwrap();
         }
       };
     }
