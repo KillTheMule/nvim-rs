@@ -6,10 +6,10 @@
 
 pub use tokio::{
   io::{
-    stdin, stdout, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt,
-    BufReader, BufWriter, Result, Stdin, Stdout,
+    split as streamsplit, stdin, stdout, AsyncRead, AsyncReadExt, AsyncWrite,
+    AsyncWriteExt, BufReader, BufWriter, Result, Stdin, Stdout, WriteHalf,
   },
-  net::TcpStream,
+  net::{TcpStream, ToSocketAddrs},
   process::{Child, ChildStdin, ChildStdout, Command},
   spawn,
   sync::{
