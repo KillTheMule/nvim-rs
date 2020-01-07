@@ -13,7 +13,6 @@ pub use tokio::{
   process::{Child, ChildStdin, ChildStdout, Command},
   spawn,
   sync::{
-    mpsc::{channel, Receiver, Sender},
     oneshot, Mutex,
   },
   task::JoinHandle,
