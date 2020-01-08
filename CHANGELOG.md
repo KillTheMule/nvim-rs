@@ -6,6 +6,9 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 ## [Unreleased]
 
+- `LoopError` has an additional variant `IoSpawn` that indicates that spawning
+  another task with the handler has failed.
+
 - Connecting to neovim via tcp or a unix-socket (unix only) is now supported again
 
 - `CallError` has a new variant `WrongType` to indicate that a message from

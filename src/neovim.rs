@@ -200,13 +200,10 @@ where
         } => {
           let neovim = neovim.clone();
           let handler_c = handler.clone();
-          handler
-            .spawn(async move {
-              let neovim_t = neovim.clone();
-              let response = match handler_c
-                .handle_request(method, params, neovim_t)
-                .await
-              {
+          handler.spawn(async move {
+            let neovim_t = neovim.clone();
+            let response =
+              match handler_c.handle_request(method, params, neovim_t).await {
                 Ok(result) => RpcMessage::RpcResponse {
                   msgid,
                   result,
@@ -219,16 +216,12 @@ where
                 },
               };
 
-              model::encode(neovim.writer, response).await.unwrap_or_else(
-                |e| {
-                  error!(
-                    "Error sending response to request {}: '{}'",
-                    msgid, e
-                  );
-                },
-              );
-            })
-            .unwrap();
+            model::encode(neovim.writer, response)
+              .await
+              .unwrap_or_else(|e| {
+                error!("Error sending response to request {}: '{}'", msgid, e);
+              });
+          })?;
         }
         RpcMessage::RpcResponse {
           msgid,
@@ -249,11 +242,9 @@ where
         RpcMessage::RpcNotification { method, params } => {
           let handler_c = handler.clone();
           let neovim = neovim.clone();
-          handler
-            .spawn(async move {
-              handler_c.handle_notify(method, params, neovim).await
-            })
-            .unwrap();
+          handler.spawn(async move {
+            handler_c.handle_notify(method, params, neovim).await
+          })?;
         }
       };
     }

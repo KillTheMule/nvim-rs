@@ -35,13 +35,15 @@
 //! either neovim closed the channel actively, or neovim was closed. Often, this
 //! is not seen as a real error, but the signal for the plugin to quit. Again,
 //! see the [example](crate::examples::scorched_earth).
-use std::{error::Error, fmt, io::ErrorKind, sync::Arc};
-use std::{fmt::Display, io, ops::RangeInclusive};
+use std::{
+  error::Error, fmt, fmt::Display, io, io::ErrorKind, ops::RangeInclusive,
+  sync::Arc,
+};
 
+use futures::{channel::oneshot, task::SpawnError};
 use rmpv::{
   decode::Error as RmpvDecodeError, encode::Error as RmpvEncodeError, Value,
 };
-use futures::channel::oneshot;
 
 /// A message from neovim had an invalid format
 ///
@@ -312,8 +314,13 @@ impl From<Value> for Box<CallError> {
       Value::Array(mut arr)
         if arr.len() == 2 && arr[0].is_i64() && arr[1].is_str() =>
       {
-        let s = arr.pop().unwrap().as_str().unwrap().into();
-        let i = arr.pop().unwrap().as_i64();
+        let s = arr
+          .pop()
+          .expect("This was checked")
+          .as_str()
+          .unwrap()
+          .into();
+        let i = arr.pop().expect("This was checked").as_i64();
         Box::new(CallError::NeovimError(i, s))
       }
       val => Box::new(CallError::NeovimError(None, format!("{:?}", val))),
@@ -343,6 +350,8 @@ pub enum LoopError {
   /// 0. The msgid of the request the response was sent for
   /// 1. The response from neovim
   InternalSendResponseError(u64, Result<Value, Value>),
+  /// The io loop could not spawn a task for the handler
+  IoSpawn(SpawnError),
 }
 
 impl Error for LoopError {
@@ -351,6 +360,7 @@ impl Error for LoopError {
       LoopError::MsgidNotFound(_)
       | LoopError::InternalSendResponseError(_, _) => None,
       LoopError::DecodeError(ref e, _) => Some(e.as_ref()),
+      LoopError::IoSpawn(ref e) => Some(e),
     }
   }
 }
@@ -399,7 +409,17 @@ impl Display for LoopError {
         "Request {}: Could not send response, which was {:?}",
         i, res
       ),
+      Self::IoSpawn(_) => write!(
+        fmt,
+        "Could not spawn an additional task to the handler"
+      ),
     }
+  }
+}
+
+impl From<SpawnError> for Box<LoopError> {
+  fn from(err: SpawnError) -> Box<LoopError> {
+    Box::new(LoopError::IoSpawn(err))
   }
 }
 
