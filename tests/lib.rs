@@ -24,7 +24,6 @@ async fn can_connect_via_tcp() {
 
   let mut child = Command::new(NVIMPATH)
     .args(&["-u", "NONE", "--headless", "--listen", &listen])
-    .env("NVIM_LOG_FILE", "nvimlog_tcp")
     .spawn()
     .expect("Cannot start neovim");
 

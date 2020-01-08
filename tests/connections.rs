@@ -125,7 +125,6 @@ async fn nested_requests() {
         "-c",
         ":let timer = timer_start(1500, 'N')",
       ])
-      .env("NVIM_LOG_FILE", "nvimlog"),
     handler,
   )
   .await
