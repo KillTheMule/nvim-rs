@@ -262,8 +262,11 @@ impl IntoVal<Value> for Vec<(Value, Value)> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::runtime::{BufWriter, Mutex};
+  use futures::io::BufWriter;
+  use futures::lock::Mutex;
   use std::{io::Cursor, sync::Arc};
+
+  use tokio;
 
   #[tokio::test]
   async fn request_test() {
