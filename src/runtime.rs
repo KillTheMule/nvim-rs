@@ -5,7 +5,7 @@
 //! runtime, or even make it generic over the runtime.
 pub use futures;
 
-pub use futures::task::{Spawn, SpawnExt};
+pub use futures::task::{Spawn, SpawnExt, FutureObj, SpawnError};
 
 pub use futures::lock::Mutex;
 
