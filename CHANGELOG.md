@@ -6,6 +6,8 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 ## [Unreleased]
 
+- Connecting to neovim via tcp or a unix-socket (unix only) is now supported again
+
 - `CallError` has a new variant `WrongType` to indicate that a message from
   neovim contained a value of the wrong type. Previously, the lib would panic
   in this case, now the user has the choice to handle it (or, more probably,
