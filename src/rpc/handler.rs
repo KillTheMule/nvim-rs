@@ -21,7 +21,7 @@ pub trait Handler: Send + Sync + Spawn + 'static {
   /// The type where we write our responses to requests. Handling of incoming
   /// requests/notifications is done on the io loop, which passes the parsed
   /// messages to the handler.
-  type Writer: AsyncWrite + Send + Sync + Unpin + 'static;
+  type Writer: AsyncWrite + Send + Unpin + 'static;
 
   /// Handling an rpc request. The ID's of requests are handled by the
   /// [`neovim`](crate::neovim::Neovim) instance.

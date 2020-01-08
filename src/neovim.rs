@@ -69,7 +69,7 @@ where
 
 impl<W> Neovim<W>
 where
-  W: AsyncWrite + Send + Sync + Unpin + 'static,
+  W: AsyncWrite + Send + Unpin + 'static,
 {
   #[allow(clippy::new_ret_no_self)]
   pub fn new<H, R>(

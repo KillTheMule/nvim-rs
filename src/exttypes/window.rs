@@ -18,7 +18,7 @@ where
 
 impl<W> Window<W>
 where
-  W: AsyncWrite + Send + Sync + Unpin + 'static,
+  W: AsyncWrite + Send + Unpin + 'static,
 {
   /// since: 1
   pub async fn get_buf(&self) -> Result<Buffer<W>, Box<CallError>> {
@@ -44,7 +44,7 @@ where
 
 impl<W> IntoVal<Value> for &Window<W>
 where
-  W: AsyncWrite + Send + Sync + Unpin + 'static,
+  W: AsyncWrite + Send + Unpin + 'static,
 {
   fn into_val(self) -> Value {
     self.code_data.clone()

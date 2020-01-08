@@ -12,7 +12,7 @@ use crate::{
 
 impl<W> Buffer<W>
 where
-  W: AsyncWrite + Send + Sync + Unpin + 'static,
+  W: AsyncWrite + Send + Unpin + 'static,
 {
   #[must_use]
   pub fn new(code_data: Value, neovim: Neovim<W>) -> Buffer<W> {
@@ -479,7 +479,7 @@ where
 
 impl<W> Window<W>
 where
-  W: AsyncWrite + Send + Sync + Unpin + 'static,
+  W: AsyncWrite + Send + Unpin + 'static,
 {
   #[must_use]
   pub fn new(code_data: Value, neovim: Neovim<W>) -> Window<W> {
@@ -701,7 +701,7 @@ where
 
 impl<W> Tabpage<W>
 where
-  W: AsyncWrite + Send + Sync + Unpin + 'static,
+  W: AsyncWrite + Send + Unpin + 'static,
 {
   #[must_use]
   pub fn new(code_data: Value, neovim: Neovim<W>) -> Tabpage<W> {
@@ -779,7 +779,7 @@ where
 
 impl<W> Neovim<W>
 where
-  W: AsyncWrite + Send + Sync + Unpin + 'static,
+  W: AsyncWrite + Send + Unpin + 'static,
 {
   pub async fn ui_detach(&self) -> Result<(), Box<CallError>> {
     self

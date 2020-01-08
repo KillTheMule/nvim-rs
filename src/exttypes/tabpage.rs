@@ -9,7 +9,7 @@ use crate::{error::CallError, exttypes::Window, rpc::model::IntoVal, Neovim};
 #[derive(Clone)]
 pub struct Tabpage<W>
 where
-  W: AsyncWrite + Send + Sync + Unpin + 'static,
+  W: AsyncWrite + Send + Unpin + 'static,
 {
   pub(crate) code_data: Value,
   pub(crate) neovim: Neovim<W>,
@@ -17,7 +17,7 @@ where
 
 impl<W> Tabpage<W>
 where
-  W: AsyncWrite + Send + Sync + Unpin + 'static,
+  W: AsyncWrite + Send + Unpin + 'static,
 {
   /// since: 1
   pub async fn list_wins(&self) -> Result<Vec<Window<W>>, Box<CallError>> {
@@ -53,7 +53,7 @@ where
 
 impl<W> IntoVal<Value> for &Tabpage<W>
 where
-  W: AsyncWrite + Send + Sync + Unpin + 'static,
+  W: AsyncWrite + Send + Unpin + 'static,
 {
   fn into_val(self) -> Value {
     self.code_data.clone()
