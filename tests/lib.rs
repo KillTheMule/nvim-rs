@@ -1,4 +1,4 @@
-use nvim_rs::{create, DefaultHandler};
+use nvim_rs::{create, DummyHandler};
 
 use tokio;
 
@@ -34,7 +34,7 @@ async fn can_connect_via_tcp() {
   let (nvim, _io_handle) = loop {
     sleep(Duration::from_millis(100));
 
-    let handler = DefaultHandler::new();
+    let handler = DummyHandler::new();
     if let Ok(r) = create::new_tcp(&listen, handler).await {
       break r;
     } else {
@@ -85,7 +85,7 @@ async fn can_connect_via_unix_socket() {
     }
   }
 
-  let handler = DefaultHandler::new();
+  let handler = DummyHandler::new();
   let (nvim, _io_handle) = create::new_unix_socket(&socket_path, handler)
     .await
     .expect(&format!(

@@ -42,7 +42,7 @@ pub mod uioptions;
 pub use crate::{
   exttypes::{Buffer, Tabpage, Window},
   neovim::Neovim,
-  rpc::handler::{Dummy, Handler},
+  rpc::handler::{Dummy as DummyHandler, Handler},
   uioptions::{UiAttachOptions, UiOption},
 };
 
