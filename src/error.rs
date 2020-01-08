@@ -35,14 +35,13 @@
 //! either neovim closed the channel actively, or neovim was closed. Often, this
 //! is not seen as a real error, but the signal for the plugin to quit. Again,
 //! see the [example](crate::examples::scorched_earth).
+use std::{error::Error, fmt, io::ErrorKind, sync::Arc};
+use std::{fmt::Display, io, ops::RangeInclusive};
+
 use rmpv::{
   decode::Error as RmpvDecodeError, encode::Error as RmpvEncodeError, Value,
 };
-use std::{error::Error, fmt, io::ErrorKind, sync::Arc};
-
-use std::{fmt::Display, io, ops::RangeInclusive};
-
-use crate::runtime::oneshot;
+use futures::channel::oneshot;
 
 /// A message from neovim had an invalid format
 ///
@@ -223,7 +222,7 @@ pub enum CallError {
   ///
   /// 0. The underlying error
   /// 1. The name of the called method
-  InternalReceiveError(oneshot::error::RecvError, String),
+  InternalReceiveError(oneshot::Canceled, String),
   /// Decoding neovim's response failed.
   ///
   /// Fields:

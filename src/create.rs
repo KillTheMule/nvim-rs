@@ -9,6 +9,9 @@ use std::{
   process::Stdio,
 };
 
+#[cfg(all(unix, use_tokio))]
+pub use tokio::net::UnixStream;
+
 use crate::{
   error::LoopError,
   neovim::Neovim,

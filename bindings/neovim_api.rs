@@ -1,13 +1,14 @@
 //! The auto generated API for [`neovim`](crate::neovim::Neovim)
 //!
 //! Auto generated {{date}}
-use crate::runtime::AsyncWrite;
-use crate::{Buffer, Window, Tabpage};
+use futures::io::AsyncWrite;
 
-use crate::neovim::*;
-use crate::rpc::*;
-use crate::error::{CallError};
-use crate::rpc::unpack::TryUnpack;
+use crate::{
+  error::CallError,
+  neovim::*,
+  rpc::{unpack::TryUnpack, *},
+  Buffer, Tabpage, Window,
+};
 
 {% for etype in exttypes %}
 

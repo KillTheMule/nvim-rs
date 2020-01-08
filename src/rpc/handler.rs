@@ -2,12 +2,16 @@
 //!
 //! The core of a plugin is defining and implementing the
 //! [`handler`](crate::rpc::handler::Handler).
-use std::{sync::Arc, marker::PhantomData};
+use std::{marker::PhantomData, sync::Arc};
 
 use async_trait::async_trait;
+use futures::{
+  io::AsyncWrite,
+  task::{FutureObj, Spawn, SpawnError},
+};
 use rmpv::Value;
 
-use crate::{runtime::{AsyncWrite, Spawn, FutureObj, SpawnError}, Neovim};
+use crate::Neovim;
 
 /// The central functionality of a plugin. The trait bounds asure that each
 /// asynchronous task can receive a copy of the handler, so some state can be
@@ -47,7 +51,7 @@ pub trait Handler: Send + Sync + Spawn + 'static {
 pub struct Dummy<Q, S>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
-  S: Spawn + Send + Sync + 'static + Default
+  S: Spawn + Send + Sync + 'static + Default,
 {
   _q: Arc<PhantomData<Q>>,
   spawner: S,
@@ -56,7 +60,7 @@ where
 impl<Q, S> Handler for Dummy<Q, S>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
-  S: Spawn + Send + Sync + 'static + Default
+  S: Spawn + Send + Sync + 'static + Default,
 {
   type Writer = Q;
 }
@@ -64,9 +68,12 @@ where
 impl<Q, S> Spawn for Dummy<Q, S>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
-  S: Spawn + Send + Sync + 'static + Default
+  S: Spawn + Send + Sync + 'static + Default,
 {
-  fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
+  fn spawn_obj(
+    &self,
+    future: FutureObj<'static, ()>,
+  ) -> Result<(), SpawnError> {
     self.spawner.spawn_obj(future)
   }
 
@@ -78,13 +85,13 @@ where
 impl<Q, S> Dummy<Q, S>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
-  S: Spawn + Send + Sync + 'static + Default
+  S: Spawn + Send + Sync + 'static + Default,
 {
   #[must_use]
   pub fn new(spawner: S) -> Dummy<Q, S> {
     Dummy {
       _q: Arc::new(PhantomData),
-      spawner
+      spawner,
     }
   }
 }

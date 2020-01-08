@@ -1,9 +1,11 @@
 //! Some manually implemented API functions
+use futures::io::AsyncWrite;
+use rmpv::Value;
+
 use crate::{
-  error::CallError, neovim::Neovim, rpc::model::IntoVal, runtime::AsyncWrite,
+  error::CallError, neovim::Neovim, rpc::model::IntoVal,
   Buffer, Tabpage, Window,
 };
-use rmpv::Value;
 
 impl<W> Neovim<W>
 where

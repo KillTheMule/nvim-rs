@@ -1,12 +1,13 @@
 //! The auto generated API for [`neovim`](crate::neovim::Neovim)
 //!
 //! Auto generated 2020-01-04 12:55:41.125195
-use crate::{runtime::AsyncWrite, Buffer, Tabpage, Window};
+use futures::io::AsyncWrite;
 
 use crate::{
   error::CallError,
   neovim::*,
   rpc::{unpack::TryUnpack, *},
+  Buffer, Tabpage, Window,
 };
 
 impl<W> Buffer<W>

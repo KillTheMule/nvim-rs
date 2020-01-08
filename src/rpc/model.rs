@@ -1,17 +1,18 @@
 //! Decoding and encoding msgpack rpc messages from/to neovim.
-use crate::{
-  error::{DecodeError, EncodeError},
-  runtime::{
-    AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufWriter, Mutex,
-  },
-};
-use rmpv::{decode::read_value, encode::write_value, Value};
 use std::{
   self,
   convert::TryInto,
   io::{self, Cursor, ErrorKind, Read},
   sync::Arc,
 };
+
+use futures::{
+  io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufWriter},
+  lock::Mutex,
+};
+use rmpv::{decode::read_value, encode::write_value, Value};
+
+use crate::error::{DecodeError, EncodeError};
 
 /// A msgpack-rpc message, see
 /// <https://github.com/msgpack-rpc/msgpack-rpc/blob/master/spec.md>

@@ -1,8 +1,8 @@
-use super::{Buffer, Tabpage};
-use crate::{
-  error::CallError, rpc::model::IntoVal, runtime::AsyncWrite, Neovim,
-};
+use futures::io::AsyncWrite;
 use rmpv::Value;
+
+use super::{Buffer, Tabpage};
+use crate::{error::CallError, rpc::model::IntoVal, Neovim};
 
 /// A struct representing a neovim window. It is specific to a
 /// [`Neovim`](crate::neovim::Neovim) instance, and calling a method on it will
