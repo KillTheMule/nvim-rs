@@ -127,12 +127,12 @@ where
 {
   let mut child = cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn()?;
   let stdout = child
-    .stdout()
+    .stdout
     .take()
     .ok_or_else(|| Error::new(ErrorKind::Other, "Can't open stdout"))?
     .compat_read();
   let stdin = child
-    .stdin()
+    .stdin
     .take()
     .ok_or_else(|| Error::new(ErrorKind::Other, "Can't open stdin"))?
     .compat_write();

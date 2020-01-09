@@ -28,10 +28,10 @@ bench = false
 [dependencies]
 rmp = "0.8.9"
 rmpv = "0.4.3"
-log = "0.4"
-async-trait = "0.1.18"
+log = "0.4.8"
+async-trait = "0.1.22"
 futures = { version = "0.3.1", features = ["io-compat"] }
-tokio = { version = "0.2.3", features = ["sync", "rt-core", "macros", "io-util", "tcp", "uds", "process", "io-std", "dns", "rt-threaded", "io-driver", "fs"] , optional = true}
+tokio = { version = "0.2.8", features = ["sync", "rt-core", "macros", "io-util", "tcp", "uds", "process", "io-std", "dns", "rt-threaded", "io-driver", "fs"] , optional = true}
 pin-project = { version = "0.4.6", optional = true }
 
 [dev-dependencies]
