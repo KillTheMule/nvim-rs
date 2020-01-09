@@ -124,7 +124,7 @@ async fn nested_requests() {
         rs2,
         "-c",
         ":let timer = timer_start(1500, 'N')",
-      ])
+      ]),
     handler,
   )
   .await

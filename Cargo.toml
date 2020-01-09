@@ -45,3 +45,24 @@ debug = true
 [[bench]]
 name = "rpc"
 harness = false
+required-features = ["use_tokio"]
+
+[[example]]
+name = "handler_drop"
+required-features = ["use_tokio"]
+
+[[example]]
+name = "quitting"
+required-features = ["use_tokio"]
+
+[[example]]
+name = "scorched_earth"
+required-features = ["use_tokio"]
+
+[[test]]
+name = "lib"
+required-features = ["use_tokio"]
+
+[[test]]
+name = "connections"
+required-features = ["use_tokio"]

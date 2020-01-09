@@ -259,7 +259,7 @@ impl IntoVal<Value> for Vec<(Value, Value)> {
   }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "use_tokio"))]
 mod test {
   use super::*;
   use futures::io::BufWriter;

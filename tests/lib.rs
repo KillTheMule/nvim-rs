@@ -1,6 +1,9 @@
-use nvim_rs::{create, DummyHandler};
+use nvim_rs::rpc::handler::Dummy as DummyHandler;
 
+#[cfg(feature = "use_tokio")]
 use tokio;
+#[cfg(feature = "use_tokio")]
+use nvim_rs::create;
 
 use std::{
   thread::sleep,
@@ -18,6 +21,7 @@ const NVIMPATH: &str = "neovim/build/bin/nvim";
 const HOST: &str = "127.0.0.1";
 const PORT: u16 = 6666;
 
+#[cfg(feature = "use_tokio")]
 #[tokio::test]
 async fn can_connect_via_tcp() {
   let listen = HOST.to_string() + ":" + &PORT.to_string();
@@ -53,7 +57,7 @@ async fn can_connect_via_tcp() {
   assert_eq!(&listen, servername.as_str().unwrap());
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, featuer = "use_tokio"))]
 #[tokio::test]
 async fn can_connect_via_unix_socket() {
   let dir = TempDir::new("neovim-lib.test")

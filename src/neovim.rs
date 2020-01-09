@@ -293,7 +293,7 @@ async fn find_sender(
   Ok(queue.remove(pos).1)
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "use_tokio"))]
 mod tests {
   use super::*;
 
