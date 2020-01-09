@@ -1,5 +1,8 @@
 //! This module contains compatibility wrappers and other adapter thingies to
-//! bridge between various async libraries.
+//! bridge between various async libraries. The code was taken from
+//! <https://github.com/tokio-rs/tokio-compat/pull/2> and a bit adjusted. Thanks
+//! to Eliza Weisman for providing it. The goal would be to remove it as soon at
+//! tokio-compat it released with this functionality.
 use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
