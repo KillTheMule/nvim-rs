@@ -32,10 +32,13 @@
 //!
 //! Some overview over the code:
 //!
-//! * Since we're not interested in handling anything, our `NeovimHandler` is an
-//! empty struct. We need not implement any methods, but declare the associated
-//! type `Handler::Writer`, which is `nvim_rs::runtime::ChildStdin` here since
-//! we connect to a neovim subprocess.
+//! * Since we're not interested in handling anything, our `NeovimHandler` is a
+//! [`Dummy`](crate::rpc::handler::Dummy) that does nothing on requests and
+//! notifications. We need to pass something that implements
+//! [`Spawn`](futures::task::Spawn), which is represented by the `Spawner`. It
+//! doesn't carry any data here. We implement `Spawn` in the most trivial way
+//! possible, by calling [`tokio::spawn`](tokio::spawn) that in turn calls out
+//! to the surrounding runtime.
 //!
 //! * Any shutdown logic should be handled after the channel was closed. We
 //! don't actually need to inspect the error, since the application will shut

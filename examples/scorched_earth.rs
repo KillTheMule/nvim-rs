@@ -5,11 +5,13 @@ use async_trait::async_trait;
 
 use rmpv::Value;
 
-use nvim_rs::{
-  create,
-  runtime::{Mutex, Stdout},
-  Handler, Neovim,
+use futures::{
+  lock::Mutex,
+  task::{FutureObj, Spawn, SpawnError},
 };
+use tokio::{io::Stdout, spawn};
+
+use nvim_rs::{compat::tokio::Compat, create, Handler, Neovim};
 
 struct Posis {
   cursor_start: Option<(u64, u64)>,
@@ -40,15 +42,29 @@ fn the_smaller(
 
 struct NeovimHandler(Arc<Mutex<Posis>>);
 
+impl Spawn for NeovimHandler {
+  fn spawn_obj(
+    &self,
+    future: FutureObj<'static, ()>,
+  ) -> Result<(), SpawnError> {
+    spawn(future);
+    Ok(())
+  }
+
+  fn status(&self) -> Result<(), SpawnError> {
+    Ok(())
+  }
+}
+
 #[async_trait]
 impl Handler for NeovimHandler {
-  type Writer = Stdout;
+  type Writer = Compat<Stdout>;
 
   async fn handle_notify(
     &self,
     name: String,
     args: Vec<Value>,
-    neovim: Neovim<Stdout>,
+    neovim: Neovim<Compat<Stdout>>,
   ) {
     match name.as_ref() {
       "cursor-moved-i" => {
@@ -105,22 +121,23 @@ async fn main() {
   };
   let handler: NeovimHandler = NeovimHandler(Arc::new(Mutex::new(p)));
 
-  let (nvim, io_handler) = create::new_parent(handler);
+  let (nvim, io_handler) = create::new_parent(handler).await;
 
   // Any error should probably be logged, as stderr is not visible to users.
   match io_handler.await {
     Err(joinerr) => eprintln!("Error joining IO loop: '{}'", joinerr),
     Ok(Err(err)) => {
       if !err.is_reader_error() {
-        // One last try, since there wasn't an error with writing to the stream
+        // One last try, since there wasn't an error with writing to the
+        // stream
         nvim
           .err_writeln(&format!("Error: '{}'", err))
           .await
           .unwrap_or_else(|e| {
-            // We could inspect this error to see what was happening, and maybe
-            // retry, but at this point it's probably best to assume the worst
-            // and print a friendly and supportive message to our
-            // users
+            // We could inspect this error to see what was happening, and
+            // maybe retry, but at this point it's probably best
+            // to assume the worst and print a friendly and
+            // supportive message to our users
             eprintln!("Well, dang... '{}'", e);
           });
       }

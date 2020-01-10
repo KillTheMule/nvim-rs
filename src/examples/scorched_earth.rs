@@ -31,12 +31,16 @@
 //!
 //! Some overview over the code:
 //!
+//! * The associated type for our [`Handler`](crate::rpc::handler::Handler) is
+//! out stdout. But tokio's [`Stdout`](tokio::io::Stdout) does not implement
+//! [`futures::io::AsyncWrite`](futures::io::AsyncWrite), so it needs to be
+//! wrapped in the provided [`Compat`](crate::compat::tokio::Compat) type.
+//!
 //! * The handler struct `NeovimHandler` needs to contain some plugin state,
-//!   namely two
-//! cursor positions `start` and `end`. It needs to be `Send` and `Sync`, and we
-//! need mutable access, so we wrap it in a `Arc<Mutex<_>>`. Note that we're
-//! using the [`Mutex`](crate::runtime::Mutex) from `nvim-rs`, which is a
-//! re-export from Tokio.
+//! namely two cursor positions `start` and `end`. It needs to be `Send` and
+//! `Sync`, and we need mutable access, so we wrap it in a `Arc<Mutex<_>>`. Note
+//! that we're using the [`Mutex`](crate::runtime::Mutex) from `nvim-rs`, which
+//! is a re-export from Tokio.
 //!
 //! * Implementing the [`Handler`](crate::Handler) trait requires some magic
 //! because of the async functions, we we use the
@@ -75,3 +79,6 @@
 //!
 //!   *Note*: A closed channel could still mean an error, so the plugin has the
 //!   option to react to this.
+//!
+//! * As with the other examples, we implement [`Spawn`](futures::task::Spawn)
+//! for our `NeovimHandler` most trivially.

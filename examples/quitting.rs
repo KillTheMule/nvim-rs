@@ -1,13 +1,33 @@
 //! Quitting. See src/examples/quitting.rs for documentation
-use nvim_rs::{create, runtime::Command, DummyHandler};
+use nvim_rs::{create, rpc::handler::Dummy as DummyHandler};
 
 use std::error::Error;
 
+use futures::task::{FutureObj, Spawn, SpawnError};
+use tokio::{process::Command, spawn};
+
 const NVIMPATH: &str = "neovim/build/bin/nvim";
+
+struct Spawner {}
+
+impl Spawn for Spawner {
+  fn spawn_obj(
+    &self,
+    future: FutureObj<'static, ()>,
+  ) -> Result<(), SpawnError> {
+    spawn(future);
+    Ok(())
+  }
+
+  fn status(&self) -> Result<(), SpawnError> {
+    Ok(())
+  }
+}
 
 #[tokio::main]
 async fn main() {
-  let handler = DummyHandler::new();
+  let spawner = Spawner {};
+  let handler = DummyHandler::new(spawner);
 
   let (nvim, _io_handle, _child) = create::new_child_cmd(
     Command::new(NVIMPATH)
