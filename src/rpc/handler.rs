@@ -51,7 +51,7 @@ pub trait Handler: Send + Sync + Spawn + 'static {
 pub struct Dummy<Q, S>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
-  S: Spawn + Send + Sync + 'static + Default,
+  S: Spawn + Send + Sync + 'static,
 {
   _q: Arc<PhantomData<Q>>,
   spawner: S,
@@ -60,7 +60,7 @@ where
 impl<Q, S> Handler for Dummy<Q, S>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
-  S: Spawn + Send + Sync + 'static + Default,
+  S: Spawn + Send + Sync + 'static,
 {
   type Writer = Q;
 }
@@ -68,7 +68,7 @@ where
 impl<Q, S> Spawn for Dummy<Q, S>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
-  S: Spawn + Send + Sync + 'static + Default,
+  S: Spawn + Send + Sync + 'static,
 {
   fn spawn_obj(
     &self,
@@ -85,7 +85,7 @@ where
 impl<Q, S> Dummy<Q, S>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
-  S: Spawn + Send + Sync + 'static + Default,
+  S: Spawn + Send + Sync + 'static,
 {
   #[must_use]
   pub fn new(spawner: S) -> Dummy<Q, S> {
