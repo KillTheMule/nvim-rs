@@ -144,7 +144,7 @@ where
 }
 
 /// Connect to the neovim instance that spawned this process over stdin/stdout
-pub fn new_parent<H>(
+pub async fn new_parent<H>(
   handler: H,
 ) -> (
   Neovim<Compat<Stdout>>,
