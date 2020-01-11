@@ -40,6 +40,7 @@ fn the_smaller(
   }
 }
 
+#[derive(Clone)]
 struct NeovimHandler(Arc<Mutex<Posis>>);
 
 impl Spawn for NeovimHandler {

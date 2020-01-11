@@ -19,6 +19,7 @@ use futures::{
 
 const NVIMPATH: &str = "neovim/build/bin/nvim";
 
+#[derive(Clone)]
 struct NeovimHandler {
   froodle: Arc<Mutex<String>>,
 }

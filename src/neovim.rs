@@ -179,7 +179,6 @@ where
     H: Handler,
     R: AsyncRead + Send + Unpin + 'static,
   {
-    let handler = Arc::new(handler);
     let mut rest: Vec<u8> = vec![];
 
     loop {

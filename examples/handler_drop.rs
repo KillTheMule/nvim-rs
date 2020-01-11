@@ -20,6 +20,7 @@ use std::{
 const OUTPUT_FILE: &str = "handler_drop.txt";
 const NVIMPATH: &str = "neovim/build/bin/nvim";
 
+#[derive(Clone)]
 struct NeovimHandler {
   buf: Arc<Mutex<Vec<String>>>,
 }

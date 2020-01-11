@@ -19,6 +19,7 @@ const NVIMPATH: &str = "neovim/build/bin/nvim";
 const HOST: &str = "127.0.0.1";
 const PORT: u16 = 6666;
 
+#[derive(Clone)]
 struct Spawner {}
 
 impl Spawn for Spawner {

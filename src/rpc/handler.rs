@@ -17,7 +17,7 @@ use crate::Neovim;
 /// asynchronous task can receive a copy of the handler, so some state can be
 /// shared.
 #[async_trait]
-pub trait Handler: Send + Sync + Spawn + 'static {
+pub trait Handler: Send + Sync + Clone + Spawn + 'static {
   /// The type where we write our responses to requests. Handling of incoming
   /// requests/notifications is done on the io loop, which passes the parsed
   /// messages to the handler.
@@ -51,16 +51,29 @@ pub trait Handler: Send + Sync + Spawn + 'static {
 pub struct Dummy<Q, S>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
-  S: Spawn + Send + Sync + 'static,
+  S: Spawn + Clone + Send + Sync + 'static,
 {
   _q: Arc<PhantomData<Q>>,
   spawner: S,
 }
 
+impl<Q, S> Clone for Dummy<Q, S>
+where
+  Q: AsyncWrite + Send + Sync + Unpin + 'static,
+  S: Spawn + Clone + Send + Sync + 'static,
+{
+    fn clone(&self) -> Self {
+      Dummy {
+        _q: self._q.clone(),
+        spawner: self.spawner.clone()
+      }
+    }
+}
+
 impl<Q, S> Handler for Dummy<Q, S>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
-  S: Spawn + Send + Sync + 'static,
+  S: Spawn + Clone + Send + Sync + 'static,
 {
   type Writer = Q;
 }
@@ -68,7 +81,7 @@ where
 impl<Q, S> Spawn for Dummy<Q, S>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
-  S: Spawn + Send + Sync + 'static,
+  S: Spawn + Clone + Send + Sync + 'static,
 {
   fn spawn_obj(
     &self,
@@ -85,7 +98,7 @@ where
 impl<Q, S> Dummy<Q, S>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
-  S: Spawn + Send + Sync + 'static,
+  S: Spawn + Clone + Send + Sync + 'static,
 {
   #[must_use]
   pub fn new(spawner: S) -> Dummy<Q, S> {

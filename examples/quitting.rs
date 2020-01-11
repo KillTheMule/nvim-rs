@@ -9,6 +9,7 @@ use tokio::{process::Command, spawn};
 
 const NVIMPATH: &str = "neovim/build/bin/nvim";
 
+#[derive(Clone)]
 struct Spawner {}
 
 impl Spawn for Spawner {
