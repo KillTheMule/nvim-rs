@@ -4,6 +4,7 @@ environment:
   DEPS_PREFIX: "C:/projects/nvim-deps/usr"
   CMAKE_EXTRA_FLAGS: "-DMIN_LOG_LEVEL=0"
   RUST_BACKTRACE: "1"
+  RUSTFLAGS: "-C opt-level=0"
   # image maybe needed by neovim build script
   image: Visual Studio 2017
   global:
@@ -40,13 +41,15 @@ install:
 
 test_script:
   - cmd: |
-      cargo build --examples
+      cargo check
+      cargo check --examples --features use_tokio
       cd neovim
       powershell ci\build.ps1 -NoTests
       cd ..
       neovim\build\bin\nvim.exe --version
       cargo test -- --nocapture
-      cargo bench -- --test
+      cargo test --features use_tokio -- --nocapture
+      cargo bench --features use_tokio -- --test
 
 cache:
   - C:\Users\appveyor\.cargo

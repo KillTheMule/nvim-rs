@@ -12,6 +12,7 @@ env:
     - NVIMRS_LOG_FILE=nvim-rs.log
     - NVIMRS_LOG_LEVEL=debug
     - NVIMRS_STDERR=nvim-rs.stderr
+    - RUSTFLAGS="-C opt-level=0"
 
 matrix:
   allow_failures:
@@ -22,8 +23,11 @@ before_script: cd neovim && git submodule init
                && if [ $TRAVIS_OS_NAME == "linux" ]; then sudo apt-get install -y libtool-bin; fi
                && make
 
-script: cargo test && cargo check --examples
-        && RUSTFLAGS="-C opt-level=0" cargo bench -- --test
+script: cargo check
+        && cargo check --examples --features use_tokio
+        && cargo test -- --nocapture
+        && cargo test --features use_tokio -- --nocapture
+        && cargo bench --features use_tokio -- --test
 
 after_script: echo $NVIMRS_STDERR && cat $NVIMRS_STDERR
 
