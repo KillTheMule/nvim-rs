@@ -3,7 +3,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use futures::task::{FutureObj, Spawn, SpawnError};
 
 use nvim_rs::{
-  call_args, create,
+  call_args, create::tokio as create,
   rpc::{handler::Dummy, IntoVal},
 };
 

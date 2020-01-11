@@ -1,4 +1,4 @@
-use nvim_rs::{create, rpc::handler::Dummy as DummyHandler};
+use nvim_rs::{create::tokio as create, rpc::handler::Dummy as DummyHandler};
 
 use tokio::{self, spawn};
 

@@ -38,7 +38,6 @@ pub mod neovim_api_manual;
 pub mod uioptions;
 pub mod compat;
 
-#[cfg(feature = "use_tokio")]
 pub mod create;
 
 pub use crate::{

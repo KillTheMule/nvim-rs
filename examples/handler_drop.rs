@@ -1,6 +1,6 @@
 //! How to handle cleanup logic with access to the handler's data. See
 //! src/examples/handler_drop.rs for documentation.
-use nvim_rs::{compat::tokio::Compat, create, Handler, Neovim, Value};
+use nvim_rs::{compat::tokio::Compat, create::tokio as create, Handler, Neovim, Value};
 
 use futures::task::{FutureObj, Spawn, SpawnError};
 use tokio::{

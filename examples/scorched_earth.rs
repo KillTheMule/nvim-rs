@@ -11,7 +11,7 @@ use futures::{
 };
 use tokio::{io::Stdout, spawn};
 
-use nvim_rs::{compat::tokio::Compat, create, Handler, Neovim};
+use nvim_rs::{compat::tokio::Compat, create::tokio as create, Handler, Neovim};
 
 struct Posis {
   cursor_start: Option<(u64, u64)>,
