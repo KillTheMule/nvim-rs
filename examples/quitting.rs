@@ -4,6 +4,7 @@ use nvim_rs::{create, rpc::handler::Dummy as DummyHandler};
 use std::error::Error;
 
 use futures::task::{FutureObj, Spawn, SpawnError};
+
 use tokio::{process::Command, spawn};
 
 const NVIMPATH: &str = "neovim/build/bin/nvim";
@@ -26,8 +27,7 @@ impl Spawn for Spawner {
 
 #[tokio::main]
 async fn main() {
-  let spawner = Spawner {};
-  let handler = DummyHandler::new(spawner);
+  let handler = DummyHandler::new(Spawner {});
 
   let (nvim, _io_handle, _child) = create::new_child_cmd(
     Command::new(NVIMPATH)

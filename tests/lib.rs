@@ -1,16 +1,14 @@
-use nvim_rs::rpc::handler::Dummy as DummyHandler;
+use nvim_rs::{create, rpc::handler::Dummy as DummyHandler};
 
-#[cfg(feature = "use_tokio")]
-use tokio;
-#[cfg(feature = "use_tokio")]
-use nvim_rs::create;
+use tokio::{self, spawn};
+
+use futures::task::{FutureObj, Spawn, SpawnError};
 
 use std::{
+  process::Command,
   thread::sleep,
   time::{Duration, Instant},
 };
-
-use std::process::Command;
 
 #[cfg(unix)]
 use std::path::Path;
@@ -21,7 +19,22 @@ const NVIMPATH: &str = "neovim/build/bin/nvim";
 const HOST: &str = "127.0.0.1";
 const PORT: u16 = 6666;
 
-#[cfg(feature = "use_tokio")]
+struct Spawner {}
+
+impl Spawn for Spawner {
+  fn spawn_obj(
+    &self,
+    future: FutureObj<'static, ()>,
+  ) -> Result<(), SpawnError> {
+    spawn(future);
+    Ok(())
+  }
+
+  fn status(&self) -> Result<(), SpawnError> {
+    Ok(())
+  }
+}
+
 #[tokio::test]
 async fn can_connect_via_tcp() {
   let listen = HOST.to_string() + ":" + &PORT.to_string();
@@ -37,7 +50,7 @@ async fn can_connect_via_tcp() {
   let (nvim, _io_handle) = loop {
     sleep(Duration::from_millis(100));
 
-    let handler = DummyHandler::new();
+    let handler = DummyHandler::new(Spawner{});
     if let Ok(r) = create::new_tcp(&listen, handler).await {
       break r;
     } else {
@@ -57,7 +70,7 @@ async fn can_connect_via_tcp() {
   assert_eq!(&listen, servername.as_str().unwrap());
 }
 
-#[cfg(all(unix, featuer = "use_tokio"))]
+#[cfg(unix)]
 #[tokio::test]
 async fn can_connect_via_unix_socket() {
   let dir = TempDir::new("neovim-lib.test")
@@ -88,7 +101,7 @@ async fn can_connect_via_unix_socket() {
     }
   }
 
-  let handler = DummyHandler::new();
+  let handler = DummyHandler::new(Spawner{});
   let (nvim, _io_handle) = create::new_unix_socket(&socket_path, handler)
     .await
     .expect(&format!(

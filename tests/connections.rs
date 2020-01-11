@@ -1,12 +1,21 @@
+use nvim_rs::{compat::tokio::Compat, create, neovim::Neovim, Handler};
+
 use async_trait::async_trait;
-use nvim_rs::{
-  create,
-  runtime::{spawn, ChildStdin, Command, Mutex},
-  Handler, Neovim,
-};
+
 use rmpv::Value;
+
 use std::sync::Arc;
-use tokio;
+
+use tokio::{
+  self,
+  process::{ChildStdin, Command},
+  spawn,
+};
+
+use futures::{
+  lock::Mutex,
+  task::{FutureObj, Spawn, SpawnError},
+};
 
 const NVIMPATH: &str = "neovim/build/bin/nvim";
 
@@ -14,15 +23,29 @@ struct NeovimHandler {
   froodle: Arc<Mutex<String>>,
 }
 
+impl Spawn for NeovimHandler {
+  fn spawn_obj(
+    &self,
+    future: FutureObj<'static, ()>,
+  ) -> Result<(), SpawnError> {
+    spawn(future);
+    Ok(())
+  }
+
+  fn status(&self) -> Result<(), SpawnError> {
+    Ok(())
+  }
+}
+
 #[async_trait]
 impl Handler for NeovimHandler {
-  type Writer = ChildStdin;
+  type Writer = Compat<ChildStdin>;
 
   async fn handle_request(
     &self,
     name: String,
     args: Vec<Value>,
-    neovim: Neovim<ChildStdin>,
+    neovim: Neovim<Compat<ChildStdin>>,
   ) -> Result<Value, Value> {
     match name.as_ref() {
       "dummy" => Ok(Value::from("o")),
@@ -84,7 +107,7 @@ impl Handler for NeovimHandler {
     &self,
     name: String,
     args: Vec<Value>,
-    _neovim: Neovim<ChildStdin>,
+    _neovim: Neovim<Compat<ChildStdin>>,
   ) {
     match name.as_ref() {
       "set_froodle" => {
@@ -110,21 +133,20 @@ async fn nested_requests() {
   };
 
   let (nvim, io_handler, _child) = create::new_child_cmd(
-    Command::new(NVIMPATH)
-      .args(&[
-        "-u",
-        "NONE",
-        "--embed",
-        "--headless",
-        "-c",
-        rs,
-        "-c",
-        ":let timer = timer_start(500, 'M')",
-        "-c",
-        rs2,
-        "-c",
-        ":let timer = timer_start(1500, 'N')",
-      ]),
+    Command::new(NVIMPATH).args(&[
+      "-u",
+      "NONE",
+      "--embed",
+      "--headless",
+      "-c",
+      rs,
+      "-c",
+      ":let timer = timer_start(500, 'M')",
+      "-c",
+      rs2,
+      "-c",
+      ":let timer = timer_start(1500, 'N')",
+    ]),
     handler,
   )
   .await
