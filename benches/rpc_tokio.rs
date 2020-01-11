@@ -11,6 +11,7 @@ use tokio::{process::Command, runtime::Builder, spawn};
 
 const NVIMPATH: &str = "neovim/build/bin/nvim";
 
+#[derive(Clone)]
 struct Spawner {}
 
 impl Spawn for Spawner {
@@ -31,7 +32,7 @@ fn simple_requests(c: &mut Criterion) {
   let handler = Dummy::new(Spawner {});
 
   let mut rt = Builder::new()
-    .threaded_scheduler()
+    .basic_scheduler()
     .enable_io()
     .build()
     .unwrap();
@@ -61,7 +62,7 @@ fn request_file(c: &mut Criterion) {
   let handler = Dummy::new(Spawner {});
 
   let mut rt = Builder::new()
-    .threaded_scheduler()
+    .basic_scheduler()
     .enable_io()
     .build()
     .unwrap();

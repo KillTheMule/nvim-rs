@@ -1,11 +1,5 @@
-//! Functions to spawn a [`neovim`](crate::neovim::Neovim) session.
-//!
-//! This implements various possibilities to connect to neovim, including
-//! spawning an own child process. Available capabilities might depend on your
-//! OS.
-//!
-//! Right now, this depends on the `use_tokio` feature, since it uses tokio
-//! under the hood.
+//! Functions to spawn a [`neovim`](crate::neovim::Neovim) session using
+//! [`tokio`](tokio)
 use std::{
   io::{self, Error, ErrorKind},
   path::Path,

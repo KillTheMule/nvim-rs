@@ -12,3 +12,6 @@
 //! used for IO (e.g. `tokio::io::Stdin` vs. `async-std::io::Stdin`).
 #[cfg(feature = "use_tokio")]
 pub mod tokio;
+
+#[cfg(feature = "use_async-std")]
+pub mod async_std;
