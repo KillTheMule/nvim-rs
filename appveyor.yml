@@ -43,13 +43,16 @@ test_script:
   - cmd: |
       cargo check
       cargo check --examples --features use_tokio
+      cargo check --examples --features use_async-std
       cd neovim
       powershell ci\build.ps1 -NoTests
       cd ..
       neovim\build\bin\nvim.exe --version
       cargo test -- --nocapture
       cargo test --features use_tokio -- --nocapture
+      cargo test --features use_async-std -- --nocapture
       cargo bench --features use_tokio -- --test
+      cargo bench --features use_async-std -- --test
 
 cache:
   - C:\Users\appveyor\.cargo

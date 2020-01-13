@@ -14,30 +14,13 @@ use tokio::{
   spawn,
 };
 
-use futures::{
-  lock::Mutex,
-  task::{FutureObj, Spawn, SpawnError},
-};
+use futures::lock::Mutex;
 
 const NVIMPATH: &str = "neovim/build/bin/nvim";
 
 #[derive(Clone)]
 struct NeovimHandler {
   froodle: Arc<Mutex<String>>,
-}
-
-impl Spawn for NeovimHandler {
-  fn spawn_obj(
-    &self,
-    future: FutureObj<'static, ()>,
-  ) -> Result<(), SpawnError> {
-    spawn(future);
-    Ok(())
-  }
-
-  fn status(&self) -> Result<(), SpawnError> {
-    Ok(())
-  }
 }
 
 #[async_trait]
