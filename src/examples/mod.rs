@@ -19,6 +19,11 @@
 //! ## `scorched_earth`
 //!
 //! A port of a real existing plugin.
+//!
+//! ## `scorched_earth`
+//!
+//! A port of the `scorched_earth` example to `async-std`.
 pub mod handler_drop;
 pub mod quitting;
 pub mod scorched_earth;
+pub mod scorched_earth_as;

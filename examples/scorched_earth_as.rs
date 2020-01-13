@@ -6,11 +6,12 @@ use async_trait::async_trait;
 use rmpv::Value;
 
 use futures::lock::Mutex;
-use tokio::io::Stdout;
 
 use nvim_rs::{
-  compat::tokio::Compat, create::tokio as create, Handler, Neovim,
+ create::async_std as create, Handler, Neovim,
 };
+
+use async_std::{self, io::Stdout};
 
 struct Posis {
   cursor_start: Option<(u64, u64)>,
@@ -44,13 +45,13 @@ struct NeovimHandler(Arc<Mutex<Posis>>);
 
 #[async_trait]
 impl Handler for NeovimHandler {
-  type Writer = Compat<Stdout>;
+  type Writer = Stdout;
 
   async fn handle_notify(
     &self,
     name: String,
     args: Vec<Value>,
-    neovim: Neovim<Compat<Stdout>>,
+    neovim: Neovim<Stdout>,
   ) {
     match name.as_ref() {
       "cursor-moved-i" => {
@@ -94,7 +95,7 @@ impl Handler for NeovimHandler {
   }
 }
 
-#[tokio::main]
+#[async_std::main]
 async fn main() {
   let p = Posis {
     cursor_start: None,
@@ -106,8 +107,7 @@ async fn main() {
 
   // Any error should probably be logged, as stderr is not visible to users.
   match io_handler.await {
-    Err(joinerr) => eprintln!("Error joining IO loop: '{}'", joinerr),
-    Ok(Err(err)) => {
+    Err(err) => {
       if !err.is_reader_error() {
         // One last try, since there wasn't an error with writing to the
         // stream
@@ -137,6 +137,6 @@ async fn main() {
         }
       }
     }
-    Ok(Ok(())) => {}
+    Ok(()) => {}
   }
 }

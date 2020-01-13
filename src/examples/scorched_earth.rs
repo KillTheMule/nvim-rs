@@ -6,6 +6,9 @@
 //! customisation of color, and removes some abstractions that aren't helpfull
 //! in an example.
 //!
+//! Note that this example uses `tokio`, while `scorched_earth_as` uses
+//! async-std.
+//!
 //! ## Usage
 //!
 //! First, build this example via

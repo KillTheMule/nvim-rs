@@ -61,6 +61,10 @@ required-features = ["use_tokio"]
 name = "scorched_earth"
 required-features = ["use_tokio"]
 
+[[example]]
+name = "scorched_earth_as"
+required-features = ["use_async-std"]
+
 [[test]]
 name = "nested_requests"
 required-features = ["use_tokio"]
