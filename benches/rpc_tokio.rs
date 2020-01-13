@@ -1,11 +1,12 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 
 use nvim_rs::{
-  call_args, create::tokio as create,
+  call_args,
+  create::tokio as create,
   rpc::{handler::Dummy, IntoVal},
 };
 
-use tokio::{process::Command, runtime::Builder,};
+use tokio::{process::Command, runtime::Builder};
 
 const NVIMPATH: &str = "neovim/build/bin/nvim";
 

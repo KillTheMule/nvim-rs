@@ -3,8 +3,8 @@ use futures::io::AsyncWrite;
 use rmpv::Value;
 
 use crate::{
-  error::CallError, neovim::Neovim, rpc::model::IntoVal,
-  Buffer, Tabpage, Window,
+  error::CallError, neovim::Neovim, rpc::model::IntoVal, Buffer, Tabpage,
+  Window,
 };
 
 impl<W> Neovim<W>

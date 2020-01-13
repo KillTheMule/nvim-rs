@@ -1,6 +1,6 @@
 use nvim_rs::{create::tokio as create, rpc::handler::Dummy as DummyHandler};
 
-use tokio::{self,};
+use tokio::{self};
 
 use std::{
   process::Command,

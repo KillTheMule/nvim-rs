@@ -14,8 +14,8 @@ use futures::{
 };
 
 use crate::{
-  error::{CallError, DecodeError, EncodeError, LoopError},
   create::Spawner,
+  error::{CallError, DecodeError, EncodeError, LoopError},
   rpc::{
     handler::Handler,
     model,

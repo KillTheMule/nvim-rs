@@ -3,7 +3,7 @@ use nvim_rs::{create::tokio as create, rpc::handler::Dummy as DummyHandler};
 
 use std::error::Error;
 
-use tokio::{process::Command,};
+use tokio::process::Command;
 
 const NVIMPATH: &str = "neovim/build/bin/nvim";
 

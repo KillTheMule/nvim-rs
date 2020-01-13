@@ -409,10 +409,9 @@ impl Display for LoopError {
         "Request {}: Could not send response, which was {:?}",
         i, res
       ),
-      Self::IoSpawn(_) => write!(
-        fmt,
-        "Could not spawn an additional task to the handler"
-      ),
+      Self::IoSpawn(_) => {
+        write!(fmt, "Could not spawn an additional task to the handler")
+      }
     }
   }
 }

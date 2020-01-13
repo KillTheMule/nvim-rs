@@ -5,9 +5,7 @@
 use std::{marker::PhantomData, sync::Arc};
 
 use async_trait::async_trait;
-use futures::{
-  io::AsyncWrite,
-};
+use futures::io::AsyncWrite;
 use rmpv::Value;
 
 use crate::Neovim;
@@ -47,22 +45,23 @@ pub trait Handler: Send + Sync + Clone + 'static {
 /// returning a generic error for a request. It can be used if a plugin only
 /// wants to send requests to neovim and get responses, but not handle any
 /// notifications or requests.
+#[derive(Default)]
 pub struct Dummy<Q>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
 {
-  _q: Arc<PhantomData<Q>>,
+  q: Arc<PhantomData<Q>>,
 }
 
 impl<Q> Clone for Dummy<Q>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
 {
-    fn clone(&self) -> Self {
-      Dummy {
-        _q: self._q.clone(),
-      }
+  fn clone(&self) -> Self {
+    Dummy {
+      q: self.q.clone(),
     }
+  }
 }
 
 impl<Q> Handler for Dummy<Q>
@@ -72,7 +71,6 @@ where
   type Writer = Q;
 }
 
-
 impl<Q> Dummy<Q>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
@@ -80,7 +78,7 @@ where
   #[must_use]
   pub fn new() -> Dummy<Q> {
     Dummy {
-      _q: Arc::new(PhantomData),
+      q: Arc::new(PhantomData),
     }
   }
 }

@@ -262,8 +262,7 @@ impl IntoVal<Value> for Vec<(Value, Value)> {
 #[cfg(all(test, feature = "use_tokio"))]
 mod test {
   use super::*;
-  use futures::io::BufWriter;
-  use futures::lock::Mutex;
+  use futures::{io::BufWriter, lock::Mutex};
   use std::{io::Cursor, sync::Arc};
 
   use tokio;

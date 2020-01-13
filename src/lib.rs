@@ -30,20 +30,20 @@ extern crate log;
 pub mod rpc;
 #[macro_use]
 pub mod neovim;
+pub mod compat;
 pub mod error;
 pub mod examples;
 pub mod exttypes;
 pub mod neovim_api;
 pub mod neovim_api_manual;
 pub mod uioptions;
-pub mod compat;
 
 pub mod create;
 
 pub use crate::{
   exttypes::{Buffer, Tabpage, Window},
   neovim::Neovim,
-  rpc::handler::{Handler},
+  rpc::handler::Handler,
   uioptions::{UiAttachOptions, UiOption},
 };
 
