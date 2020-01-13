@@ -1,6 +1,6 @@
 //! Functions to spawn a [`neovim`](crate::neovim::Neovim) session using
 //! [`async-std`](async-std)
-use std::io;
+use std::{future::Future, io};
 
 #[cfg(unix)]
 use async_std::os::unix::net::UnixStream;
@@ -14,7 +14,21 @@ use async_std::{
 
 use futures::io::{AsyncReadExt, WriteHalf};
 
-use crate::{error::LoopError, neovim::Neovim, Handler};
+use crate::{create::Spawner, error::LoopError, neovim::Neovim, Handler};
+
+impl<H> Spawner for H
+where
+  H: Handler,
+{
+  type Handle = JoinHandle<()>;
+
+  fn spawn<Fut>(&self, future: Fut) -> Self::Handle
+  where
+    Fut: Future<Output = ()> + Send + 'static,
+  {
+    spawn(future)
+  }
+}
 
 /// Connect to a neovim instance via tcp
 pub async fn new_tcp<A, H>(

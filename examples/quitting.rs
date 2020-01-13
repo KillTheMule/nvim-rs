@@ -3,32 +3,13 @@ use nvim_rs::{create::tokio as create, rpc::handler::Dummy as DummyHandler};
 
 use std::error::Error;
 
-use futures::task::{FutureObj, Spawn, SpawnError};
-
-use tokio::{process::Command, spawn};
+use tokio::{process::Command,};
 
 const NVIMPATH: &str = "neovim/build/bin/nvim";
 
-#[derive(Clone)]
-struct Spawner {}
-
-impl Spawn for Spawner {
-  fn spawn_obj(
-    &self,
-    future: FutureObj<'static, ()>,
-  ) -> Result<(), SpawnError> {
-    spawn(future);
-    Ok(())
-  }
-
-  fn status(&self) -> Result<(), SpawnError> {
-    Ok(())
-  }
-}
-
 #[tokio::main]
 async fn main() {
-  let handler = DummyHandler::new(Spawner {});
+  let handler = DummyHandler::new();
 
   let (nvim, _io_handle, _child) = create::new_child_cmd(
     Command::new(NVIMPATH)

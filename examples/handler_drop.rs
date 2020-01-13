@@ -1,12 +1,10 @@
 //! How to handle cleanup logic with access to the handler's data. See
 //! src/examples/handler_drop.rs for documentation.
-use nvim_rs::{compat::tokio::Compat, create::tokio as create, Handler, Neovim, Value};
-
-use futures::task::{FutureObj, Spawn, SpawnError};
-use tokio::{
-  process::{ChildStdin, Command},
-  spawn,
+use nvim_rs::{
+  compat::tokio::Compat, create::tokio as create, Handler, Neovim, Value,
 };
+
+use tokio::process::{ChildStdin, Command};
 
 use async_trait::async_trait;
 
@@ -23,20 +21,6 @@ const NVIMPATH: &str = "neovim/build/bin/nvim";
 #[derive(Clone)]
 struct NeovimHandler {
   buf: Arc<Mutex<Vec<String>>>,
-}
-
-impl Spawn for NeovimHandler {
-  fn spawn_obj(
-    &self,
-    future: FutureObj<'static, ()>,
-  ) -> Result<(), SpawnError> {
-    spawn(future);
-    Ok(())
-  }
-
-  fn status(&self) -> Result<(), SpawnError> {
-    Ok(())
-  }
 }
 
 #[async_trait]

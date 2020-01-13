@@ -5,13 +5,12 @@ use async_trait::async_trait;
 
 use rmpv::Value;
 
-use futures::{
-  lock::Mutex,
-  task::{FutureObj, Spawn, SpawnError},
-};
-use tokio::{io::Stdout, spawn};
+use futures::lock::Mutex;
+use tokio::io::Stdout;
 
-use nvim_rs::{compat::tokio::Compat, create::tokio as create, Handler, Neovim};
+use nvim_rs::{
+  compat::tokio::Compat, create::tokio as create, Handler, Neovim,
+};
 
 struct Posis {
   cursor_start: Option<(u64, u64)>,
@@ -42,20 +41,6 @@ fn the_smaller(
 
 #[derive(Clone)]
 struct NeovimHandler(Arc<Mutex<Posis>>);
-
-impl Spawn for NeovimHandler {
-  fn spawn_obj(
-    &self,
-    future: FutureObj<'static, ()>,
-  ) -> Result<(), SpawnError> {
-    spawn(future);
-    Ok(())
-  }
-
-  fn status(&self) -> Result<(), SpawnError> {
-    Ok(())
-  }
-}
 
 #[async_trait]
 impl Handler for NeovimHandler {

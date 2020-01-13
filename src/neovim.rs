@@ -11,11 +11,11 @@ use futures::{
   channel::oneshot,
   io::{AsyncRead, AsyncWrite, BufWriter},
   lock::Mutex,
-  task::SpawnExt,
 };
 
 use crate::{
   error::{CallError, DecodeError, EncodeError, LoopError},
+  create::Spawner,
   rpc::{
     handler::Handler,
     model,
@@ -82,7 +82,7 @@ where
   )
   where
     R: AsyncRead + Send + Unpin + 'static,
-    H: Handler<Writer = W>,
+    H: Handler<Writer = W> + Spawner,
   {
     let req = Neovim {
       writer: Arc::new(Mutex::new(BufWriter::new(writer))),
@@ -176,7 +176,7 @@ where
     neovim: Neovim<H::Writer>,
   ) -> Result<(), Box<LoopError>>
   where
-    H: Handler,
+    H: Handler + Spawner,
     R: AsyncRead + Send + Unpin + 'static,
   {
     let mut rest: Vec<u8> = vec![];
@@ -220,7 +220,7 @@ where
               .unwrap_or_else(|e| {
                 error!("Error sending response to request {}: '{}'", msgid, e);
               });
-          })?;
+          });
         }
         RpcMessage::RpcResponse {
           msgid,
@@ -243,7 +243,7 @@ where
           let neovim = neovim.clone();
           handler.spawn(async move {
             handler_c.handle_notify(method, params, neovim).await
-          })?;
+          });
         }
       };
     }

@@ -1,35 +1,16 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use futures::task::{FutureObj, Spawn, SpawnError};
-
 use nvim_rs::{
   call_args, create::tokio as create,
   rpc::{handler::Dummy, IntoVal},
 };
 
-use tokio::{process::Command, runtime::Builder, spawn};
+use tokio::{process::Command, runtime::Builder,};
 
 const NVIMPATH: &str = "neovim/build/bin/nvim";
 
-#[derive(Clone)]
-struct Spawner {}
-
-impl Spawn for Spawner {
-  fn spawn_obj(
-    &self,
-    future: FutureObj<'static, ()>,
-  ) -> Result<(), SpawnError> {
-    spawn(future);
-    Ok(())
-  }
-
-  fn status(&self) -> Result<(), SpawnError> {
-    Ok(())
-  }
-}
-
 fn simple_requests(c: &mut Criterion) {
-  let handler = Dummy::new(Spawner {});
+  let handler = Dummy::new();
 
   let mut rt = Builder::new()
     .basic_scheduler()
@@ -59,7 +40,7 @@ fn simple_requests(c: &mut Criterion) {
 }
 
 fn request_file(c: &mut Criterion) {
-  let handler = Dummy::new(Spawner {});
+  let handler = Dummy::new();
 
   let mut rt = Builder::new()
     .basic_scheduler()

@@ -7,7 +7,6 @@ use std::{marker::PhantomData, sync::Arc};
 use async_trait::async_trait;
 use futures::{
   io::AsyncWrite,
-  task::{FutureObj, Spawn, SpawnError},
 };
 use rmpv::Value;
 
@@ -17,7 +16,7 @@ use crate::Neovim;
 /// asynchronous task can receive a copy of the handler, so some state can be
 /// shared.
 #[async_trait]
-pub trait Handler: Send + Sync + Clone + Spawn + 'static {
+pub trait Handler: Send + Sync + Clone + 'static {
   /// The type where we write our responses to requests. Handling of incoming
   /// requests/notifications is done on the io loop, which passes the parsed
   /// messages to the handler.
@@ -48,63 +47,40 @@ pub trait Handler: Send + Sync + Clone + Spawn + 'static {
 /// returning a generic error for a request. It can be used if a plugin only
 /// wants to send requests to neovim and get responses, but not handle any
 /// notifications or requests.
-pub struct Dummy<Q, S>
+pub struct Dummy<Q>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
-  S: Spawn + Clone + Send + Sync + 'static,
 {
   _q: Arc<PhantomData<Q>>,
-  spawner: S,
 }
 
-impl<Q, S> Clone for Dummy<Q, S>
+impl<Q> Clone for Dummy<Q>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
-  S: Spawn + Clone + Send + Sync + 'static,
 {
     fn clone(&self) -> Self {
       Dummy {
         _q: self._q.clone(),
-        spawner: self.spawner.clone()
       }
     }
 }
 
-impl<Q, S> Handler for Dummy<Q, S>
+impl<Q> Handler for Dummy<Q>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
-  S: Spawn + Clone + Send + Sync + 'static,
 {
   type Writer = Q;
 }
 
-impl<Q, S> Spawn for Dummy<Q, S>
+
+impl<Q> Dummy<Q>
 where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
-  S: Spawn + Clone + Send + Sync + 'static,
-{
-  fn spawn_obj(
-    &self,
-    future: FutureObj<'static, ()>,
-  ) -> Result<(), SpawnError> {
-    self.spawner.spawn_obj(future)
-  }
-
-  fn status(&self) -> Result<(), SpawnError> {
-    self.spawner.status()
-  }
-}
-
-impl<Q, S> Dummy<Q, S>
-where
-  Q: AsyncWrite + Send + Sync + Unpin + 'static,
-  S: Spawn + Clone + Send + Sync + 'static,
 {
   #[must_use]
-  pub fn new(spawner: S) -> Dummy<Q, S> {
+  pub fn new() -> Dummy<Q> {
     Dummy {
       _q: Arc::new(PhantomData),
-      spawner,
     }
   }
 }

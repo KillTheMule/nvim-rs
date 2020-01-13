@@ -1,6 +1,7 @@
 //! Functions to spawn a [`neovim`](crate::neovim::Neovim) session using
 //! [`tokio`](tokio)
 use std::{
+  future::Future,
   io::{self, Error, ErrorKind},
   path::Path,
   process::Stdio,
@@ -19,10 +20,25 @@ use tokio::{
 
 use crate::{
   compat::tokio::{Compat, TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt},
+  create::Spawner,
   error::LoopError,
   neovim::Neovim,
   Handler,
 };
+
+impl<H> Spawner for H
+where
+  H: Handler,
+{
+  type Handle = JoinHandle<()>;
+
+  fn spawn<Fut>(&self, future: Fut) -> Self::Handle
+  where
+    Fut: Future<Output = ()> + Send + 'static,
+  {
+    spawn(future)
+  }
+}
 
 /// Connect to a neovim instance via tcp
 pub async fn new_tcp<A, H>(
