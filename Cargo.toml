@@ -22,6 +22,7 @@ edition = "2018"
 [features]
 use_tokio = ["tokio", "pin-project"]
 use_async-std = ["async-std"]
+use_neovim_lib = ["neovim-lib"]
 
 [lib]
 bench = false
@@ -35,6 +36,7 @@ futures = { version = "0.3.1", features = ["io-compat"] }
 tokio = { version = "0.2.8", features = ["sync", "rt-core", "macros", "io-util", "tcp", "uds", "process", "io-std", "dns", "rt-threaded", "io-driver", "fs"] , optional = true}
 pin-project = { version = "0.4.6", optional = true }
 async-std = { version = "1.4.0", features = ["attributes"], optional = true }
+neovim-lib = { version = "*", optional = true }
 
 [dev-dependencies]
 tempdir = "0.3"
@@ -60,6 +62,18 @@ required-features = ["use_tokio"]
 [[example]]
 name = "scorched_earth"
 required-features = ["use_tokio"]
+
+[[example]]
+name = "bench_tokio"
+required-features = ["use_tokio"]
+
+[[example]]
+name = "bench_async-std"
+required-features = ["use_async-std"]
+
+[[example]]
+name = "bench_sync"
+required-features = ["use_neovim_lib"]
 
 [[example]]
 name = "scorched_earth_as"
