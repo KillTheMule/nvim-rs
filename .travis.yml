@@ -26,11 +26,14 @@ before_script: cd neovim && git submodule init
 script: cargo check
         && cargo check --examples --features use_tokio
         && cargo check --examples --features use_async-std
+        && cargo check --examples --features use_gio
         && cargo test -- --nocapture
         && cargo test --features use_tokio -- --nocapture
         && cargo test --features use_async-std -- --nocapture
+        && cargo test --features use_gio -- --nocapture
         && cargo bench --features use_tokio -- --test
         && cargo bench --features use_async-std -- --test
+        && cargo bench --features use_gio -- --test
 
 after_script: echo $NVIMRS_STDERR && cat $NVIMRS_STDERR
 

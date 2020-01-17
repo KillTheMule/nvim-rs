@@ -33,17 +33,19 @@ build_script:
 
 install:
   - ps: |
-      $env:PATH += ";C:\msys64\mingw64\bin;C:\Users\appveyor\.cargo\bin"
+      $env:PATH = "C:\msys64\mingw64\bin;C:\Users\appveyor\.cargo\bin;C:\msys64\usr\bin;$env:PATH"
       $env:CONFIGURATION = "MINGW_64"
   - curl -sSf -o rustup-init.exe https://win.rustup.rs/
   - rustup-init.exe -y --default-host %TARGET% --default-toolchain %RUST_VERSION%
   - git submodule update --init --recursive
+  - bash -lc "pacman --noconfirm -S mingw-w64-x86_64-gtk3"
 
 test_script:
   - cmd: |
       cargo check
       cargo check --examples --features use_tokio
       cargo check --examples --features use_async-std
+      cargo check --examples --features use_gio
       cd neovim
       powershell ci\build.ps1 -NoTests
       cd ..
@@ -51,8 +53,10 @@ test_script:
       cargo test -- --nocapture
       cargo test --features use_tokio -- --nocapture
       cargo test --features use_async-std -- --nocapture
+      cargo test --features use_gio -- --nocapture
       cargo bench --features use_tokio -- --test
       cargo bench --features use_async-std -- --test
+      cargo bench --features use_gio -- --test
 
 cache:
   - C:\Users\appveyor\.cargo

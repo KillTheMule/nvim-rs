@@ -24,6 +24,7 @@ use_tokio = ["tokio", "pin-project"]
 use_async-std = ["async-std"]
 use_neovim_lib = ["neovim-lib"]
 localspawn = []
+use_gio = ["gio", "glib", "gio-sys", "localspawn", "async-std"]
 
 [lib]
 bench = false
@@ -38,6 +39,9 @@ tokio = { version = "0.2.8", features = ["sync", "rt-core", "macros", "io-util",
 pin-project = { version = "0.4.6", optional = true }
 async-std = { version = "1.4.0", features = ["attributes"], optional = true }
 neovim-lib = { version = "0.6.1", optional = true }
+gio = { version = "0.8.0", optional = true }
+glib = { version = "0.9.1", optional = true }
+gio-sys = { version = "0.9.1", optional = true }
 
 [dev-dependencies]
 tempdir = "0.3"
@@ -61,8 +65,20 @@ name = "quitting"
 required-features = ["use_tokio"]
 
 [[example]]
+name = "quitting_gio"
+required-features = ["use_gio", "unix"]
+
+[[example]]
 name = "scorched_earth"
 required-features = ["use_tokio"]
+
+[[example]]
+name = "scorched_earth_as"
+required-features = ["use_async-std"]
+
+[[example]]
+name = "scorched_earth_gio"
+required-features = ["use_gio"]
 
 [[example]]
 name = "bench_tokio"
@@ -73,16 +89,20 @@ name = "bench_async-std"
 required-features = ["use_async-std"]
 
 [[example]]
-name = "bench_sync"
-required-features = ["use_neovim_lib"]
+name = "bench_gio"
+required-features = ["use_gio"]
 
 [[example]]
-name = "scorched_earth_as"
-required-features = ["use_async-std"]
+name = "bench_sync"
+required-features = ["use_neovim_lib"]
 
 [[test]]
 name = "nested_requests"
 required-features = ["use_tokio"]
+
+[[test]]
+name = "nested_requests_gio"
+required-features = ["use_gio", "localspawn"]
 
 [[test]]
 name = "connecting"

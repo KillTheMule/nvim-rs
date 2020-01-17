@@ -51,4 +51,21 @@ call add(l, 'File Neovim-Lib: ' . g:finished_file)
 call add(l, 'Buffer Neovim-Lib: ' . g:finished_buffer)
 call add(l, 'API Neovim-Lib: ' . g:finished_api)
 
+let id = jobstart('target/release/examples/bench_gio', { 'rpc': v:true })
+
+let start = reltime()
+call rpcrequest(id, 'file')
+let seconds = reltimestr(reltime(start))
+call add(l, 'File Gio: ' . seconds)
+
+let start = reltime()
+call rpcrequest(id, 'buffer')
+let seconds = reltimestr(reltime(start))
+call add(l, 'Buffer Gio: ' . seconds)
+
+let start = reltime()
+call rpcrequest(id, 'api')
+let seconds = reltimestr(reltime(start))
+call add(l, 'API Gio: ' . seconds)
+
 call nvim_buf_set_lines(0, 0, -1, v:false, l)

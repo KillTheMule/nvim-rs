@@ -16,6 +16,9 @@ pub mod tokio;
 #[cfg(feature = "use_async-std")]
 pub mod async_std;
 
+#[cfg(feature = "use_gio")]
+pub mod gio;
+
 use core::future::Future;
 
 use crate::rpc::handler::Handler;
@@ -37,6 +40,7 @@ pub trait Spawner: Handler {
   where
     Fut: Future<Output = ()> + Send + 'static;
 }
+
 #[cfg(feature = "localspawn")]
 pub trait Spawner: Handler {
   type Handle;
