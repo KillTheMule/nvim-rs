@@ -46,8 +46,6 @@ type Queue = Arc<Mutex<Vec<(u64, oneshot::Sender<ResponseResult>)>>>;
 
 /// An active Neovim session.
 pub struct Neovim<W>
-where
-  W: AsyncWrite + Send + Unpin + 'static,
 {
   pub(crate) writer: Arc<Mutex<BufWriter<W>>>,
   pub(crate) queue: Queue,
@@ -55,8 +53,6 @@ where
 }
 
 impl<W> Clone for Neovim<W>
-where
-  W: AsyncWrite + Send + Unpin + 'static,
 {
   fn clone(&self) -> Self {
     Neovim {
@@ -77,11 +73,11 @@ where
     writer: W,
     handler: H,
   ) -> (
-    Neovim<<H as Handler>::Writer>,
+    Neovim<W>,
     impl Future<Output = Result<(), Box<LoopError>>>,
   )
   where
-    R: AsyncRead + Send + Unpin + 'static,
+    R: AsyncRead + Send + Unpin,
     H: Handler<Writer = W> + Spawner,
   {
     let req = Neovim {
@@ -173,11 +169,11 @@ where
   async fn io_loop<H, R>(
     handler: H,
     mut reader: R,
-    neovim: Neovim<H::Writer>,
+    neovim: Neovim<W>,
   ) -> Result<(), Box<LoopError>>
   where
-    H: Handler + Spawner,
-    R: AsyncRead + Send + Unpin + 'static,
+    H: Handler<Writer = W> + Spawner,
+    R: AsyncRead + Unpin,
   {
     let mut rest: Vec<u8> = vec![];
 

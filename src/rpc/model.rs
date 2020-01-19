@@ -50,7 +50,7 @@ macro_rules! rpc_args {
 /// read more. Return on all other errors.
 //
 // TODO: This might be inefficient. Can't we read into `rest` directly?
-pub async fn decode<R: AsyncRead + Send + Unpin + 'static>(
+pub async fn decode<R: AsyncRead + Unpin>(
   reader: &mut R,
   rest: &mut Vec<u8>,
 ) -> std::result::Result<RpcMessage, Box<DecodeError>> {
@@ -165,7 +165,7 @@ fn decode_buffer<R: Read>(
 
 /// Encode the given message into the `BufWriter`. Flushes the writer when
 /// finished.
-pub async fn encode<W: AsyncWrite + Send + Unpin + 'static>(
+pub async fn encode<W: AsyncWrite + Unpin>(
   writer: Arc<Mutex<BufWriter<W>>>,
   msg: RpcMessage,
 ) -> std::result::Result<(), Box<EncodeError>> {
