@@ -9,7 +9,7 @@ use crate::{
 
 impl<W> Neovim<W>
 where
-  W: AsyncWrite + Send + Sync + Unpin + 'static,
+  W: AsyncWrite + Send + Unpin + 'static,
 {
   pub async fn list_bufs(&self) -> Result<Vec<Buffer<W>>, Box<CallError>> {
     Ok(

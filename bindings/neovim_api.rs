@@ -13,7 +13,7 @@ use crate::{
 {% for etype in exttypes %}
 
 impl<W> {{ etype.name }}<W>
-  where W: AsyncWrite + Send + Sync + Unpin + 'static
+  where W: AsyncWrite + Send + Unpin + 'static
   {
     pub fn new(code_data: Value, neovim: Neovim<W>) -> {{ etype.name }}<W>
     {
@@ -50,7 +50,7 @@ impl<W> {{ etype.name }}<W>
 
 impl<W> Neovim<W>
 where
-      W: AsyncWrite + Send + Sync + Unpin + 'static,
+      W: AsyncWrite + Send + Unpin + 'static,
 {
     {% for f in functions if not f.ext %}
     pub async fn {{f.name|replace('nvim_', '')}}(&self, {{f.argstring}}) -> Result<{{f.return_type.native_type_ret}}, Box<CallError>> {
