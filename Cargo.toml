@@ -23,6 +23,7 @@ edition = "2018"
 use_tokio = ["tokio", "pin-project"]
 use_async-std = ["async-std"]
 use_neovim_lib = ["neovim-lib"]
+localspawn = []
 
 [lib]
 bench = false

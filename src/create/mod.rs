@@ -29,10 +29,19 @@ use crate::rpc::handler::Handler;
 /// If you have a runtime that brings appropriate types, you can implement this
 /// on your `[`Handler`](crate::rpc::handler::Handler) and use
 /// [`Neovim::new`](crate::neovim::Neovim::new) to connect to neovim.
+#[cfg(not(feature = "localspawn"))]
 pub trait Spawner: Handler {
   type Handle;
 
   fn spawn<Fut>(&self, future: Fut) -> Self::Handle
   where
     Fut: Future<Output = ()> + Send + 'static;
+}
+#[cfg(feature = "localspawn")]
+pub trait Spawner: Handler {
+  type Handle;
+
+  fn spawn<Fut>(&self, future: Fut) -> Self::Handle
+  where
+    Fut: Future<Output = ()> + 'static;
 }

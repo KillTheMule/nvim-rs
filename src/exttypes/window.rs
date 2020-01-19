@@ -1,8 +1,9 @@
-use futures::io::AsyncWrite;
+//use futures::io::AsyncWrite;
 use rmpv::Value;
 
 use super::{Buffer, Tabpage};
 use crate::{error::CallError, rpc::model::IntoVal, Neovim};
+use crate::neovim::AsyncWriteSend;
 
 /// A struct representing a neovim window. It is specific to a
 /// [`Neovim`](crate::neovim::Neovim) instance, and calling a method on it will
@@ -16,7 +17,7 @@ pub struct Window<W>
 
 impl<W> Window<W>
 where
-  W: AsyncWrite + Send + Unpin + 'static,
+  W: AsyncWriteSend,
 {
   /// since: 1
   pub async fn get_buf(&self) -> Result<Buffer<W>, Box<CallError>> {

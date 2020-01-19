@@ -1,15 +1,16 @@
 //! Some manually implemented API functions
-use futures::io::AsyncWrite;
+//use futures::io::AsyncWrite;
 use rmpv::Value;
 
 use crate::{
   error::CallError, neovim::Neovim, rpc::model::IntoVal, Buffer, Tabpage,
   Window,
+  neovim::AsyncWriteSend,
 };
 
 impl<W> Neovim<W>
 where
-  W: AsyncWrite + Send + Unpin + 'static,
+  W: AsyncWriteSend,
 {
   pub async fn list_bufs(&self) -> Result<Vec<Buffer<W>>, Box<CallError>> {
     Ok(

@@ -5,20 +5,52 @@
 use std::{marker::PhantomData, sync::Arc};
 
 use async_trait::async_trait;
-use futures::io::AsyncWrite;
 use rmpv::Value;
 
 use crate::Neovim;
+use crate::neovim::AsyncWriteSend;
 
 /// The central functionality of a plugin. The trait bounds asure that each
 /// asynchronous task can receive a copy of the handler, so some state can be
 /// shared.
+#[cfg(not(feature = "localspawn"))]
 #[async_trait]
 pub trait Handler: Send + Sync + Clone + 'static {
   /// The type where we write our responses to requests. Handling of incoming
   /// requests/notifications is done on the io loop, which passes the parsed
   /// messages to the handler.
-  type Writer: AsyncWrite + Send + Unpin + 'static;
+  type Writer: AsyncWriteSend;
+
+  /// Handling an rpc request. The ID's of requests are handled by the
+  /// [`neovim`](crate::neovim::Neovim) instance.
+  async fn handle_request(
+    &self,
+    _name: String,
+    _args: Vec<Value>,
+    _neovim: Neovim<Self::Writer>,
+  ) -> Result<Value, Value> {
+    Err(Value::from("Not implemented"))
+  }
+
+  /// Handling an rpc notification.
+  async fn handle_notify(
+    &self,
+    _name: String,
+    _args: Vec<Value>,
+    _neovim: Neovim<<Self as Handler>::Writer>,
+  ) {
+  }
+}
+///
+/// The central functionality of a plugin. This is the version for
+/// single-threaded use, activated by the feature `localspawn`.
+#[cfg(feature = "localspawn")]
+#[async_trait(?Send)]
+pub trait Handler: Clone + 'static {
+  /// The type where we write our responses to requests. Handling of incoming
+  /// requests/notifications is done on the io loop, which passes the parsed
+  /// messages to the handler.
+  type Writer: AsyncWriteSend;
 
   /// Handling an rpc request. The ID's of requests are handled by the
   /// [`neovim`](crate::neovim::Neovim) instance.
@@ -47,15 +79,11 @@ pub trait Handler: Send + Sync + Clone + 'static {
 /// notifications or requests.
 #[derive(Default)]
 pub struct Dummy<Q>
-where
-  Q: AsyncWrite + Send + Sync + Unpin + 'static,
 {
   q: Arc<PhantomData<Q>>,
 }
 
 impl<Q> Clone for Dummy<Q>
-where
-  Q: AsyncWrite + Send + Sync + Unpin + 'static,
 {
   fn clone(&self) -> Self {
     Dummy {
@@ -64,16 +92,7 @@ where
   }
 }
 
-impl<Q> Handler for Dummy<Q>
-where
-  Q: AsyncWrite + Send + Sync + Unpin + 'static,
-{
-  type Writer = Q;
-}
-
 impl<Q> Dummy<Q>
-where
-  Q: AsyncWrite + Send + Sync + Unpin + 'static,
 {
   #[must_use]
   pub fn new() -> Dummy<Q> {
@@ -81,4 +100,20 @@ where
       q: Arc::new(PhantomData),
     }
   }
+}
+
+#[cfg(not(feature = "localspawn"))]
+impl<Q> Handler for Dummy<Q>
+where
+  Q: AsyncWriteSend + Sync,
+{
+  type Writer = Q;
+}
+
+#[cfg(feature = "localspawn")]
+impl<Q> Handler for Dummy<Q>
+where
+  Q: AsyncWriteSend,
+{
+  type Writer = Q;
 }

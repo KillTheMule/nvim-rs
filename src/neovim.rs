@@ -45,15 +45,13 @@ type ResponseResult = Result<Result<Value, Value>, Arc<DecodeError>>;
 type Queue = Arc<Mutex<Vec<(u64, oneshot::Sender<ResponseResult>)>>>;
 
 /// An active Neovim session.
-pub struct Neovim<W>
-{
+pub struct Neovim<W> {
   pub(crate) writer: Arc<Mutex<BufWriter<W>>>,
   pub(crate) queue: Queue,
   pub(crate) msgid_counter: Arc<AtomicU64>,
 }
 
-impl<W> Clone for Neovim<W>
-{
+impl<W> Clone for Neovim<W> {
   fn clone(&self) -> Self {
     Neovim {
       writer: self.writer.clone(),
@@ -63,21 +61,36 @@ impl<W> Clone for Neovim<W>
   }
 }
 
+#[cfg(not(feature = "localspawn"))]
+pub trait AsyncWriteSend: AsyncWrite + Send + Unpin + 'static {}
+#[cfg(not(feature = "localspawn"))]
+pub trait AsyncReadSend: AsyncRead + Send + Unpin {}
+#[cfg(not(feature = "localspawn"))]
+impl<T> AsyncWriteSend for T where T: AsyncWrite + Send + Unpin + 'static {}
+#[cfg(not(feature = "localspawn"))]
+impl<T> AsyncReadSend for T where T: AsyncRead + Send + Unpin {}
+
+#[cfg(feature = "localspawn")]
+pub trait AsyncWriteSend: AsyncWrite + Unpin + 'static {}
+#[cfg(feature = "localspawn")]
+pub trait AsyncReadSend: AsyncRead + Unpin {}
+#[cfg(feature = "localspawn")]
+impl<T> AsyncWriteSend for T where T: AsyncWrite + Unpin + 'static {}
+#[cfg(feature = "localspawn")]
+impl<T> AsyncReadSend for T where T: AsyncRead + Unpin {}
+
 impl<W> Neovim<W>
 where
-  W: AsyncWrite + Send + Unpin + 'static,
+  W: AsyncWriteSend,
 {
   #[allow(clippy::new_ret_no_self)]
   pub fn new<H, R>(
     reader: R,
     writer: W,
     handler: H,
-  ) -> (
-    Neovim<W>,
-    impl Future<Output = Result<(), Box<LoopError>>>,
-  )
+  ) -> (Neovim<W>, impl Future<Output = Result<(), Box<LoopError>>>)
   where
-    R: AsyncRead + Send + Unpin,
+    R: AsyncReadSend,
     H: Handler<Writer = W> + Spawner,
   {
     let req = Neovim {
