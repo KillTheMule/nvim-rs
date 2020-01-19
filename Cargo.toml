@@ -36,7 +36,7 @@ futures = { version = "0.3.1", features = ["io-compat"] }
 tokio = { version = "0.2.8", features = ["sync", "rt-core", "macros", "io-util", "tcp", "uds", "process", "io-std", "dns", "rt-threaded", "io-driver", "fs"] , optional = true}
 pin-project = { version = "0.4.6", optional = true }
 async-std = { version = "1.4.0", features = ["attributes"], optional = true }
-neovim-lib = { version = "*", optional = true }
+neovim-lib = { version = "0.6.1", optional = true }
 
 [dev-dependencies]
 tempdir = "0.3"
