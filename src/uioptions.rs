@@ -12,6 +12,7 @@ pub enum UiOption {
   ExtWildmenu(bool),
   ExtLinegrid(bool),
   ExtHlstate(bool),
+  ExtMultigrid(bool),
 }
 
 impl UiOption {
@@ -29,6 +30,7 @@ impl UiOption {
       UiOption::ExtWildmenu(val) => ("ext_wildmenu", val.into()),
       UiOption::ExtLinegrid(val) => ("ext_linegrid", val.into()),
       UiOption::ExtHlstate(val) => ("ext_hlstate", val.into()),
+      UiOption::ExtMultigrid(val) => ("ext_multigrid", val.into()),
     }
   }
 }
@@ -98,6 +100,11 @@ impl UiAttachOptions {
 
   pub fn set_hlstate_external(&mut self, hlstate_external: bool) -> &mut Self {
     self.set_option(UiOption::ExtHlstate(hlstate_external));
+    self
+  }
+
+  pub fn set_multigrid_external(&mut self, multigrid_external: bool) -> &mut Self {
+    self.set_option(UiOption::ExtMultigrid(multigrid_external));
     self
   }
 
