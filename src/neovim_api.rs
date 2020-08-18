@@ -1,6 +1,6 @@
 //! The auto generated API for [`neovim`](crate::neovim::Neovim)
 //!
-//! Auto generated 2020-01-04 12:55:41.125195
+//! Auto generated 2020-08-18 09:13:24.551223
 use futures::io::AsyncWrite;
 
 use crate::{
@@ -385,7 +385,7 @@ where
   /// since: 1
   pub async fn add_highlight(
     &self,
-    ns_id: i64,
+    src_id: i64,
     hl_group: &str,
     line: i64,
     col_start: i64,
@@ -397,7 +397,7 @@ where
         "nvim_buf_add_highlight",
         call_args![
           self.code_data.clone(),
-          ns_id,
+          src_id,
           hl_group,
           line,
           col_start,
@@ -445,7 +445,7 @@ where
   /// since: 5
   pub async fn set_virtual_text(
     &self,
-    ns_id: i64,
+    src_id: i64,
     line: i64,
     chunks: Vec<Value>,
     opts: Vec<(Value, Value)>,
@@ -454,7 +454,7 @@ where
       .neovim
       .call(
         "nvim_buf_set_virtual_text",
-        call_args![self.code_data.clone(), ns_id, line, chunks, opts],
+        call_args![self.code_data.clone(), src_id, line, chunks, opts],
       )
       .await??
       .try_unpack()
@@ -463,13 +463,13 @@ where
   /// since: 7
   pub async fn get_virtual_text(
     &self,
-    lnum: i64,
+    line: i64,
   ) -> Result<Vec<Value>, Box<CallError>> {
     self
       .neovim
       .call(
         "nvim_buf_get_virtual_text",
-        call_args![self.code_data.clone(), lnum],
+        call_args![self.code_data.clone(), line],
       )
       .await??
       .try_unpack()
@@ -837,6 +837,23 @@ where
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
   }
 
+  pub async fn ui_pum_set_bounds(
+    &self,
+    width: f64,
+    height: f64,
+    row: f64,
+    col: f64,
+  ) -> Result<(), Box<CallError>> {
+    self
+      .call(
+        "nvim_ui_pum_set_bounds",
+        call_args![width, height, row, col],
+      )
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
   pub async fn exec(
     &self,
     src: &str,
@@ -876,6 +893,17 @@ where
   ) -> Result<Vec<(Value, Value)>, Box<CallError>> {
     self
       .call("nvim_get_hl_by_id", call_args![hl_id, rgb])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
+  pub async fn get_hl_id_by_name(
+    &self,
+    name: &str,
+  ) -> Result<i64, Box<CallError>> {
+    self
+      .call("nvim_get_hl_id_by_name", call_args![name])
       .await??
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
@@ -1019,6 +1047,18 @@ where
   ) -> Result<Vec<String>, Box<CallError>> {
     self
       .call("nvim_list_runtime_paths", call_args![])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
+  pub async fn get_runtime_file(
+    &self,
+    name: &str,
+    all: bool,
+  ) -> Result<Vec<String>, Box<CallError>> {
+    self
+      .call("nvim_get_runtime_file", call_args![name, all])
       .await??
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
