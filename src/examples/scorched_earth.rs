@@ -41,9 +41,7 @@
 //!
 //! * The handler struct `NeovimHandler` needs to contain some plugin state,
 //! namely two cursor positions `start` and `end`. It needs to be `Send` and
-//! `Sync`, and we need mutable access, so we wrap it in a `Arc<Mutex<_>>`. Note
-//! that we're using the [`Mutex`](crate::runtime::Mutex) from `nvim-rs`, which
-//! is a re-export from Tokio.
+//! `Sync`, and we need mutable access, so we wrap it in a `Arc<Mutex<_>>`.
 //!
 //! * Implementing the [`Handler`](crate::Handler) trait requires some magic
 //! because of the async functions, we we use the
@@ -51,7 +49,7 @@
 //!
 //! * We use `Stdout` as the type for the `Writer` because neovim acts as our
 //! parent, so it reads from our stdout. Note that this is the [async
-//! version](crate::runtime::Stdout) re-exported from Tokio.
+//! version](tokio::io::Stdout) from Tokio.
 //!
 //! * We only implement `handle_notify` since we don't want to serve requests.
 //! It gets a [`Neovim`](crate::Neovim) passed that we can use to send

@@ -7,9 +7,9 @@
 //! Supported features: `use_tokio` and `use_async-std`.
 //!
 //! **IMPORTANT**: Due to incompatibilities of the rust async ecosystem,  you
-//! will not be able to use type from one lib with the runtime of another lib.
+//! might not be able to use types from one lib with the runtime of another lib.
 //! E.g. when using the features `use_tokio`, you will need to run all the
-//! [`api`](create::neovim::Neovim) functions from inside the tokio runtime.
+//! API functions from inside the tokio runtime.
 #[cfg(feature = "use_tokio")]
 pub mod tokio;
 
