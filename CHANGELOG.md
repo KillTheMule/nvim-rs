@@ -7,8 +7,12 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+## 0.2.0 - 2020-08-29
+
 ### Added
 - Connecting to neovim via tcp or a unix-socket (unix only) is now supported again
+
+- The API has been updated to reflect neovim HEAD as of commit 161cdba.
 
 ### Changed
 - The crate is now based on [`futures`](https://crates.io/crates/futures)
@@ -30,6 +34,14 @@ and this project adheres to Semantic Versioning.
 
 - `LoopError` has an additional variant `IoSpawn` that indicates that spawning
   another task with the handler has failed.
+
+- The trait `FromVal` has been replaced by `TryUnpack`.
+
+- As a substitute for directly passing a runtime around, the `Handler` now
+  needs to implement `nvim-rs::create::Spawner`
+
+- The function `new_parent` to connect to a parent neovim instance is now
+  `async`.
 
 ## 0.1.0 - 2020-02-01
 - Initial release
