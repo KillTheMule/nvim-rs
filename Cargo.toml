@@ -20,7 +20,7 @@ exclude = [
 edition = "2018"
 
 [features]
-use_tokio = ["tokio", "pin-project", "tokio-util"]
+use_tokio = ["tokio", "tokio-util"]
 use_async-std = ["async-std"]
 use_neovim_lib = ["neovim-lib"]
 
@@ -35,7 +35,6 @@ async-trait = "0.1.22"
 futures = { version = "0.3.1", features = ["io-compat"] }
 tokio = { version = "1.1.1", features = ["full"] , optional = true}
 tokio-util = { version = "0.6.3", features = ["compat"], optional = true }
-pin-project = { version = "0.4.6", optional = true }
 async-std = { version = "1.4.0", features = ["attributes"], optional = true }
 neovim-lib = { version = "0.6.1", optional = true }
 
