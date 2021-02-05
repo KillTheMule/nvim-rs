@@ -68,7 +68,9 @@ where
     cx: &mut Context<'_>,
     buf: &mut [u8],
   ) -> Poll<io::Result<usize>> {
-    tokio::io::AsyncRead::poll_read(self.project().inner, cx, buf)
+    let mut read_buf = tokio::io::ReadBuf::new(buf);
+    let poll = tokio::io::AsyncRead::poll_read(self.project().inner, cx, &mut read_buf);
+    poll.map(|res| res.map(|_| read_buf.filled().len()))
   }
 }
 
