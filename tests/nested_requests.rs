@@ -104,7 +104,7 @@ impl Handler for NeovimHandler {
   }
 }
 
-#[tokio::test(basic_scheduler)]
+#[tokio::test(flavor = "current_thread")]
 async fn nested_requests() {
   let rs = r#"exe ":fun M(timer) 
       call rpcnotify(1, 'set_froodle', rpcrequest(1, 'req', 'y'))
