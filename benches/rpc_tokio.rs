@@ -13,8 +13,7 @@ const NVIMPATH: &str = "neovim/build/bin/nvim";
 fn simple_requests(c: &mut Criterion) {
   let handler = Dummy::new();
 
-  let mut rt = Builder::new()
-    .basic_scheduler()
+  let rt = Builder::new_current_thread()
     .enable_io()
     .build()
     .unwrap();
@@ -43,8 +42,7 @@ fn simple_requests(c: &mut Criterion) {
 fn request_file(c: &mut Criterion) {
   let handler = Dummy::new();
 
-  let mut rt = Builder::new()
-    .basic_scheduler()
+  let rt = Builder::new_current_thread()
     .enable_io()
     .build()
     .unwrap();
