@@ -30,7 +30,6 @@ extern crate log;
 pub mod rpc;
 #[macro_use]
 pub mod neovim;
-pub mod compat;
 pub mod error;
 pub mod examples;
 pub mod exttypes;
@@ -46,5 +45,12 @@ pub use crate::{
   rpc::handler::Handler,
   uioptions::{UiAttachOptions, UiOption},
 };
+
+#[cfg(feature = "use_tokio")]
+pub mod compat {
+    pub mod tokio {
+        pub use tokio_util::compat::Compat;
+    }
+}
 
 pub use rmpv::Value;

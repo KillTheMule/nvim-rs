@@ -18,13 +18,11 @@ use tokio::{
   task::JoinHandle,
 };
 
-use crate::{
-  compat::tokio::{Compat, TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt},
-  create::Spawner,
-  error::LoopError,
-  neovim::Neovim,
-  Handler,
+use tokio_util::compat::{
+  Compat, TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt,
 };
+
+use crate::{create::Spawner, error::LoopError, neovim::Neovim, Handler};
 
 impl<H> Spawner for H
 where
@@ -55,7 +53,7 @@ where
   let stream = TcpStream::connect(addr).await?;
   let (reader, writer) = split(stream);
   let (neovim, io) = Neovim::<Compat<WriteHalf<TcpStream>>>::new(
-    reader.compat_read(),
+    reader.compat(),
     writer.compat_write(),
     handler,
   );
@@ -79,7 +77,7 @@ where
   let stream = UnixStream::connect(path).await?;
   let (reader, writer) = split(stream);
   let (neovim, io) = Neovim::<Compat<WriteHalf<UnixStream>>>::new(
-    reader.compat_read(),
+    reader.compat(),
     writer.compat_write(),
     handler,
   );
@@ -140,7 +138,7 @@ where
     .stdout
     .take()
     .ok_or_else(|| Error::new(ErrorKind::Other, "Can't open stdout"))?
-    .compat_read();
+    .compat();
   let stdin = child
     .stdin
     .take()
@@ -164,7 +162,7 @@ where
   H: Handler<Writer = Compat<Stdout>>,
 {
   let (neovim, io) = Neovim::<Compat<Stdout>>::new(
-    stdin().compat_read(),
+    stdin().compat(),
     stdout().compat_write(),
     handler,
   );
