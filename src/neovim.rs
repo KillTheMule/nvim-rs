@@ -9,9 +9,12 @@ use std::{
 
 use futures::{
   channel::oneshot,
+  channel::mpsc,
   io::{AsyncRead, AsyncWrite, BufWriter},
   lock::Mutex,
 };
+
+use futures::stream::StreamExt;
 
 use crate::{
   create::Spawner,
@@ -179,71 +182,72 @@ where
     H: Handler + Spawner,
     R: AsyncRead + Send + Unpin + 'static,
   {
-    let mut rest: Vec<u8> = vec![];
+    let (rpc_message_sender, mut rpc_message_receiver) = mpsc::unbounded::<RpcMessage>();
+    {
+      let neovim = neovim.clone();
+      let handler_c = handler.clone();
+      handler.spawn(async move {
+        while let Some(msg) = rpc_message_receiver.next().await {
+          let neovim = neovim.clone();
+          debug!("Get message {:?}", msg);
+          match msg {
+            RpcMessage::RpcRequest {
+              msgid,
+              method,
+              params,
+            } => {
+              let neovim_t = neovim.clone();
+              let response =
+                match handler_c.handle_request(method, params, neovim_t).await {
+                  Ok(result) => RpcMessage::RpcResponse {
+                    msgid,
+                    result,
+                    error: Value::Nil,
+                  },
+                  Err(error) => RpcMessage::RpcResponse {
+                    msgid,
+                    result: Value::Nil,
+                    error,
+                  },
+                };
 
+              model::encode(neovim.writer, response)
+                .await
+                .unwrap_or_else(|e| {
+                  error!("Error sending response to request {}: '{}'", msgid, e);
+                });
+            }
+            RpcMessage::RpcResponse {
+              msgid,
+              result,
+              error,
+            } => {
+              let sender = find_sender(&neovim.queue, msgid).await.expect("No sender");
+              if error == Value::Nil {
+                sender
+                  .send(Ok(Ok(result)))
+                  .map_err(|r| (msgid, r.expect("This was an OK(_)"))).expect("Not sure what this is...");
+              } else {
+                sender
+                  .send(Ok(Err(error)))
+                  .map_err(|r| (msgid, r.expect("This was an OK(_)"))).expect("Not sure what this is...");
+              }
+            }
+            RpcMessage::RpcNotification { method, params } => {
+              handler_c.handle_notify(method, params, neovim).await
+            }
+          };
+        }
+      });
+    }
+
+    let mut rest: Vec<u8> = vec![];
     loop {
-      let msg = match model::decode(&mut reader, &mut rest).await {
-        Ok(msg) => msg,
+      match model::decode(&mut reader, &mut rest).await {
+        Ok(msg) => rpc_message_sender.unbounded_send(msg).expect("Could not send message"),
         Err(err) => {
           let e = neovim.send_error_to_callers(&neovim.queue, *err).await?;
           return Err(Box::new(LoopError::DecodeError(e, None)));
-        }
-      };
-
-      debug!("Get message {:?}", msg);
-      match msg {
-        RpcMessage::RpcRequest {
-          msgid,
-          method,
-          params,
-        } => {
-          let neovim = neovim.clone();
-          let handler_c = handler.clone();
-          handler.spawn(async move {
-            let neovim_t = neovim.clone();
-            let response =
-              match handler_c.handle_request(method, params, neovim_t).await {
-                Ok(result) => RpcMessage::RpcResponse {
-                  msgid,
-                  result,
-                  error: Value::Nil,
-                },
-                Err(error) => RpcMessage::RpcResponse {
-                  msgid,
-                  result: Value::Nil,
-                  error,
-                },
-              };
-
-            model::encode(neovim.writer, response)
-              .await
-              .unwrap_or_else(|e| {
-                error!("Error sending response to request {}: '{}'", msgid, e);
-              });
-          });
-        }
-        RpcMessage::RpcResponse {
-          msgid,
-          result,
-          error,
-        } => {
-          let sender = find_sender(&neovim.queue, msgid).await?;
-          if error == Value::Nil {
-            sender
-              .send(Ok(Ok(result)))
-              .map_err(|r| (msgid, r.expect("This was an OK(_)")))?;
-          } else {
-            sender
-              .send(Ok(Err(error)))
-              .map_err(|r| (msgid, r.expect("This was an OK(_)")))?;
-          }
-        }
-        RpcMessage::RpcNotification { method, params } => {
-          let handler_c = handler.clone();
-          let neovim = neovim.clone();
-          handler.spawn(async move {
-            handler_c.handle_notify(method, params, neovim).await
-          });
         }
       };
     }
