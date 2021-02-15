@@ -12,6 +12,7 @@ use futures::{
   lock::Mutex,
 };
 use rmp_serde::encode;
+use rmpv::ext::from_value;
 use rmpv::{decode::read_value, encode::write_value, Value};
 use serde::ser::{SerializeSeq, SerializeTuple};
 use serde::{
@@ -183,6 +184,12 @@ pub async fn decode<R: AsyncRead + Send + Unpin + 'static>(
         debug!("Not enough data, reading more!");
         bytes_read = reader.read(&mut *buf).await;
       }
+      Err(DecodeError::SerdeBufferError(
+        rmp_serde::decode::Error::InvalidMarkerRead(e),
+      )) if e.kind() == ErrorKind::UnexpectedEof => {
+        debug!("Not enough data, reading more!");
+        bytes_read = reader.read(&mut *buf).await;
+      }
       Err(err) => return Err(err.into()),
     }
 
@@ -203,75 +210,7 @@ pub async fn decode<R: AsyncRead + Send + Unpin + 'static>(
 fn decode_buffer<R: Read>(
   reader: &mut R,
 ) -> std::result::Result<RpcMessage, Box<DecodeError>> {
-  use crate::error::InvalidMessage::*;
-
-  let arr: Vec<Value> = read_value(reader)?.try_into().map_err(NotAnArray)?;
-
-  let mut arr = arr.into_iter();
-
-  let msgtyp: u64 = arr
-    .next()
-    .ok_or(WrongArrayLength(3..=4, 0))?
-    .try_into()
-    .map_err(InvalidType)?;
-
-  match msgtyp {
-    0 => {
-      let msgid: u64 = arr
-        .next()
-        .ok_or(WrongArrayLength(4..=4, 1))?
-        .try_into()
-        .map_err(InvalidMsgid)?;
-      let method = match arr.next() {
-        Some(Value::String(s)) if s.is_str() => {
-          s.into_str().expect("Can remove using #230 of rmpv")
-        }
-        Some(val) => return Err(InvalidRequestName(msgid, val).into()),
-        None => return Err(WrongArrayLength(4..=4, 2).into()),
-      };
-      let params: Vec<Value> = arr
-        .next()
-        .ok_or(WrongArrayLength(4..=4, 3))?
-        .try_into()
-        .map_err(|val| InvalidParams(val, method.clone()))?;
-
-      Ok(RpcMessage::RpcRequest {
-        msgid,
-        method,
-        params,
-      })
-    }
-    1 => {
-      let msgid: u64 = arr
-        .next()
-        .ok_or(WrongArrayLength(4..=4, 1))?
-        .try_into()
-        .map_err(InvalidMsgid)?;
-      let error = arr.next().ok_or(WrongArrayLength(4..=4, 2))?;
-      let result = arr.next().ok_or(WrongArrayLength(4..=4, 3))?;
-      Ok(RpcMessage::RpcResponse {
-        msgid,
-        error,
-        result,
-      })
-    }
-    2 => {
-      let method = match arr.next() {
-        Some(Value::String(s)) if s.is_str() => {
-          s.into_str().expect("Can remove using #230 of rmpv")
-        }
-        Some(val) => return Err(InvalidNotificationName(val).into()),
-        None => return Err(WrongArrayLength(3..=3, 1).into()),
-      };
-      let params: Vec<Value> = arr
-        .next()
-        .ok_or(WrongArrayLength(3..=3, 2))?
-        .try_into()
-        .map_err(|val| InvalidParams(val, method.clone()))?;
-      Ok(RpcMessage::RpcNotification { method, params })
-    }
-    t => Err(UnknownMessageType(t).into()),
-  }
+  Ok(rmp_serde::decode::from_read(reader)?)
 }
 
 /// Encode the given message into the `BufWriter`. Flushes the writer when

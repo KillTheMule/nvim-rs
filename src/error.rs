@@ -114,6 +114,7 @@ impl Display for InvalidMessage {
 pub enum DecodeError {
   /// Reading from the internal buffer failed.
   BufferError(RmpvDecodeError),
+  SerdeBufferError(rmp_serde::decode::Error),
   /// Reading from the stream failed. This is probably unrecoverable from, but
   /// might also mean that neovim closed the stream and wants the plugin to
   /// finish. See examples/quitting.rs on how this might be caught.
@@ -126,6 +127,7 @@ impl Error for DecodeError {
   fn source(&self) -> Option<&(dyn Error + 'static)> {
     match *self {
       DecodeError::BufferError(ref e) => Some(e),
+      DecodeError::SerdeBufferError(ref e) => Some(e),
       DecodeError::InvalidMessage(ref e) => Some(e),
       DecodeError::ReaderError(ref e) => Some(e),
     }
@@ -136,6 +138,9 @@ impl Display for DecodeError {
   fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
     let s = match *self {
       DecodeError::BufferError(_) => "Error while reading from buffer",
+      DecodeError::SerdeBufferError(_) => {
+        "Error reading from buffer using serde"
+      }
       DecodeError::InvalidMessage(_) => "Error while decoding",
       DecodeError::ReaderError(_) => "Error while reading from Reader",
     };
@@ -147,6 +152,12 @@ impl Display for DecodeError {
 impl From<RmpvDecodeError> for Box<DecodeError> {
   fn from(err: RmpvDecodeError) -> Box<DecodeError> {
     Box::new(DecodeError::BufferError(err))
+  }
+}
+
+impl From<rmp_serde::decode::Error> for Box<DecodeError> {
+  fn from(err: rmp_serde::decode::Error) -> Box<DecodeError> {
+    Box::new(DecodeError::SerdeBufferError(err))
   }
 }
 
