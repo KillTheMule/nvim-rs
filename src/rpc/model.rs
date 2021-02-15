@@ -146,16 +146,6 @@ impl<'de> Deserialize<'de> for RpcMessage {
     deserializer.deserialize_seq(RpcVisitor)
   }
 }
-macro_rules! rpc_args {
-    ($($e:expr), *) => {{
-        let mut vec = Vec::new();
-        $(
-            vec.push(Value::from($e));
-        )*
-        Value::from(vec)
-    }}
-}
-
 /// Continously reads from reader, pushing onto `rest`. Then tries to decode the
 /// contents of `rest`. If it succeeds, returns the message, and leaves any
 /// non-decoded bytes in `rest`. If we did not read enough for a full message,
