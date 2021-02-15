@@ -168,6 +168,7 @@ pub enum EncodeError {
   /// Encoding the message into the internal buffer has failed.
   BufferError(RmpvEncodeError),
   SerdeBufferError(rmp_serde::encode::Error),
+  ToValueError(rmpv::ext::Error),
   /// Writing the encoded message to the stream failed.
   WriterError(io::Error),
 }
@@ -176,6 +177,7 @@ impl Error for EncodeError {
   fn source(&self) -> Option<&(dyn Error + 'static)> {
     match *self {
       EncodeError::BufferError(ref e) => Some(e),
+      EncodeError::ToValueError(ref e) => Some(e),
       EncodeError::SerdeBufferError(ref e) => Some(e),
       EncodeError::WriterError(ref e) => Some(e),
     }
@@ -187,6 +189,7 @@ impl Display for EncodeError {
     let s = match *self {
       Self::BufferError(_) => "Error writing to buffer",
       Self::SerdeBufferError(_) => "Error writing to buffer using serde",
+      Self::ToValueError(_) => "Error converting serializable to Value",
       Self::WriterError(_) => "Error writing to the Writer",
     };
 
@@ -197,6 +200,12 @@ impl Display for EncodeError {
 impl From<RmpvEncodeError> for Box<EncodeError> {
   fn from(err: RmpvEncodeError) -> Box<EncodeError> {
     Box::new(EncodeError::BufferError(err))
+  }
+}
+
+impl From<rmpv::ext::Error> for Box<EncodeError> {
+  fn from(err: rmpv::ext::Error) -> Box<EncodeError> {
+    Box::new(EncodeError::ToValueError(err))
   }
 }
 
