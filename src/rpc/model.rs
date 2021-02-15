@@ -2,6 +2,7 @@
 use std::{
   self,
   convert::TryInto,
+  fmt,
   io::{self, Cursor, ErrorKind, Read},
   sync::Arc,
 };
@@ -13,7 +14,10 @@ use futures::{
 use rmp_serde::encode;
 use rmpv::{decode::read_value, encode::write_value, Value};
 use serde::ser::{SerializeSeq, SerializeTuple};
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{
+  de::{self, SeqAccess, Visitor},
+  Deserialize, Deserializer, Serialize, Serializer,
+};
 
 use crate::error::{DecodeError, EncodeError};
 
@@ -79,6 +83,68 @@ impl Serialize for RpcMessage {
   }
 }
 
+impl<'de> Deserialize<'de> for RpcMessage {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    struct RpcVisitor;
+
+    impl<'de> Visitor<'de> for RpcVisitor {
+      type Value = RpcMessage;
+
+      fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("an array")
+      }
+
+      fn visit_seq<V>(self, mut seq: V) -> Result<RpcMessage, V::Error>
+      where
+        V: SeqAccess<'de>,
+      {
+        let res = match seq
+          .next_element()?
+          .ok_or_else(|| de::Error::invalid_length(0, &self))?
+        {
+          0 => RpcMessage::RpcRequest {
+            msgid: seq
+              .next_element()?
+              .ok_or_else(|| de::Error::invalid_length(1, &self))?,
+            method: seq
+              .next_element()?
+              .ok_or_else(|| de::Error::invalid_length(2, &self))?,
+            params: seq
+              .next_element()?
+              .ok_or_else(|| de::Error::invalid_length(3, &self))?,
+          },
+          1 => RpcMessage::RpcResponse {
+            msgid: seq
+              .next_element()?
+              .ok_or_else(|| de::Error::invalid_length(1, &self))?,
+            error: seq
+              .next_element()?
+              .ok_or_else(|| de::Error::invalid_length(2, &self))?,
+            result: seq
+              .next_element()?
+              .ok_or_else(|| de::Error::invalid_length(3, &self))?,
+          },
+          2 => RpcMessage::RpcNotification {
+            method: seq
+              .next_element()?
+              .ok_or_else(|| de::Error::invalid_length(1, &self))?,
+            params: seq
+              .next_element()?
+              .ok_or_else(|| de::Error::invalid_length(2, &self))?,
+          },
+          i => return Err(de::Error::custom(format!("invalid id: {}", i))),
+        };
+
+        Ok(res)
+      }
+    }
+
+    deserializer.deserialize_seq(RpcVisitor)
+  }
+}
 macro_rules! rpc_args {
     ($($e:expr), *) => {{
         let mut vec = Vec::new();
