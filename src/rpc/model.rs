@@ -10,7 +10,10 @@ use futures::{
   io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufWriter},
   lock::Mutex,
 };
+use rmp_serde::encode;
 use rmpv::{decode::read_value, encode::write_value, Value};
+use serde::ser::{SerializeSeq, SerializeTuple};
+use serde::{Deserialize, Serialize, Serializer};
 
 use crate::error::{DecodeError, EncodeError};
 
@@ -32,6 +35,48 @@ pub enum RpcMessage {
     method: String,
     params: Vec<Value>,
   }, // 2
+}
+
+impl Serialize for RpcMessage {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    match self {
+      RpcMessage::RpcRequest {
+        msgid,
+        method,
+        params,
+      } => {
+        let mut seq = serializer.serialize_seq(Some(4))?;
+        seq.serialize_element(&0)?;
+        seq.serialize_element(msgid)?;
+        seq.serialize_element(method)?;
+        seq.serialize_element(params)?;
+        seq.end()
+      }
+      RpcMessage::RpcResponse {
+        msgid,
+        error,
+        result,
+      } => {
+        let mut seq = serializer.serialize_seq(Some(4))?;
+        seq.serialize_element(&1)?;
+        seq.serialize_element(msgid)?;
+        seq.serialize_element(error)?;
+        seq.serialize_element(result)?;
+        seq.end()
+      }
+
+      RpcMessage::RpcNotification { method, params } => {
+        let mut seq = serializer.serialize_seq(Some(3))?;
+        seq.serialize_element(&2)?;
+        seq.serialize_element(method)?;
+        seq.serialize_element(params)?;
+        seq.end()
+      }
+    }
+  }
 }
 
 macro_rules! rpc_args {
@@ -169,32 +214,10 @@ pub async fn encode<W: AsyncWrite + Send + Unpin + 'static>(
   writer: Arc<Mutex<BufWriter<W>>>,
   msg: RpcMessage,
 ) -> std::result::Result<(), Box<EncodeError>> {
-  let mut v: Vec<u8> = vec![];
-  match msg {
-    RpcMessage::RpcRequest {
-      msgid,
-      method,
-      params,
-    } => {
-      let val = rpc_args!(0, msgid, method, params);
-      write_value(&mut v, &val)?;
-    }
-    RpcMessage::RpcResponse {
-      msgid,
-      error,
-      result,
-    } => {
-      let val = rpc_args!(1, msgid, error, result);
-      write_value(&mut v, &val)?;
-    }
-    RpcMessage::RpcNotification { method, params } => {
-      let val = rpc_args!(2, method, params);
-      write_value(&mut v, &val)?;
-    }
-  };
-
+  let mut buf: Vec<u8> = vec![];
+  encode::write(&mut buf, &msg)?;
   let mut writer = writer.lock().await;
-  writer.write_all(&v).await?;
+  writer.write_all(&buf).await?;
   writer.flush().await?;
 
   Ok(())
