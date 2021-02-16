@@ -168,18 +168,24 @@ pub async fn decode<R: AsyncRead + Send + Unpin + 'static>(
         *rest = rest.split_off(pos as usize); // TODO: more efficiency
         return Ok(msg);
       }
+
       Err(DecodeError::BufferError(e))
         if e.kind() == ErrorKind::UnexpectedEof =>
       {
         debug!("Not enough data, reading more!");
         bytes_read = reader.read(&mut *buf).await;
       }
+
       Err(DecodeError::SerdeBufferError(
         rmp_serde::decode::Error::InvalidMarkerRead(e),
+      ))
+      | Err(DecodeError::SerdeBufferError(
+        rmp_serde::decode::Error::InvalidDataRead(e),
       )) if e.kind() == ErrorKind::UnexpectedEof => {
         debug!("Not enough data, reading more!");
         bytes_read = reader.read(&mut *buf).await;
       }
+
       Err(err) => return Err(err.into()),
     }
 
@@ -201,6 +207,82 @@ fn decode_buffer<R: Read>(
   reader: &mut R,
 ) -> std::result::Result<RpcMessage, Box<DecodeError>> {
   Ok(rmp_serde::decode::from_read(reader)?)
+}
+
+/// Syncronously decode the content of a reader into an rpc message. Tries to
+/// give detailed errors if something went wrong.
+fn decode_buffer_other<R: Read>(
+  reader: &mut R,
+) -> std::result::Result<RpcMessage, Box<DecodeError>> {
+  use crate::error::InvalidMessage::*;
+
+  let arr: Vec<Value> = read_value(reader)?.try_into().map_err(NotAnArray)?;
+
+  let mut arr = arr.into_iter();
+
+  let msgtyp: u64 = arr
+    .next()
+    .ok_or(WrongArrayLength(3..=4, 0))?
+    .try_into()
+    .map_err(InvalidType)?;
+
+  match msgtyp {
+    0 => {
+      let msgid: u64 = arr
+        .next()
+        .ok_or(WrongArrayLength(4..=4, 1))?
+        .try_into()
+        .map_err(InvalidMsgid)?;
+      let method = match arr.next() {
+        Some(Value::String(s)) if s.is_str() => {
+          s.into_str().expect("Can remove using #230 of rmpv")
+        }
+        Some(val) => return Err(InvalidRequestName(msgid, val).into()),
+        None => return Err(WrongArrayLength(4..=4, 2).into()),
+      };
+      let params: Vec<Value> = arr
+        .next()
+        .ok_or(WrongArrayLength(4..=4, 3))?
+        .try_into()
+        .map_err(|val| InvalidParams(val, method.clone()))?;
+
+      Ok(RpcMessage::RpcRequest {
+        msgid,
+        method,
+        params,
+      })
+    }
+    1 => {
+      let msgid: u64 = arr
+        .next()
+        .ok_or(WrongArrayLength(4..=4, 1))?
+        .try_into()
+        .map_err(InvalidMsgid)?;
+      let error = arr.next().ok_or(WrongArrayLength(4..=4, 2))?;
+      let result = arr.next().ok_or(WrongArrayLength(4..=4, 3))?;
+      Ok(RpcMessage::RpcResponse {
+        msgid,
+        error,
+        result,
+      })
+    }
+    2 => {
+      let method = match arr.next() {
+        Some(Value::String(s)) if s.is_str() => {
+          s.into_str().expect("Can remove using #230 of rmpv")
+        }
+        Some(val) => return Err(InvalidNotificationName(val).into()),
+        None => return Err(WrongArrayLength(3..=3, 1).into()),
+      };
+      let params: Vec<Value> = arr
+        .next()
+        .ok_or(WrongArrayLength(3..=3, 2))?
+        .try_into()
+        .map_err(|val| InvalidParams(val, method.clone()))?;
+      Ok(RpcMessage::RpcNotification { method, params })
+    }
+    t => Err(UnknownMessageType(t).into()),
+  }
 }
 
 /// Encode the given message into the `BufWriter`. Flushes the writer when
@@ -283,13 +365,13 @@ impl IntoVal<Value> for Vec<(Value, Value)> {
   }
 }
 
-#[cfg(all(test, feature = "use_tokio"))]
+// #[cfg(all(test, feature = "use_tokio"))]
 mod test {
   use super::*;
   use futures::{io::BufWriter, lock::Mutex};
   use std::{io::Cursor, sync::Arc};
 
-  use tokio;
+  // use tokio;
 
   #[tokio::test]
   async fn request_test() {
@@ -351,5 +433,31 @@ mod test {
 
     let msg_dest_2 = decode_buffer(&mut cursor).unwrap();
     assert_eq!(msg_2, msg_dest_2);
+  }
+
+  #[tokio::test]
+  async fn decode_test() {
+    let msg_1 = RpcMessage::RpcRequest {
+      msgid: 1,
+      method: "test_method".to_owned(),
+      params: vec![],
+    };
+
+    let buff: Vec<u8> = vec![];
+    let tmp = Arc::new(Mutex::new(BufWriter::new(buff)));
+
+    let tmp_c = tmp.clone();
+    encode(tmp_c.clone(), msg_1.clone()).await.unwrap();
+
+    let v = &mut *tmp_c.lock().await;
+    let x = v.get_mut();
+    let mut cursor = Cursor::new(x.as_slice());
+    println!("{:?}", cursor);
+    let msg_dest_1 = decode_buffer(&mut cursor).unwrap();
+    // println!("{:?}", cursor);
+    // let msg_dest_2 = decode_buffer_other(&mut cursor).unwrap();
+
+    assert_eq!(msg_1, msg_dest_1);
+    // assert_eq!(msg_1, msg_dest_2);
   }
 }
