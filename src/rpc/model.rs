@@ -2,6 +2,7 @@
 use std::{
   self,
   convert::TryInto,
+  fmt,
   io::{self, Cursor, ErrorKind, Read},
   sync::Arc,
 };
@@ -10,7 +11,14 @@ use futures::{
   io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufWriter},
   lock::Mutex,
 };
+use rmp_serde::encode;
+use rmpv::ext::from_value;
 use rmpv::{decode::read_value, encode::write_value, Value};
+use serde::ser::{SerializeSeq, SerializeTuple};
+use serde::{
+  de::{self, SeqAccess, Visitor},
+  Deserialize, Deserializer, Serialize, Serializer,
+};
 
 use crate::error::{DecodeError, EncodeError};
 
@@ -34,16 +42,110 @@ pub enum RpcMessage {
   }, // 2
 }
 
-macro_rules! rpc_args {
-    ($($e:expr), *) => {{
-        let mut vec = Vec::new();
-        $(
-            vec.push(Value::from($e));
-        )*
-        Value::from(vec)
-    }}
+impl Serialize for RpcMessage {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    match self {
+      RpcMessage::RpcRequest {
+        msgid,
+        method,
+        params,
+      } => {
+        let mut seq = serializer.serialize_seq(Some(4))?;
+        seq.serialize_element(&0)?;
+        seq.serialize_element(msgid)?;
+        seq.serialize_element(method)?;
+        seq.serialize_element(params)?;
+        seq.end()
+      }
+      RpcMessage::RpcResponse {
+        msgid,
+        error,
+        result,
+      } => {
+        let mut seq = serializer.serialize_seq(Some(4))?;
+        seq.serialize_element(&1)?;
+        seq.serialize_element(msgid)?;
+        seq.serialize_element(error)?;
+        seq.serialize_element(result)?;
+        seq.end()
+      }
+
+      RpcMessage::RpcNotification { method, params } => {
+        let mut seq = serializer.serialize_seq(Some(3))?;
+        seq.serialize_element(&2)?;
+        seq.serialize_element(method)?;
+        seq.serialize_element(params)?;
+        seq.end()
+      }
+    }
+  }
 }
 
+impl<'de> Deserialize<'de> for RpcMessage {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    struct RpcVisitor;
+
+    impl<'de> Visitor<'de> for RpcVisitor {
+      type Value = RpcMessage;
+
+      fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("an array")
+      }
+
+      fn visit_seq<V>(self, mut seq: V) -> Result<RpcMessage, V::Error>
+      where
+        V: SeqAccess<'de>,
+      {
+        let res = match seq
+          .next_element()?
+          .ok_or_else(|| de::Error::invalid_length(0, &self))?
+        {
+          0 => RpcMessage::RpcRequest {
+            msgid: seq
+              .next_element()?
+              .ok_or_else(|| de::Error::invalid_length(1, &self))?,
+            method: seq
+              .next_element()?
+              .ok_or_else(|| de::Error::invalid_length(2, &self))?,
+            params: seq
+              .next_element()?
+              .ok_or_else(|| de::Error::invalid_length(3, &self))?,
+          },
+          1 => RpcMessage::RpcResponse {
+            msgid: seq
+              .next_element()?
+              .ok_or_else(|| de::Error::invalid_length(1, &self))?,
+            error: seq
+              .next_element()?
+              .ok_or_else(|| de::Error::invalid_length(2, &self))?,
+            result: seq
+              .next_element()?
+              .ok_or_else(|| de::Error::invalid_length(3, &self))?,
+          },
+          2 => RpcMessage::RpcNotification {
+            method: seq
+              .next_element()?
+              .ok_or_else(|| de::Error::invalid_length(1, &self))?,
+            params: seq
+              .next_element()?
+              .ok_or_else(|| de::Error::invalid_length(2, &self))?,
+          },
+          i => return Err(de::Error::custom(format!("invalid id: {}", i))),
+        };
+
+        Ok(res)
+      }
+    }
+
+    deserializer.deserialize_seq(RpcVisitor)
+  }
+}
 /// Continously reads from reader, pushing onto `rest`. Then tries to decode the
 /// contents of `rest`. If it succeeds, returns the message, and leaves any
 /// non-decoded bytes in `rest`. If we did not read enough for a full message,
@@ -66,12 +168,24 @@ pub async fn decode<R: AsyncRead + Send + Unpin + 'static>(
         *rest = rest.split_off(pos as usize); // TODO: more efficiency
         return Ok(msg);
       }
+
       Err(DecodeError::BufferError(e))
         if e.kind() == ErrorKind::UnexpectedEof =>
       {
         debug!("Not enough data, reading more!");
         bytes_read = reader.read(&mut *buf).await;
       }
+
+      Err(DecodeError::SerdeBufferError(
+        rmp_serde::decode::Error::InvalidMarkerRead(e),
+      ))
+      | Err(DecodeError::SerdeBufferError(
+        rmp_serde::decode::Error::InvalidDataRead(e),
+      )) if e.kind() == ErrorKind::UnexpectedEof => {
+        debug!("Not enough data, reading more!");
+        bytes_read = reader.read(&mut *buf).await;
+      }
+
       Err(err) => return Err(err.into()),
     }
 
@@ -90,6 +204,14 @@ pub async fn decode<R: AsyncRead + Send + Unpin + 'static>(
 /// Syncronously decode the content of a reader into an rpc message. Tries to
 /// give detailed errors if something went wrong.
 fn decode_buffer<R: Read>(
+  reader: &mut R,
+) -> std::result::Result<RpcMessage, Box<DecodeError>> {
+  Ok(rmp_serde::decode::from_read(reader)?)
+}
+
+/// Syncronously decode the content of a reader into an rpc message. Tries to
+/// give detailed errors if something went wrong.
+fn decode_buffer_other<R: Read>(
   reader: &mut R,
 ) -> std::result::Result<RpcMessage, Box<DecodeError>> {
   use crate::error::InvalidMessage::*;
@@ -169,32 +291,10 @@ pub async fn encode<W: AsyncWrite + Send + Unpin + 'static>(
   writer: Arc<Mutex<BufWriter<W>>>,
   msg: RpcMessage,
 ) -> std::result::Result<(), Box<EncodeError>> {
-  let mut v: Vec<u8> = vec![];
-  match msg {
-    RpcMessage::RpcRequest {
-      msgid,
-      method,
-      params,
-    } => {
-      let val = rpc_args!(0, msgid, method, params);
-      write_value(&mut v, &val)?;
-    }
-    RpcMessage::RpcResponse {
-      msgid,
-      error,
-      result,
-    } => {
-      let val = rpc_args!(1, msgid, error, result);
-      write_value(&mut v, &val)?;
-    }
-    RpcMessage::RpcNotification { method, params } => {
-      let val = rpc_args!(2, method, params);
-      write_value(&mut v, &val)?;
-    }
-  };
-
+  let mut buf: Vec<u8> = vec![];
+  encode::write(&mut buf, &msg)?;
   let mut writer = writer.lock().await;
-  writer.write_all(&v).await?;
+  writer.write_all(&buf).await?;
   writer.flush().await?;
 
   Ok(())
@@ -265,13 +365,13 @@ impl IntoVal<Value> for Vec<(Value, Value)> {
   }
 }
 
-#[cfg(all(test, feature = "use_tokio"))]
+// #[cfg(all(test, feature = "use_tokio"))]
 mod test {
   use super::*;
   use futures::{io::BufWriter, lock::Mutex};
   use std::{io::Cursor, sync::Arc};
 
-  use tokio;
+  // use tokio;
 
   #[tokio::test]
   async fn request_test() {
@@ -333,5 +433,31 @@ mod test {
 
     let msg_dest_2 = decode_buffer(&mut cursor).unwrap();
     assert_eq!(msg_2, msg_dest_2);
+  }
+
+  #[tokio::test]
+  async fn decode_test() {
+    let msg_1 = RpcMessage::RpcRequest {
+      msgid: 1,
+      method: "test_method".to_owned(),
+      params: vec![],
+    };
+
+    let buff: Vec<u8> = vec![];
+    let tmp = Arc::new(Mutex::new(BufWriter::new(buff)));
+
+    let tmp_c = tmp.clone();
+    encode(tmp_c.clone(), msg_1.clone()).await.unwrap();
+
+    let v = &mut *tmp_c.lock().await;
+    let x = v.get_mut();
+    let mut cursor = Cursor::new(x.as_slice());
+    println!("{:?}", cursor);
+    let msg_dest_1 = decode_buffer(&mut cursor).unwrap();
+    // println!("{:?}", cursor);
+    // let msg_dest_2 = decode_buffer_other(&mut cursor).unwrap();
+
+    assert_eq!(msg_1, msg_dest_1);
+    // assert_eq!(msg_1, msg_dest_2);
   }
 }

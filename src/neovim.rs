@@ -1,5 +1,6 @@
 //! An active neovim session.
 use std::{
+  fmt,
   future::Future,
   sync::{
     atomic::{AtomicU64, Ordering},
@@ -23,13 +24,19 @@ use crate::{
   },
   uioptions::UiAttachOptions,
 };
-use rmpv::Value;
+use rmpv::{ext::to_value, Value};
+use serde::{self, Deserialize, Deserializer, Serialize};
 
 /// Pack the given arguments into a `Vec<Value>`, suitable for using it for a
 /// [`call`](crate::neovim::Neovim::call) to neovim.
 #[macro_export]
 macro_rules! call_args {
-    () => (Vec::new());
+    () => {
+        {
+            let vec: Vec<$crate::Value> = Vec::new();
+            vec
+        }
+    };
     ($($e:expr), +,) => (call_args![$($e),*]);
     ($($e:expr), +) => {{
         let mut vec = Vec::new();
@@ -96,17 +103,31 @@ where
     (req, fut)
   }
 
-  async fn send_msg(
+  /// Will panic if args is serialized into something that is not an array
+  async fn send_msg<T: Serialize + fmt::Debug>(
     &self,
     method: &str,
-    args: Vec<Value>,
+    args: T,
   ) -> Result<oneshot::Receiver<ResponseResult>, Box<EncodeError>> {
     let msgid = self.msgid_counter.fetch_add(1, Ordering::SeqCst);
+
+    fn get_args<T: Serialize + fmt::Debug>(
+      args: T,
+    ) -> Result<Vec<Value>, Box<EncodeError>> {
+      debug!("Args value is {:?}", args);
+      let args_value = to_value(args)?;
+      debug!("Args value is {:?}", args_value);
+
+      Ok(match args_value {
+        Value::Array(arr) => arr,
+        v => vec![v],
+      })
+    }
 
     let req = RpcMessage::RpcRequest {
       msgid,
       method: method.to_owned(),
-      params: args,
+      params: get_args(args)?,
     };
 
     let (sender, receiver) = oneshot::channel();
@@ -119,10 +140,10 @@ where
     Ok(receiver)
   }
 
-  pub async fn call(
+  pub async fn call<T: Serialize + fmt::Debug>(
     &self,
     method: &str,
-    args: Vec<Value>,
+    args: T,
   ) -> Result<Result<Value, Value>, Box<CallError>> {
     let receiver = self
       .send_msg(method, args)

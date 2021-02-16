@@ -114,6 +114,7 @@ impl Display for InvalidMessage {
 pub enum DecodeError {
   /// Reading from the internal buffer failed.
   BufferError(RmpvDecodeError),
+  SerdeBufferError(rmp_serde::decode::Error),
   /// Reading from the stream failed. This is probably unrecoverable from, but
   /// might also mean that neovim closed the stream and wants the plugin to
   /// finish. See examples/quitting.rs on how this might be caught.
@@ -126,6 +127,7 @@ impl Error for DecodeError {
   fn source(&self) -> Option<&(dyn Error + 'static)> {
     match *self {
       DecodeError::BufferError(ref e) => Some(e),
+      DecodeError::SerdeBufferError(ref e) => Some(e),
       DecodeError::InvalidMessage(ref e) => Some(e),
       DecodeError::ReaderError(ref e) => Some(e),
     }
@@ -136,6 +138,9 @@ impl Display for DecodeError {
   fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
     let s = match *self {
       DecodeError::BufferError(_) => "Error while reading from buffer",
+      DecodeError::SerdeBufferError(_) => {
+        "Error reading from buffer using serde"
+      }
       DecodeError::InvalidMessage(_) => "Error while decoding",
       DecodeError::ReaderError(_) => "Error while reading from Reader",
     };
@@ -147,6 +152,12 @@ impl Display for DecodeError {
 impl From<RmpvDecodeError> for Box<DecodeError> {
   fn from(err: RmpvDecodeError) -> Box<DecodeError> {
     Box::new(DecodeError::BufferError(err))
+  }
+}
+
+impl From<rmp_serde::decode::Error> for Box<DecodeError> {
+  fn from(err: rmp_serde::decode::Error) -> Box<DecodeError> {
+    Box::new(DecodeError::SerdeBufferError(err))
   }
 }
 
@@ -167,6 +178,8 @@ impl From<io::Error> for Box<DecodeError> {
 pub enum EncodeError {
   /// Encoding the message into the internal buffer has failed.
   BufferError(RmpvEncodeError),
+  SerdeBufferError(rmp_serde::encode::Error),
+  ToValueError(rmpv::ext::Error),
   /// Writing the encoded message to the stream failed.
   WriterError(io::Error),
 }
@@ -175,6 +188,8 @@ impl Error for EncodeError {
   fn source(&self) -> Option<&(dyn Error + 'static)> {
     match *self {
       EncodeError::BufferError(ref e) => Some(e),
+      EncodeError::ToValueError(ref e) => Some(e),
+      EncodeError::SerdeBufferError(ref e) => Some(e),
       EncodeError::WriterError(ref e) => Some(e),
     }
   }
@@ -184,6 +199,8 @@ impl Display for EncodeError {
   fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
     let s = match *self {
       Self::BufferError(_) => "Error writing to buffer",
+      Self::SerdeBufferError(_) => "Error writing to buffer using serde",
+      Self::ToValueError(_) => "Error converting serializable to Value",
       Self::WriterError(_) => "Error writing to the Writer",
     };
 
@@ -194,6 +211,18 @@ impl Display for EncodeError {
 impl From<RmpvEncodeError> for Box<EncodeError> {
   fn from(err: RmpvEncodeError) -> Box<EncodeError> {
     Box::new(EncodeError::BufferError(err))
+  }
+}
+
+impl From<rmpv::ext::Error> for Box<EncodeError> {
+  fn from(err: rmpv::ext::Error) -> Box<EncodeError> {
+    Box::new(EncodeError::ToValueError(err))
+  }
+}
+
+impl From<rmp_serde::encode::Error> for Box<EncodeError> {
+  fn from(err: rmp_serde::encode::Error) -> Self {
+    Box::new(EncodeError::SerdeBufferError(err))
   }
 }
 

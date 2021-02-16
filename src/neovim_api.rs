@@ -1,7 +1,10 @@
 //! The auto generated API for [`neovim`](crate::neovim::Neovim)
 //!
 //! Auto generated 2020-08-18 09:13:24.551223
+use std::fmt;
+
 use futures::io::AsyncWrite;
+use serde::Serialize;
 
 use crate::{
   error::CallError,
@@ -1009,13 +1012,17 @@ where
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
   }
 
-  pub async fn call_function(
+  pub async fn call_function<T: Serialize + fmt::Debug>(
     &self,
     fname: &str,
-    args: Vec<Value>,
+    args: T,
   ) -> Result<Value, Box<CallError>> {
+
+    #[derive(Debug, Serialize)]
+    struct Args<'a, T: Serialize>(&'a str, T);
+
     self
-      .call("nvim_call_function", call_args![fname, args])
+      .call("nvim_call_function", Args(fname, args))
       .await??
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
