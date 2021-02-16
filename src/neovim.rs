@@ -33,7 +33,7 @@ use serde::{self, Deserialize, Deserializer, Serialize};
 macro_rules! call_args {
     () => {
         {
-            let vec: Vec<Value> = Vec::new();
+            let vec: Vec<$crate::Value> = Vec::new();
             vec
         }
     };
