@@ -67,6 +67,18 @@ where
   }
 }
 
+impl<W> PartialEq for Neovim<W>
+where
+  W: AsyncWrite + Send + Unpin + 'static,
+{
+  fn eq(&self, other: &Self) -> bool {
+    Arc::ptr_eq(&self.writer, &other.writer)
+  }
+}
+impl<W> Eq for Neovim<W>
+where
+  W: AsyncWrite + Send + Unpin + 'static {}
+
 impl<W> Neovim<W>
 where
   W: AsyncWrite + Send + Unpin + 'static,
