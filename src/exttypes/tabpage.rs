@@ -6,7 +6,6 @@ use crate::{error::CallError, exttypes::Window, rpc::model::IntoVal, Neovim, imp
 /// A struct representing a neovim tabpage. It is specific to a
 /// [`Neovim`](crate::neovim::Neovim) instance, and calling a method on it will
 /// always use this instance.
-#[derive(Clone)]
 pub struct Tabpage<W>
 where
   W: AsyncWrite + Send + Unpin + 'static,

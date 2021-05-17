@@ -7,7 +7,6 @@ use crate::{error::CallError, rpc::model::IntoVal, Neovim, impl_exttype_traits};
 /// A struct representing a neovim window. It is specific to a
 /// [`Neovim`](crate::neovim::Neovim) instance, and calling a method on it will
 /// always use this instance.
-#[derive(Clone)]
 pub struct Window<W>
 where
   W: AsyncWrite + Send + Unpin + 'static,

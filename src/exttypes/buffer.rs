@@ -15,18 +15,6 @@ where
 
 impl_exttype_traits!(Buffer);
 
-impl<W> Clone for Buffer<W>
-  where
-  W: AsyncWrite + Send + Unpin + 'static
-{
-  fn clone(&self) -> Self {
-    Self {
-      code_data: self.code_data.clone(),
-      neovim: self.neovim.clone(),
-    }
-  }
-}
-
 impl<W> IntoVal<Value> for &Buffer<W>
 where
   W: AsyncWrite + Send + Unpin + 'static,

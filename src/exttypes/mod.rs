@@ -21,5 +21,17 @@ macro_rules! impl_exttype_traits {
     impl<W> Eq for $ext<W>
     where
       W: AsyncWrite + Send + Unpin + 'static {}
+
+    impl<W> Clone for $ext<W>
+    where
+      W: AsyncWrite + Send + Unpin + 'static
+    {
+      fn clone(&self) -> Self {
+        Self {
+          code_data: self.code_data.clone(),
+          neovim: self.neovim.clone(),
+        }
+      }
+    }
   }
 }
