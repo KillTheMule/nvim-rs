@@ -51,12 +51,3 @@ where
     )
   }
 }
-
-impl<W> IntoVal<Value> for &Tabpage<W>
-where
-  W: AsyncWrite + Send + Unpin + 'static,
-{
-  fn into_val(self) -> Value {
-    self.code_data.clone()
-  }
-}

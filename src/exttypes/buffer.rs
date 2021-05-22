@@ -14,12 +14,3 @@ where
 }
 
 impl_exttype_traits!(Buffer);
-
-impl<W> IntoVal<Value> for &Buffer<W>
-where
-  W: AsyncWrite + Send + Unpin + 'static,
-{
-  fn into_val(self) -> Value {
-    self.code_data.clone()
-  }
-}
