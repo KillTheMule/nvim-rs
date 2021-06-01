@@ -48,9 +48,9 @@ pub use crate::{
 
 #[cfg(feature = "use_tokio")]
 pub mod compat {
-    pub mod tokio {
-        pub use tokio_util::compat::Compat;
-    }
+  pub mod tokio {
+    pub use tokio_util::compat::Compat;
+  }
 }
 
 pub use rmpv::Value;

@@ -12,19 +12,17 @@ macro_rules! impl_exttype_traits {
   ($ext:ident) => {
     impl<W> PartialEq for $ext<W>
     where
-      W: AsyncWrite + Send + Unpin + 'static
+      W: AsyncWrite + Send + Unpin + 'static,
     {
       fn eq(&self, other: &Self) -> bool {
         self.code_data == other.code_data && self.neovim == other.neovim
       }
     }
-    impl<W> Eq for $ext<W>
-    where
-      W: AsyncWrite + Send + Unpin + 'static {}
+    impl<W> Eq for $ext<W> where W: AsyncWrite + Send + Unpin + 'static {}
 
     impl<W> Clone for $ext<W>
     where
-      W: AsyncWrite + Send + Unpin + 'static
+      W: AsyncWrite + Send + Unpin + 'static,
     {
       fn clone(&self) -> Self {
         Self {
@@ -42,5 +40,5 @@ macro_rules! impl_exttype_traits {
         self.code_data.clone()
       }
     }
-  }
+  };
 }

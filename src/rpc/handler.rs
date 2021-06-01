@@ -58,9 +58,7 @@ where
   Q: AsyncWrite + Send + Sync + Unpin + 'static,
 {
   fn clone(&self) -> Self {
-    Dummy {
-      q: self.q.clone(),
-    }
+    Dummy { q: self.q.clone() }
   }
 }
 

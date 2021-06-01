@@ -75,9 +75,7 @@ where
     Arc::ptr_eq(&self.writer, &other.writer)
   }
 }
-impl<W> Eq for Neovim<W>
-where
-  W: AsyncWrite + Send + Unpin + 'static {}
+impl<W> Eq for Neovim<W> where W: AsyncWrite + Send + Unpin + 'static {}
 
 impl<W> Neovim<W>
 where

@@ -1,7 +1,10 @@
 use futures::io::AsyncWrite;
 use rmpv::Value;
 
-use crate::{error::CallError, exttypes::Window, rpc::model::IntoVal, Neovim, impl_exttype_traits};
+use crate::{
+  error::CallError, exttypes::Window, impl_exttype_traits, rpc::model::IntoVal,
+  Neovim,
+};
 
 /// A struct representing a neovim tabpage. It is specific to a
 /// [`Neovim`](crate::neovim::Neovim) instance, and calling a method on it will
