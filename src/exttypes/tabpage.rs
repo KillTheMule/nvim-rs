@@ -1,12 +1,11 @@
 use futures::io::AsyncWrite;
 use rmpv::Value;
 
-use crate::{error::CallError, exttypes::Window, rpc::model::IntoVal, Neovim};
+use crate::{error::CallError, exttypes::Window, rpc::model::IntoVal, Neovim, impl_exttype_traits};
 
 /// A struct representing a neovim tabpage. It is specific to a
 /// [`Neovim`](crate::neovim::Neovim) instance, and calling a method on it will
 /// always use this instance.
-#[derive(Clone)]
 pub struct Tabpage<W>
 where
   W: AsyncWrite + Send + Unpin + 'static,
@@ -14,6 +13,8 @@ where
   pub(crate) code_data: Value,
   pub(crate) neovim: Neovim<W>,
 }
+
+impl_exttype_traits!(Tabpage);
 
 impl<W> Tabpage<W>
 where
@@ -48,14 +49,5 @@ where
         .await?
         .map(|val| Window::new(val, self.neovim.clone()))?,
     )
-  }
-}
-
-impl<W> IntoVal<Value> for &Tabpage<W>
-where
-  W: AsyncWrite + Send + Unpin + 'static,
-{
-  fn into_val(self) -> Value {
-    self.code_data.clone()
   }
 }
