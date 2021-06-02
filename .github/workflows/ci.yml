@@ -1,0 +1,73 @@
+name: nvim-rs CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  NVIMRS_LOG_FILE: nvim-rs.log
+  NVIMRS_LOG_LEVEL: debug
+  NVIMRS_STDERR: nvim-rs.stderr
+  RUSTFLAGS: -C opt-level=0
+  
+jobs:
+  all:
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        rust: [stable]
+        include:
+          - os: ubuntu-latest
+            rust: beta
+          - os: ubuntu-latest
+            rust: nightly
+          
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install Rust ${{ matrix.rust }}
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ matrix.rust }}
+        profile: minimal
+        override: true
+    - name: Check
+      run: |
+        cargo check
+        cargo check --examples --features use_tokio
+        cargo check --examples --features use_async-std
+    - name: Install neovim requirements on linux
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get install -y libtool-bin
+    - name: Build neovim on linux/osx
+      if: matrix.os != 'windows-latest'
+      run: |
+        git submodule update --init --recursive
+        cd neovim
+        make
+        cd ..
+        neovim/build/bin/nvim --version
+    - name: Build neovim on windows
+      if: matrix.os == 'windows-latest'
+      run: |
+        git submodule update --init --recursive
+        cd neovim
+        powershell ci\build.ps1 -NoTests
+        cd ..
+        neovim\build\bin\nvim.exe --version
+    - name: Tests
+      run: |
+        cargo test -- --nocapture
+        cargo test --features use_tokio -- --nocapture
+        cargo test --features use_async-std -- --nocapture
+    - name: Benchtests
+      run: |
+            cargo bench --features use_tokio -- --test
+            cargo bench --features use_async-std -- --test
