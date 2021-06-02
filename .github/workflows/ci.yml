@@ -13,6 +13,7 @@ env:
   NVIMRS_LOG_LEVEL: debug
   NVIMRS_STDERR: nvim-rs.stderr
   RUSTFLAGS: -C opt-level=0
+  CONFIGURATION: MINGW_64
   
 jobs:
   all:
@@ -45,7 +46,16 @@ jobs:
     - name: Install neovim requirements on linux
       if: matrix.os == 'ubuntu-latest'
       run: |
-        sudo apt-get install -y libtool-bin
+        sudo apt-get install -y libtool-bin gettext
+    - name: Install neovim requirements on osx
+      if: matrix.os == 'macos-latest'
+      run: |
+        # Workaround brew issues
+        rm -f /usr/local/bin/2to3
+        brew unlink gcc@8 gcc@9
+        brew update >/dev/null
+        brew upgrade
+        brew install automake ccache perl cpanminus ninja
     - name: Build neovim on linux/osx
       if: matrix.os != 'windows-latest'
       run: |
