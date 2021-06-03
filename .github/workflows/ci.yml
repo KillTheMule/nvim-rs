@@ -81,12 +81,12 @@ jobs:
     ### CACHING NEOVIM DEPS #######################
     - name: Cache neovim dependencies on linux/osx
       if: matrix.os != 'windows-latest'
-        uses: actions/cache@v2
-        with:
-          path: |
-            $HOME/.cache/nvim-deps
-            $HOME/.ccache
-          key: ${{ matrix.os }}-${{ hashFiles('neovim/cmake/*', 'neovim/third-party/**', 'neovim/**/CMakeLists.txt') }}
+      uses: actions/cache@v2
+      with:
+        path: |
+          $HOME/.cache/nvim-deps
+          $HOME/.ccache
+        key: ${{ matrix.os }}-${{ hashFiles('neovim/cmake/*', 'neovim/third-party/**', 'neovim/**/CMakeLists.txt') }}
     ###############################################
 
     ### BUILD NEOVIM ##############################
