@@ -1,4 +1,4 @@
-name: nvim-rs CI
+name: CI
 
 on:
   push:
@@ -13,12 +13,11 @@ env:
   NVIMRS_LOG_LEVEL: debug
   NVIMRS_STDERR: nvim-rs.stderr
   RUSTFLAGS: -C opt-level=0
-  CONFIGURATION: MINGW_64
-  
+
 jobs:
   all:
     runs-on: ${{ matrix.os }}
-    
+
     strategy:
       fail-fast: false
       matrix:
@@ -29,33 +28,68 @@ jobs:
             rust: beta
           - os: ubuntu-latest
             rust: nightly
-          
+
     steps:
     - uses: actions/checkout@v2
+
     - name: Install Rust ${{ matrix.rust }}
       uses: actions-rs/toolchain@v1
       with:
         toolchain: ${{ matrix.rust }}
         profile: minimal
         override: true
+
+    ### CACHING ###################################
+    - name: Cargo Cache Linux
+      if: matrix.os == 'ubuntu-latest'
+      uses: actions/cache@v1
+      with:
+        path: ~/.cargo
+        key: ${{ matrix.os }}-cargo-${{ matrix.rust}}-${{ hashFiles('Cargo.toml') }}
+
+    - name: Cargo Target Cache Linux
+      if: matrix.os == 'ubuntu-latest'
+      uses: actions/cache@v1
+      with:
+        path: target
+        key: ${{ matrix.os }}-cargo-${{ matrix.rust}}-target-${{ hashFiles('Cargo.toml') }}
+    ###############################################
+
     - name: Check
       run: |
         cargo check
         cargo check --examples --features use_tokio
         cargo check --examples --features use_async-std
+
+    ### NEOVIM REQUIREMENTS #######################
     - name: Install neovim requirements on linux
       if: matrix.os == 'ubuntu-latest'
       run: |
-        sudo apt-get install -y libtool-bin gettext
+        sudo apt-get install -y libtool-bin gettext ccache ninja-build
+
     - name: Install neovim requirements on osx
       if: matrix.os == 'macos-latest'
       run: |
         # Workaround brew issues
         rm -f /usr/local/bin/2to3
-        brew unlink gcc@8 gcc@9
+        brew unlink gcc@9
         brew update >/dev/null
         brew upgrade
         brew install automake ccache perl cpanminus ninja
+    ###############################################
+
+    ### CACHING NEOVIM DEPS #######################
+    - name: Cache neovim dependencies on linux/osx
+      if: matrix.os != 'windows-latest'
+        uses: actions/cache@v2
+        with:
+          path: |
+            $HOME/.cache/nvim-deps
+            $HOME/.ccache
+          key: ${{ matrix.os }}-${{ hashFiles('neovim/cmake/*', 'neovim/third-party/**', 'neovim/**/CMakeLists.txt') }}
+    ###############################################
+
+    ### BUILD NEOVIM ##############################
     - name: Build neovim on linux/osx
       if: matrix.os != 'windows-latest'
       run: |
@@ -64,19 +98,25 @@ jobs:
         make
         cd ..
         neovim/build/bin/nvim --version
+
     - name: Build neovim on windows
       if: matrix.os == 'windows-latest'
+      env:
+        CONFIGURATION: MINGW_64
       run: |
         git submodule update --init --recursive
         cd neovim
         powershell ci\build.ps1 -NoTests
         cd ..
         neovim\build\bin\nvim.exe --version
+    ###############################################
+
     - name: Tests
       run: |
         cargo test -- --nocapture
         cargo test --features use_tokio -- --nocapture
         cargo test --features use_async-std -- --nocapture
+
     - name: Benchtests
       run: |
             cargo bench --features use_tokio -- --test
