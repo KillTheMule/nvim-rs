@@ -13,6 +13,9 @@ env:
   NVIMRS_LOG_LEVEL: debug
   NVIMRS_STDERR: nvim-rs.stderr
   RUSTFLAGS: -C opt-level=0
+  NVIM_DEPS_BUILD_DIR: ${{ format('{0}/neovim/nvim-deps', github.workspace) }}
+  NVIM_DEPS_PREFIX: ${{ format('{0}/neovim/nvim-deps/usr', github.workspace) }}
+  NVIM_CONFIG: MINGW_64
 
 jobs:
   all:
@@ -40,6 +43,7 @@ jobs:
         override: true
 
     ### CACHING ###################################
+    # Note: Purportedly buggy on macos, so we leave that out
     - name: Cargo Cache Linux
       if: matrix.os == 'ubuntu-latest'
       uses: actions/cache@v1
@@ -87,6 +91,11 @@ jobs:
           $HOME/.cache/nvim-deps
           $HOME/.ccache
         key: ${{ matrix.os }}-${{ hashFiles('neovim/cmake/*', 'neovim/third-party/**', 'neovim/**/CMakeLists.txt') }}
+    - name: Cache neovim dependencies on windows
+      uses: actions/cache@v2
+      with:
+        path: ${{ env.NVIM_DEPS_BUILD_DIR }}
+        key: ${{ env.NVIM_CONFIG }}-${{ hashFiles('neovim\third-party\**') }}
     ###############################################
 
     ### BUILD NEOVIM ##############################
@@ -102,39 +111,15 @@ jobs:
     - name: Build neovim on windows
       if: matrix.os == 'windows-latest'
       env:
-        CONFIGURATION: MINGW_64
-        DEPS_BUILD_DIR: ${{ format('{0}/neovim/nvim-deps', github.workspace) }}
-        DEPS_PREFIX: ${{ format('{0}/neovim/nvim-deps/usr', github.workspace) }}
+        CONFIGURATION: ${{ env.NVIM_CONFIG }}
+        DEPS_BUILD_DIR: ${{ env.NVIM_DEPS_BUILD_DIR }}
+        DEPS_PREFIX: ${{ env.NVIM_DEPS_PREFIX}}
       run: |
         git submodule update --init --recursive
         cd neovim
         powershell ci\build.ps1 -NoTests
         cd ..
         neovim\build\bin\nvim.exe --version
-        #windows:
-        #  runs-on: windows-2016
-        #  if: github.event.pull_request.draft == false
-        #  env:
-        #    DEPS_BUILD_DIR: ${{ format('{0}/nvim-deps', github.workspace) }}
-        #    DEPS_PREFIX: ${{ format('{0}/nvim-deps/usr', github.workspace) }}
-
-        #  strategy:
-        #    fail-fast: false
-        #    matrix:
-        #      config: [ MINGW_64-gcov, MINGW_32, MSVC_64, MSVC_32 ]
-        #  name: windows (${{ matrix.config }})
-        #  steps:
-        #    - uses: actions/checkout@v2
-
-        #    - uses: actions/cache@v2
-        #      with:
-        #        path: ${{ env.DEPS_BUILD_DIR }}
-        #        key: ${{ matrix.config }}-${{ hashFiles('third-party\**') }}
-
-        #    - name: Run CI
-        #      run: powershell ci\build.ps1
-        #      env:
-        #        CONFIGURATION: ${{ matrix.config }}
     ###############################################
 
     - name: Tests
