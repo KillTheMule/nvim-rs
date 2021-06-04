@@ -82,6 +82,10 @@ jobs:
         brew install automake ccache perl cpanminus ninja
     ###############################################
 
+    - name: Check out neovim sources
+      run: |
+        git submodule update --init --recursive
+
     ### CACHING NEOVIM DEPS #######################
     - name: Cache neovim dependencies on linux/osx
       if: matrix.os != 'windows-latest'
@@ -102,7 +106,6 @@ jobs:
     - name: Build neovim on linux/osx
       if: matrix.os != 'windows-latest'
       run: |
-        git submodule update --init --recursive
         cd neovim
         make
         cd ..
@@ -115,7 +118,6 @@ jobs:
         DEPS_BUILD_DIR: ${{ env.NVIM_DEPS_BUILD_DIR }}
         DEPS_PREFIX: ${{ env.NVIM_DEPS_PREFIX}}
       run: |
-        git submodule update --init --recursive
         cd neovim
         powershell ci\build.ps1 -NoTests
         cd ..
