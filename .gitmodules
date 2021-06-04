@@ -1,4 +1,4 @@
 [submodule "neovim"]
 	path = neovim
-	url = https://github.com/neovim/neovim/
+	url = https://github.com/neovim/neovim
 	branch = master
