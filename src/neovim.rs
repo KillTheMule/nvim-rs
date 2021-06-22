@@ -1,5 +1,6 @@
 //! An active neovim session.
 use std::{
+  collections::VecDeque,
   future::Future,
   sync::{
     atomic::{AtomicU64, Ordering},
@@ -43,6 +44,69 @@ macro_rules! call_args {
 type ResponseResult = Result<Result<Value, Value>, Arc<DecodeError>>;
 
 type Queue = Arc<Mutex<Vec<(u64, oneshot::Sender<ResponseResult>)>>>;
+
+/// The current state of redraw notifications. Redraws must be dispatched
+/// sequentially in the order that they were received, as each redraw
+/// notification assumes it starts with the result from the previous redraw. See
+/// `:help ui-events` in Neovim for more info.
+struct RedrawQueue {
+  /// Whether there's a future already active that's flushing redraw
+  /// notifications
+  is_active: bool,
+  /// The queue of pending redraw notifications
+  queue: VecDeque<Vec<Value>>,
+}
+
+impl RedrawQueue {
+  fn new() -> Self {
+    RedrawQueue {
+      is_active: false,
+      queue: VecDeque::<Vec<Value>>::new(),
+    }
+  }
+}
+
+async fn queue_redraw<H, W>(
+  queue: &Arc<Mutex<RedrawQueue>>,
+  handler: H,
+  nvim: Neovim<H::Writer>,
+  params: Vec<Value>,
+)
+where
+  W: AsyncWrite + Send + Unpin + 'static,
+  H: Handler<Writer = W>
+{
+  let mut guard = queue.lock().await;
+
+  guard.queue.push_front(params);
+  if guard.is_active {
+    return;
+  }
+  guard.is_active = true;
+  drop(guard);
+
+  let queue = queue.clone();
+  let handler_c = handler.clone();
+  let neovim = nvim.clone();
+  handler.spawn(async move {
+    loop {
+      let redraw = {
+        let mut guard = queue.lock().await;
+
+        if let Some(redraw) = guard.queue.pop_back() {
+          redraw
+        } else {
+          guard.is_active = false;
+          return;
+        }
+      };
+
+      handler_c
+        .handle_notify("redraw".into(), redraw, neovim.clone())
+        .await;
+    }
+  });
+}
 
 /// An active Neovim session.
 pub struct Neovim<W>
@@ -190,6 +254,7 @@ where
     R: AsyncRead + Send + Unpin + 'static,
   {
     let mut rest: Vec<u8> = vec![];
+    let ui_queue = Arc::new(Mutex::new(RedrawQueue::new()));
 
     loop {
       let msg = match model::decode(&mut reader, &mut rest).await {
@@ -251,9 +316,14 @@ where
         RpcMessage::RpcNotification { method, params } => {
           let handler_c = handler.clone();
           let neovim = neovim.clone();
-          handler.spawn(async move {
-            handler_c.handle_notify(method, params, neovim).await
-          });
+
+          if method == "redraw" {
+            queue_redraw(&ui_queue, handler_c, neovim, params).await;
+          } else {
+            handler.spawn(async move {
+              handler_c.handle_notify(method, params, neovim).await
+            });
+          }
         }
       };
     }
