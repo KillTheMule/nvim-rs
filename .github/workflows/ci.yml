@@ -61,9 +61,7 @@ jobs:
 
     - name: Check
       run: |
-        cargo check
-        cargo check --examples --features use_tokio
-        cargo check --examples --features use_async-std
+        cargo check && cargo check --examples --features use_tokio && cargo check --examples --features use_async-std
 
     ### NEOVIM REQUIREMENTS #######################
     - name: Install neovim requirements on linux
@@ -126,11 +124,8 @@ jobs:
 
     - name: Tests
       run: |
-        cargo test -- --nocapture
-        cargo test --features use_tokio -- --nocapture
-        cargo test --features use_async-std -- --nocapture
+        cargo test -- --nocapture && cargo test --features use_tokio -- --nocapture && cargo test --features use_async-std -- --nocapture
 
     - name: Benchtests
       run: |
-            cargo bench --features use_tokio -- --test
-            cargo bench --features use_async-std -- --test
+            cargo bench --features use_tokio -- --test && cargo bench --features use_async-std -- --test
