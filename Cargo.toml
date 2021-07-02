@@ -83,6 +83,10 @@ required-features = ["use_neovim_lib"]
 name = "scorched_earth_as"
 required-features = ["use_async-std"]
 
+[[example]]
+name = "nested_requests"
+required-features = ["use_tokio"]
+
 [[test]]
 name = "nested_requests"
 required-features = ["use_tokio"]
@@ -90,3 +94,7 @@ required-features = ["use_tokio"]
 [[test]]
 name = "connecting"
 path = "tests/connecting/mod.rs"
+
+[[test]]
+name = "notifications"
+required-features = ["use_tokio"]

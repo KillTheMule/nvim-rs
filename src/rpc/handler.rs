@@ -31,7 +31,9 @@ pub trait Handler: Send + Sync + Clone + 'static {
     Err(Value::from("Not implemented"))
   }
 
-  /// Handling an rpc notification.
+  /// Handling an rpc notification. Notifications are handled one at a time in
+  /// the order in which they were received, and will block new requests from
+  /// being received until handle_notify returns.
   async fn handle_notify(
     &self,
     _name: String,
