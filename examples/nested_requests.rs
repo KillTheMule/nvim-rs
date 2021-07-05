@@ -1,22 +1,25 @@
 use nvim_rs::{
-  compat::tokio::Compat, create::tokio as create, neovim::Neovim, Handler,
+  compat::tokio::Compat,
+  create::tokio as create,
+  neovim::Neovim,
+  Handler,
 };
 
 use async_trait::async_trait;
 
 use rmpv::Value;
 
-use std::sync::Arc;
+use std::{
+  sync::Arc,
+  path::Path,
+};
 
 use tokio::{
   self,
   process::{ChildStdin, Command},
-  spawn,
+  sync::Mutex,
+  spawn
 };
-
-use futures::lock::Mutex;
-use futures::select;
-use futures::future::FutureExt;
 
 const NVIMPATH: &str = "neovim/build/bin/nvim";
 
@@ -97,19 +100,17 @@ impl Handler for NeovimHandler {
     args: Vec<Value>,
     _neovim: Neovim<Compat<ChildStdin>>,
   ) {
-    eprintln!("Handling notification {}", name);
     match name.as_ref() {
       "set_froodle" => {
-        let s =args[0].as_str().unwrap().to_string();
-        *self.froodle.lock().await = s
+        *self.froodle.lock().await = args[0].as_str().unwrap().to_string()
       }
       _ => {}
     };
   }
 }
 
-#[tokio::test(flavor = "current_thread")]
-async fn nested_requests() {
+#[tokio::main(flavor = "current_thread")]
+async fn main() {
   let rs = r#"exe ":fun M(timer) 
       call rpcnotify(1, 'set_froodle', rpcrequest(1, 'req', 'y'))
     endfun""#;
@@ -122,8 +123,13 @@ async fn nested_requests() {
     froodle: froodle.clone(),
   };
 
-  let (nvim, io_handler, _child) = create::new_child_cmd(
-    Command::new(NVIMPATH).args(&[
+  let path = if Path::new(NVIMPATH).exists() {
+    NVIMPATH
+  } else {
+    "nvim"
+  };
+  let (nvim, io, _child) = create::new_child_cmd(
+    Command::new(path).args(&[
       "-u",
       "NONE",
       "--embed",
@@ -147,9 +153,9 @@ async fn nested_requests() {
 
   // The 2nd timer closes the channel, which will be returned as an error from
   // the io handler. We only fail the test if we got another error
-  if let Err(err) = io_handler.await.unwrap() {
+  if let Err(err) = io.await.unwrap() {
     if !err.is_channel_closed() {
-      panic!("{}", err);
+      panic!("Error in io: '{:?}'", err);
     }
   }
 

@@ -79,6 +79,10 @@ required-features = ["use_neovim_lib"]
 name = "scorched_earth_as"
 required-features = ["use_async-std"]
 
+[[example]]
+name = "nested_requests"
+required-features = ["use_tokio"]
+
 [[test]]
 name = "nested_requests"
 required-features = ["use_tokio"]
