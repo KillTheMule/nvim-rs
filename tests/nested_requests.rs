@@ -16,7 +16,8 @@ use tokio::{
 
 use futures::lock::Mutex;
 
-const NVIMPATH: &str = "neovim/build/bin/nvim";
+mod common;
+use common::*;
 
 #[derive(Clone)]
 struct NeovimHandler {
@@ -119,7 +120,7 @@ async fn nested_requests() {
   };
 
   let (nvim, io_handler, _child) = create::new_child_cmd(
-    Command::new(NVIMPATH).args(&[
+    Command::new(nvim_path()).args(&[
       "-u",
       "NONE",
       "--embed",
@@ -149,5 +150,8 @@ async fn nested_requests() {
     }
   }
 
-  assert_eq!("nvim - doodle - o - nvim", *froodle.lock().await);
+  assert_eq!(
+    format!("{nvim} - doodle - o - {nvim}", nvim = NVIM_BIN),
+    *froodle.lock().await
+  );
 }

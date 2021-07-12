@@ -21,10 +21,10 @@ use std::{
 #[cfg(unix)]
 use tempdir::TempDir;
 
-#[cfg(windows)]
-const NVIMPATH: &str = "neovim/build/bin/nvim.exe";
-#[cfg(unix)]
-const NVIMPATH: &str = "neovim/build/bin/nvim";
+#[path = "../common/mod.rs"]
+mod common;
+use common::*;
+
 const HOST: &str = "127.0.0.1";
 const PORT: u16 = 6666;
 
@@ -32,7 +32,7 @@ const PORT: u16 = 6666;
 async fn can_connect_via_tcp() {
   let listen = HOST.to_string() + ":" + &PORT.to_string();
 
-  let mut child = Command::new(NVIMPATH)
+  let mut child = Command::new(nvim_path())
     .args(&["-u", "NONE", "--headless", "--listen", &listen])
     .spawn()
     .expect("Cannot start neovim");
@@ -83,7 +83,7 @@ fn get_socket_path() -> (std::path::PathBuf, ()) {
 async fn can_connect_via_path() {
   let (socket_path, _guard) = get_socket_path();
 
-  let mut child = Command::new(NVIMPATH)
+  let mut child = Command::new(nvim_path())
     .args(&["-u", "NONE", "--headless"])
     .env("NVIM_LISTEN_ADDRESS", &socket_path)
     .spawn()
