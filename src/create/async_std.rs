@@ -8,9 +8,11 @@ use async_std::os::unix::net::UnixStream;
 use async_std::{
   io::{stdin, stdout, Stdout},
   net::{TcpStream, ToSocketAddrs},
-  path::Path,
   task::{spawn, JoinHandle},
 };
+
+#[cfg(unix)]
+use async_std::path::Path;
 
 use futures::io::{AsyncReadExt, WriteHalf};
 
