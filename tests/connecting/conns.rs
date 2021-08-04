@@ -1,9 +1,9 @@
 use nvim_rs::rpc::handler::Dummy as DummyHandler;
 
 #[cfg(feature = "use_tokio")]
-use tokio::test as atest;
-#[cfg(feature = "use_tokio")]
 use nvim_rs::create::tokio as create;
+#[cfg(feature = "use_tokio")]
+use tokio::test as atest;
 
 #[cfg(feature = "use_async-std")]
 use async_std::test as atest;
@@ -92,7 +92,7 @@ async fn can_connect_via_unix_socket() {
   }
 
   let handler = DummyHandler::new();
-  let (nvim, _io_handle) = create::new_unix_socket(&socket_path, handler)
+  let (nvim, _io_handle) = create::new_path(&socket_path, handler)
     .await
     .expect(&format!(
       "Unable to connect to neovim's unix socket at {:?}",
