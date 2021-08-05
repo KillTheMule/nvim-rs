@@ -7,9 +7,6 @@ use std::{
   process::Stdio,
 };
 
-#[cfg(unix)]
-use tokio::net::UnixStream;
-
 use tokio::{
   io::{split, stdin, stdout, Stdout, WriteHalf},
   net::{TcpStream, ToSocketAddrs},
@@ -17,6 +14,8 @@ use tokio::{
   spawn,
   task::JoinHandle,
 };
+
+use parity_tokio_ipc::{Connection, Endpoint};
 
 use tokio_util::compat::{
   Compat, TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt,
@@ -62,21 +61,20 @@ where
   Ok((neovim, io_handle))
 }
 
-#[cfg(unix)]
-/// Connect to a neovim instance via unix socket
-pub async fn new_unix_socket<H, P: AsRef<Path> + Clone>(
+/// Connect to a neovim instance via unix socket (Unix) or named pipe (Windows)
+pub async fn new_path<H, P: AsRef<Path> + Clone>(
   path: P,
   handler: H,
 ) -> io::Result<(
-  Neovim<Compat<WriteHalf<UnixStream>>>,
+  Neovim<Compat<WriteHalf<Connection>>>,
   JoinHandle<Result<(), Box<LoopError>>>,
 )>
 where
-  H: Handler<Writer = Compat<WriteHalf<UnixStream>>> + Send + 'static,
+  H: Handler<Writer = Compat<WriteHalf<Connection>>> + Send + 'static,
 {
-  let stream = UnixStream::connect(path).await?;
+  let stream = Endpoint::connect(path).await?;
   let (reader, writer) = split(stream);
-  let (neovim, io) = Neovim::<Compat<WriteHalf<UnixStream>>>::new(
+  let (neovim, io) = Neovim::<Compat<WriteHalf<Connection>>>::new(
     reader.compat(),
     writer.compat_write(),
     handler,

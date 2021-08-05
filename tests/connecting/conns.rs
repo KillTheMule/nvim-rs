@@ -1,9 +1,10 @@
+#![allow(unused)]
 use nvim_rs::rpc::handler::Dummy as DummyHandler;
 
 #[cfg(feature = "use_tokio")]
-use tokio::test as atest;
-#[cfg(feature = "use_tokio")]
 use nvim_rs::create::tokio as create;
+#[cfg(feature = "use_tokio")]
+use tokio::test as atest;
 
 #[cfg(feature = "use_async-std")]
 use async_std::test as atest;
@@ -11,16 +12,18 @@ use async_std::test as atest;
 use nvim_rs::create::async_std as create;
 
 use std::{
+  path::Path,
   process::Command,
   thread::sleep,
   time::{Duration, Instant},
 };
 
 #[cfg(unix)]
-use std::path::Path;
-#[cfg(unix)]
 use tempdir::TempDir;
 
+#[cfg(windows)]
+const NVIMPATH: &str = "neovim/build/bin/nvim.exe";
+#[cfg(unix)]
 const NVIMPATH: &str = "neovim/build/bin/nvim";
 const HOST: &str = "127.0.0.1";
 const PORT: u16 = 6666;
@@ -61,12 +64,24 @@ async fn can_connect_via_tcp() {
 }
 
 #[cfg(unix)]
-#[atest]
-async fn can_connect_via_unix_socket() {
+fn get_socket_path() -> (std::path::PathBuf, TempDir) {
   let dir = TempDir::new("neovim-lib.test")
     .expect("Cannot create temporary directory for test.");
 
-  let socket_path = dir.path().join("unix_socket");
+  (dir.path().join("unix_socket"), dir)
+}
+
+#[cfg(windows)]
+fn get_socket_path() -> (std::path::PathBuf, ()) {
+  let rand = rand::random::<u32>();
+  let name = format!(r"\\.\pipe\nvim-rs-test-{}", rand);
+  (name.into(), ())
+}
+
+#[cfg(not(all(feature = "use_async-std", windows)))]
+#[atest]
+async fn can_connect_via_path() {
+  let (socket_path, _guard) = get_socket_path();
 
   let mut child = Command::new(NVIMPATH)
     .args(&["-u", "NONE", "--headless"])
@@ -86,13 +101,14 @@ async fn can_connect_via_unix_socket() {
       }
 
       if one_second <= start.elapsed() {
-        panic!(format!("neovim socket not found at '{:?}'", &socket_path));
+        panic!("neovim socket not found at '{:?}'", &socket_path);
       }
     }
   }
 
   let handler = DummyHandler::new();
-  let (nvim, _io_handle) = create::new_unix_socket(&socket_path, handler)
+
+  let (nvim, _io_handle) = create::new_path(&socket_path, handler)
     .await
     .expect(&format!(
       "Unable to connect to neovim's unix socket at {:?}",

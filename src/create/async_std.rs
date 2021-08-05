@@ -8,9 +8,11 @@ use async_std::os::unix::net::UnixStream;
 use async_std::{
   io::{stdin, stdout, Stdout},
   net::{TcpStream, ToSocketAddrs},
-  path::Path,
   task::{spawn, JoinHandle},
 };
+
+#[cfg(unix)]
+use async_std::path::Path;
 
 use futures::io::{AsyncReadExt, WriteHalf};
 
@@ -52,8 +54,9 @@ where
 }
 
 #[cfg(unix)]
-/// Connect to a neovim instance via unix socket
-pub async fn new_unix_socket<H, P: AsRef<Path> + Clone>(
+/// Connect to a neovim instance via unix socket by path. This is currently
+/// only available on Unix for async-std.
+pub async fn new_path<H, P: AsRef<Path> + Clone>(
   path: P,
   handler: H,
 ) -> io::Result<(
