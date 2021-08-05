@@ -1,3 +1,4 @@
+#![allow(unused)]
 use nvim_rs::rpc::handler::Dummy as DummyHandler;
 
 #[cfg(feature = "use_tokio")]
@@ -11,6 +12,7 @@ use async_std::test as atest;
 use nvim_rs::create::async_std as create;
 
 use std::{
+  path::Path,
   process::Command,
   thread::sleep,
   time::{Duration, Instant},
@@ -62,23 +64,22 @@ async fn can_connect_via_tcp() {
 }
 
 #[cfg(unix)]
-fn get_socket_path() -> (PathBuf, TempDir) {
+fn get_socket_path() -> (std::path::PathBuf, TempDir) {
   let dir = TempDir::new("neovim-lib.test")
     .expect("Cannot create temporary directory for test.");
 
   (dir.path().join("unix_socket"), dir)
 }
 
-// tests using this only run on windows + tokio
-#[cfg(all(windows, feature = "use_tokio"))]
+#[cfg(windows)]
 fn get_socket_path() -> (std::path::PathBuf, ()) {
   let rand = rand::random::<u32>();
   let name = format!(r"\\.\pipe\nvim-rs-test-{}", rand);
   (name.into(), ())
 }
 
-#[cfg(not(any(feature = "use_tokio", windows)))]
-async fn can_connect_via_unix() {
+#[atest]
+async fn can_connect_via_path() {
   let (socket_path, _guard) = get_socket_path();
 
   let mut child = Command::new(NVIMPATH)
@@ -105,7 +106,8 @@ async fn can_connect_via_unix() {
   }
 
   let handler = DummyHandler::new();
-  let (nvim, _io_handle) = create::tokio::new_unix(&socket_path, handler)
+
+  let (nvim, _io_handle) = create::new_path(&socket_path, handler)
     .await
     .expect(&format!(
       "Unable to connect to neovim's unix socket at {:?}",
@@ -123,59 +125,4 @@ async fn can_connect_via_unix() {
   child.kill().expect("Could not kill neovim");
 
   assert_eq!(socket_path, Path::new(&servername));
-}
-
-#[cfg(feature = "use_tokio")]
-mod path_tests {
-  use super::*;
-  use std::path::Path;
-
-  #[atest]
-  async fn can_connect_via_path() {
-    let (socket_path, _guard) = get_socket_path();
-
-    let mut child = Command::new(NVIMPATH)
-      .args(&["-u", "NONE", "--headless"])
-      .env("NVIM_LISTEN_ADDRESS", &socket_path)
-      .spawn()
-      .expect("Cannot start neovim");
-
-    // wait at most 1 second for neovim to start and create the socket
-    {
-      let start = Instant::now();
-      let one_second = Duration::from_secs(1);
-      loop {
-        sleep(Duration::from_millis(100));
-
-        if let Ok(_) = std::fs::metadata(&socket_path) {
-          break;
-        }
-
-        if one_second <= start.elapsed() {
-          panic!("neovim socket not found at '{:?}'", &socket_path);
-        }
-      }
-    }
-
-    let handler = DummyHandler::new();
-    let (nvim, _io_handle) =
-      nvim_rs::create::tokio::new_path(&socket_path, handler)
-        .await
-        .expect(&format!(
-          "Unable to connect to neovim's unix socket at {:?}",
-          &socket_path
-        ));
-
-    let servername = nvim
-      .get_vvar("servername")
-      .await
-      .expect("Error retrieving servername from neovim")
-      .as_str()
-      .unwrap()
-      .to_string();
-
-    child.kill().expect("Could not kill neovim");
-
-    assert_eq!(socket_path, Path::new(&servername));
-  }
 }
