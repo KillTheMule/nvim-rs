@@ -122,6 +122,10 @@ jobs:
         neovim\build\bin\nvim.exe --version
     ###############################################
 
+    -name: Build basic example
+     run: |
+        cargo build --example basic --features use_tokio
+
     - name: Tests
       run: |
         cargo test -- --nocapture && cargo test --features use_tokio -- --nocapture && cargo test --features use_async-std -- --nocapture

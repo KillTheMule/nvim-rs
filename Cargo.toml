@@ -68,6 +68,10 @@ name = "scorched_earth"
 required-features = ["use_tokio"]
 
 [[example]]
+name = "basic"
+required-features = ["use_tokio"]
+
+[[example]]
 name = "bench_tokio"
 required-features = ["use_tokio"]
 
@@ -98,3 +102,6 @@ path = "tests/connecting/mod.rs"
 [[test]]
 name = "notifications"
 required-features = ["use_tokio"]
+
+[[test]]
+name = "basic"
