@@ -3,3 +3,6 @@
 * Can we use the non-generic `split` methods from tokio for unixstream, tcpstream? Supposedly better performance, but introduces lifetimes...
 
 * Propogate errors from `model::encode()` in `handler_loop()`
+
+* Don't return an error on channel close, because the the regular way to shut down a plugin
+  --> maybe? For a plugin, sure, what about GUIs?
