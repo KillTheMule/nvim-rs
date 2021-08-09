@@ -40,7 +40,7 @@ use std::{
   sync::Arc,
 };
 
-use futures::{channel::oneshot, task::SpawnError};
+use futures::channel::oneshot;
 use rmpv::{
   decode::Error as RmpvDecodeError, encode::Error as RmpvEncodeError, Value,
 };
@@ -350,8 +350,6 @@ pub enum LoopError {
   /// 0. The msgid of the request the response was sent for
   /// 1. The response from neovim
   InternalSendResponseError(u64, Result<Value, Value>),
-  /// The io loop could not spawn a task for the handler
-  IoSpawn(SpawnError),
 }
 
 impl Error for LoopError {
@@ -360,7 +358,6 @@ impl Error for LoopError {
       LoopError::MsgidNotFound(_)
       | LoopError::InternalSendResponseError(_, _) => None,
       LoopError::DecodeError(ref e, _) => Some(e.as_ref()),
-      LoopError::IoSpawn(ref e) => Some(e),
     }
   }
 }
@@ -409,16 +406,7 @@ impl Display for LoopError {
         "Request {}: Could not send response, which was {:?}",
         i, res
       ),
-      Self::IoSpawn(_) => {
-        write!(fmt, "Could not spawn an additional task to the handler")
-      }
     }
-  }
-}
-
-impl From<SpawnError> for Box<LoopError> {
-  fn from(err: SpawnError) -> Box<LoopError> {
-    Box::new(LoopError::IoSpawn(err))
   }
 }
 
