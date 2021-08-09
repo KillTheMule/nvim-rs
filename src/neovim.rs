@@ -8,9 +8,15 @@ use std::{
 };
 
 use futures::{
-  channel::oneshot,
+  channel::{
+    mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
+    oneshot,
+  },
   io::{AsyncRead, AsyncWrite, BufWriter},
   lock::Mutex,
+  sink::SinkExt,
+  stream::StreamExt,
+  future, TryFutureExt,
 };
 
 use crate::{
@@ -100,8 +106,12 @@ where
       queue: Arc::new(Mutex::new(Vec::new())),
     };
 
-    let req_t = req.clone();
-    let fut = Self::io_loop(handler, reader, req_t);
+    let (sender, receiver) = unbounded();
+    let fut = future::try_join(
+      req.clone().io_loop(reader, sender),
+      req.clone().handler_loop(handler, receiver)
+    )
+    .map_ok(|_| ());
 
     (req, fut)
   }
@@ -180,39 +190,39 @@ where
     }
   }
 
-  async fn io_loop<H, R>(
+  async fn handler_loop<H>(
+    self,
     handler: H,
-    mut reader: R,
-    neovim: Neovim<H::Writer>,
+    mut receiver: UnboundedReceiver<RpcMessage>,
   ) -> Result<(), Box<LoopError>>
   where
-    H: Handler + Spawner,
-    R: AsyncRead + Send + Unpin + 'static,
+    H: Handler<Writer = W> + Spawner,
   {
-    let mut rest: Vec<u8> = vec![];
-
     loop {
-      let msg = match model::decode(&mut reader, &mut rest).await {
-        Ok(msg) => msg,
-        Err(err) => {
-          let e = neovim.send_error_to_callers(&neovim.queue, *err).await?;
-          return Err(Box::new(LoopError::DecodeError(e, None)));
-        }
+      let msg = match receiver.next().await {
+        Some(msg) => msg,
+        /* If our receiver closes, that just means that io_handler started
+         * shutting down. This is normal, so shut down along with it and don't
+         * report an error
+         */
+        None => break Ok(()),
       };
 
-      debug!("Get message {:?}", msg);
       match msg {
         RpcMessage::RpcRequest {
           msgid,
           method,
           params,
         } => {
-          let neovim = neovim.clone();
           let handler_c = handler.clone();
+          let neovim = self.clone();
+          let writer = self.writer.clone();
+
           handler.spawn(async move {
-            let neovim_t = neovim.clone();
-            let response =
-              match handler_c.handle_request(method, params, neovim_t).await {
+            let response = match handler_c
+              .handle_request(method, params, neovim)
+              .await
+              {
                 Ok(result) => RpcMessage::RpcResponse {
                   msgid,
                   result,
@@ -225,37 +235,57 @@ where
                 },
               };
 
-            model::encode(neovim.writer, response)
+            model::encode(writer, response)
               .await
               .unwrap_or_else(|e| {
                 error!("Error sending response to request {}: '{}'", msgid, e);
               });
           });
-        }
-        RpcMessage::RpcResponse {
-          msgid,
-          result,
-          error,
-        } => {
-          let sender = find_sender(&neovim.queue, msgid).await?;
-          if error == Value::Nil {
-            sender
-              .send(Ok(Ok(result)))
-              .map_err(|r| (msgid, r.expect("This was an OK(_)")))?;
-          } else {
-            sender
-              .send(Ok(Err(error)))
-              .map_err(|r| (msgid, r.expect("This was an OK(_)")))?;
-          }
-        }
-        RpcMessage::RpcNotification { method, params } => {
-          let handler_c = handler.clone();
-          let neovim = neovim.clone();
-          handler.spawn(async move {
-            handler_c.handle_notify(method, params, neovim).await
-          });
+        },
+        RpcMessage::RpcNotification {
+          method,
+          params
+        } => handler.handle_notify(method, params, self.clone()).await,
+        _ => unreachable!(),
+      }
+    }
+  }
+
+  async fn io_loop<R>(
+    self,
+    mut reader: R,
+    mut sender: UnboundedSender<RpcMessage>,
+  ) -> Result<(), Box<LoopError>>
+  where
+    R: AsyncRead + Send + Unpin + 'static,
+  {
+    let mut rest: Vec<u8> = vec![];
+
+    loop {
+      let msg = match model::decode(&mut reader, &mut rest).await {
+        Ok(msg) => msg,
+        Err(err) => {
+          let e = self.send_error_to_callers(&self.queue, *err).await?;
+          return Err(Box::new(LoopError::DecodeError(e, None)));
         }
       };
+
+      debug!("Get message {:?}", msg);
+      if let RpcMessage::RpcResponse { msgid, result, error, } = msg {
+        let sender = find_sender(&self.queue, msgid).await?;
+        if error == Value::Nil {
+          sender
+            .send(Ok(Ok(result)))
+            .map_err(|r| (msgid, r.expect("This was an OK(_)")))?;
+        } else {
+          sender
+            .send(Ok(Err(error)))
+            .map_err(|r| (msgid, r.expect("This was an OK(_)")))?;
+        }
+      } else {
+        // Send message to handler_loop()
+        sender.send(msg).await.unwrap();
+      }
     }
   }
 

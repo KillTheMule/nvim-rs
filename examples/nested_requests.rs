@@ -1,23 +1,36 @@
 use nvim_rs::{
-  compat::tokio::Compat, create::tokio as create, neovim::Neovim, Handler,
+  compat::tokio::Compat,
+  create::tokio as create,
+  neovim::Neovim,
+  Handler,
 };
 
 use async_trait::async_trait;
 
 use rmpv::Value;
 
-use std::sync::Arc;
+use std::{
+  sync::Arc,
+  path::Path,
+};
 
 use tokio::{
   self,
   process::{ChildStdin, Command},
-  spawn,
+  sync::Mutex,
+  spawn
 };
 
-use futures::lock::Mutex;
-
-mod common;
-use common::*;
+const NVIM_BIN: &str = if cfg!(windows) {
+  "nvim.exe"
+} else {
+  "nvim"
+};
+const NVIM_PATH: &str = if cfg!(windows) {
+  "neovim/build/bin/nvim.exe"
+} else {
+  "neovim/build/bin/nvim"
+};
 
 #[derive(Clone)]
 struct NeovimHandler {
@@ -105,8 +118,8 @@ impl Handler for NeovimHandler {
   }
 }
 
-#[tokio::test(flavor = "current_thread")]
-async fn nested_requests() {
+#[tokio::main(flavor = "current_thread")]
+async fn main() {
   let rs = r#"exe ":fun M(timer) 
       call rpcnotify(1, 'set_froodle', rpcrequest(1, 'req', 'y'))
     endfun""#;
@@ -119,8 +132,13 @@ async fn nested_requests() {
     froodle: froodle.clone(),
   };
 
-  let (nvim, io_handler, _child) = create::new_child_cmd(
-    Command::new(nvim_path()).args(&[
+  let path = if Path::new(NVIM_PATH).exists() {
+    NVIM_PATH
+  } else {
+    NVIM_BIN
+  };
+  let (nvim, io, _child) = create::new_child_cmd(
+    Command::new(path).args(&[
       "-u",
       "NONE",
       "--embed",
@@ -144,9 +162,9 @@ async fn nested_requests() {
 
   // The 2nd timer closes the channel, which will be returned as an error from
   // the io handler. We only fail the test if we got another error
-  if let Err(err) = io_handler.await.unwrap() {
+  if let Err(err) = io.await.unwrap() {
     if !err.is_channel_closed() {
-      panic!("{}", err);
+      panic!("Error in io: '{:?}'", err);
     }
   }
 
