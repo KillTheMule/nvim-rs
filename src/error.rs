@@ -318,7 +318,7 @@ impl From<Value> for Box<CallError> {
           .pop()
           .expect("This was checked")
           .as_str()
-          .unwrap()
+          .expect("This was checked")
           .into();
         let i = arr.pop().expect("This was checked").as_i64();
         Box::new(CallError::NeovimError(i, s))
