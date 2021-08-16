@@ -293,7 +293,7 @@ where
   ///
   /// After this method is called, the client will receive redraw notifications.
   pub async fn ui_attach(
-    &mut self,
+    &self,
     width: i64,
     height: i64,
     opts: &UiAttachOptions,
@@ -310,7 +310,7 @@ where
   /// Send a quit command to Nvim.
   /// The quit command is 'qa!' which will make Nvim quit without
   /// saving anything.
-  pub async fn quit_no_save(&mut self) -> Result<(), Box<CallError>> {
+  pub async fn quit_no_save(&self) -> Result<(), Box<CallError>> {
     self.command("qa!").await
   }
 }
