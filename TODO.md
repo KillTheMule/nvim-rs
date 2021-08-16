@@ -6,3 +6,5 @@
 
 * Don't return an error on channel close, because the the regular way to shut down a plugin
   --> maybe? For a plugin, sure, what about GUIs?
+
+* Don't build neovim ourselves, download a binary
