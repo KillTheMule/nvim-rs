@@ -38,7 +38,7 @@ async fn main() {
   let (nvim, io_handler) = create::new_parent(handler).await;
   let curbuf = nvim.get_current_buf().await.unwrap();
 
-  let envargs = env::args();
+  let mut envargs = env::args();
   let _ = envargs.next();
   let testfile = envargs.next().unwrap();
 
