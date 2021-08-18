@@ -6,11 +6,15 @@ use std::{fs, path::PathBuf, process::Command};
 const TESTDIR: &str = "neovim-basic-test";
 const TESTFILE: &str = "neovim-basic-test/curbuf.txt";
 
+fn viml_escape(in_str: &str) -> String {
+    in_str.replace('\\', r"\\")
+}
+
 #[test]
 fn basic() {
   let c1 = format!(
-    "let jobid = jobstart([\"target/debug/examples/basic\",\
-                    \"{}\"], {{\"rpc\": v:true}})",
+    "let jobid = jobstart([\"{}\", \"{}\"], {{\"rpc\": v:true}})",
+    viml_escape(PathBuf::from(env!("EXAMPLES_PATH")).join("basic").to_str().unwrap()),
     TESTFILE
   );
   let c2 = r#"sleep 100m | let pong = rpcrequest(jobid, "ping")"#;
