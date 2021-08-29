@@ -29,9 +29,9 @@
 //! Some crude benchmarks to measure performance. After running
 //!
 //! ```sh
-//! cargo build --examples --features use_tokio --relaese
-//! cargo build --examples --features use_async-std --relaese
-//! cargo build --examples --features use_neovim_lib --relaese
+//! cargo build --examples --features use_tokio --release
+//! cargo build --examples --features use_async-std --release
+//! cargo build --examples --features use_neovim_lib --release
 //! ```
 //!
 //! (the features aren't all compatible, so you need to run those separately

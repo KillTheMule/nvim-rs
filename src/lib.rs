@@ -47,7 +47,9 @@ pub use crate::{
 };
 
 #[cfg(feature = "use_tokio")]
+#[cfg_attr(docsrs, doc(cfg(feature = "use_tokio")))]
 pub mod compat {
+  //! A re-export of tokio-util's [`Compat`](tokio_util::compat::Compat) 
   pub mod tokio {
     pub use tokio_util::compat::Compat;
   }

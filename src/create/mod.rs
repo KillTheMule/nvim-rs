@@ -11,6 +11,7 @@
 //! E.g. when using the features `use_tokio`, you will need to run all the
 //! API functions from inside the tokio runtime.
 #[cfg(feature = "use_tokio")]
+#[cfg_attr(docsrs, doc(cfg(feature = "use_tokio")))]
 pub mod tokio;
 
 #[cfg(feature = "use_async-std")]

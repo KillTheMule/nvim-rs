@@ -24,6 +24,10 @@ use_tokio = ["tokio", "tokio-util", "parity-tokio-ipc"]
 use_async-std = ["async-std"]
 use_neovim_lib = ["neovim-lib"]
 
+[package.metadata.docs.rs]
+features = ["use_tokio"]
+rustdoc-args = ["--cfg", "docsrs"]
+
 [lib]
 bench = false
 
