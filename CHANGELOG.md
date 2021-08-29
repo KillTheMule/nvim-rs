@@ -7,6 +7,15 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+- Updated tokio to 1.\*
+- Added UiOption::ExtMessages
+- Removed create::tokio::new_unix in favor of create::tokio::new_path, which also
+  works on windows
+- Requests/notifications are now handled in order of arrival (which is mainly important
+  for notifications)
+- Removed LoopError::SpawnError
+- 
+
 ## 0.2.0 - 2020-08-29
 
 ### Added
