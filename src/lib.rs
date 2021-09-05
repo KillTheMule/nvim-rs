@@ -22,6 +22,7 @@
 //!
 //! I've not yet worked through the details of what-to-export, but I'm quite
 //! willing to consider what people need or want.
+#![cfg_attr(docsrs, feature(doc_cfg))]
 extern crate rmp;
 extern crate rmpv;
 #[macro_use]
