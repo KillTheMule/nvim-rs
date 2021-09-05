@@ -7,6 +7,8 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+## 0.3.0 - 2021-08-28
+
 - Updated tokio to 1.\*
 - Added UiOption::ExtMessages
 - Removed create::tokio::new_unix in favor of create::tokio::new_path, which also
