@@ -313,6 +313,23 @@ where
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
   }
+  /// since: ?
+  pub async fn set_mark(
+    &self,
+    name: &str,
+    line: i64,
+    col: i64>,
+  ) -> Result<bool, Box<CallError>> {
+    self
+      .neovim
+      .call(
+        "nvim_buf_set_mark",
+        call_args![self.code_data.clone(), name, line, col],
+      )
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
   /// since: 7
   pub async fn get_extmark_by_id(
     &self,
