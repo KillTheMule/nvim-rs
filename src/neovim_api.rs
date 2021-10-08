@@ -1,6 +1,6 @@
 //! The auto generated API for [`neovim`](crate::neovim::Neovim)
 //!
-//! Auto generated 2020-08-18 09:13:24.551223
+//! Auto generated 2021-10-08 16:04:41.430645
 use futures::io::AsyncWrite;
 
 use crate::{
@@ -14,13 +14,11 @@ impl<W> Buffer<W>
 where
   W: AsyncWrite + Send + Unpin + 'static,
 {
-  #[must_use]
   pub fn new(code_data: Value, neovim: Neovim<W>) -> Buffer<W> {
     Buffer { code_data, neovim }
   }
 
   /// Internal value, that represent type
-  #[must_use]
   pub fn get_value(&self) -> &Value {
     &self.code_data
   }
@@ -93,6 +91,32 @@ where
           start,
           end,
           strict_indexing,
+          replacement
+        ],
+      )
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+  /// since: 7
+  pub async fn set_text(
+    &self,
+    start_row: i64,
+    start_col: i64,
+    end_row: i64,
+    end_col: i64,
+    replacement: Vec<String>,
+  ) -> Result<(), Box<CallError>> {
+    self
+      .neovim
+      .call(
+        "nvim_buf_set_text",
+        call_args![
+          self.code_data.clone(),
+          start_row,
+          start_col,
+          end_row,
+          end_col,
           replacement
         ],
       )
@@ -251,15 +275,6 @@ where
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
   }
   /// since: 1
-  pub async fn get_number(&self) -> Result<i64, Box<CallError>> {
-    self
-      .neovim
-      .call("nvim_buf_get_number", call_args![self.code_data.clone()])
-      .await??
-      .try_unpack()
-      .map_err(|v| Box::new(CallError::WrongValueType(v)))
-  }
-  /// since: 1
   pub async fn get_name(&self) -> Result<String, Box<CallError>> {
     self
       .neovim
@@ -289,11 +304,52 @@ where
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
   }
+  /// since: 7
+  pub async fn delete(
+    &self,
+    opts: Vec<(Value, Value)>,
+  ) -> Result<(), Box<CallError>> {
+    self
+      .neovim
+      .call("nvim_buf_delete", call_args![self.code_data.clone(), opts])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
   /// since: 1
   pub async fn is_valid(&self) -> Result<bool, Box<CallError>> {
     self
       .neovim
       .call("nvim_buf_is_valid", call_args![self.code_data.clone()])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+  /// since: 8
+  pub async fn del_mark(&self, name: &str) -> Result<bool, Box<CallError>> {
+    self
+      .neovim
+      .call(
+        "nvim_buf_del_mark",
+        call_args![self.code_data.clone(), name],
+      )
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+  /// since: 8
+  pub async fn set_mark(
+    &self,
+    name: &str,
+    line: i64,
+    col: i64,
+  ) -> Result<bool, Box<CallError>> {
+    self
+      .neovim
+      .call(
+        "nvim_buf_set_mark",
+        call_args![self.code_data.clone(), name, line, col],
+      )
       .await??
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
@@ -318,12 +374,13 @@ where
     &self,
     ns_id: i64,
     id: i64,
+    opts: Vec<(Value, Value)>,
   ) -> Result<Vec<i64>, Box<CallError>> {
     self
       .neovim
       .call(
         "nvim_buf_get_extmark_by_id",
-        call_args![self.code_data.clone(), ns_id, id],
+        call_args![self.code_data.clone(), ns_id, id, opts],
       )
       .await??
       .try_unpack()
@@ -351,7 +408,6 @@ where
   pub async fn set_extmark(
     &self,
     ns_id: i64,
-    id: i64,
     line: i64,
     col: i64,
     opts: Vec<(Value, Value)>,
@@ -360,7 +416,7 @@ where
       .neovim
       .call(
         "nvim_buf_set_extmark",
-        call_args![self.code_data.clone(), ns_id, id, line, col, opts],
+        call_args![self.code_data.clone(), ns_id, line, col, opts],
       )
       .await??
       .try_unpack()
@@ -385,7 +441,7 @@ where
   /// since: 1
   pub async fn add_highlight(
     &self,
-    src_id: i64,
+    ns_id: i64,
     hl_group: &str,
     line: i64,
     col_start: i64,
@@ -397,7 +453,7 @@ where
         "nvim_buf_add_highlight",
         call_args![
           self.code_data.clone(),
-          src_id,
+          ns_id,
           hl_group,
           line,
           col_start,
@@ -421,6 +477,15 @@ where
         "nvim_buf_clear_namespace",
         call_args![self.code_data.clone(), ns_id, line_start, line_end],
       )
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+  /// since: 1
+  pub async fn get_number(&self) -> Result<i64, Box<CallError>> {
+    self
+      .neovim
+      .call("nvim_buf_get_number", call_args![self.code_data.clone()])
       .await??
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
@@ -460,38 +525,47 @@ where
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
   }
-  /// since: 7
-  pub async fn get_virtual_text(
-    &self,
-    line: i64,
-  ) -> Result<Vec<Value>, Box<CallError>> {
-    self
-      .neovim
-      .call(
-        "nvim_buf_get_virtual_text",
-        call_args![self.code_data.clone(), line],
-      )
-      .await??
-      .try_unpack()
-      .map_err(|v| Box::new(CallError::WrongValueType(v)))
-  }
 }
 
 impl<W> Window<W>
 where
   W: AsyncWrite + Send + Unpin + 'static,
 {
-  #[must_use]
   pub fn new(code_data: Value, neovim: Neovim<W>) -> Window<W> {
     Window { code_data, neovim }
   }
 
   /// Internal value, that represent type
-  #[must_use]
   pub fn get_value(&self) -> &Value {
     &self.code_data
   }
 
+  /// since: 6
+  pub async fn set_config(
+    &self,
+    config: Vec<(Value, Value)>,
+  ) -> Result<(), Box<CallError>> {
+    self
+      .neovim
+      .call(
+        "nvim_win_set_config",
+        call_args![self.code_data.clone(), config],
+      )
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+  /// since: 6
+  pub async fn get_config(
+    &self,
+  ) -> Result<Vec<(Value, Value)>, Box<CallError>> {
+    self
+      .neovim
+      .call("nvim_win_get_config", call_args![self.code_data.clone()])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
   /// since: 5
   pub async fn set_buf(
     &self,
@@ -662,28 +736,11 @@ where
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
   }
-  /// since: 6
-  pub async fn set_config(
-    &self,
-    config: Vec<(Value, Value)>,
-  ) -> Result<(), Box<CallError>> {
+  /// since: 7
+  pub async fn hide(&self) -> Result<(), Box<CallError>> {
     self
       .neovim
-      .call(
-        "nvim_win_set_config",
-        call_args![self.code_data.clone(), config],
-      )
-      .await??
-      .try_unpack()
-      .map_err(|v| Box::new(CallError::WrongValueType(v)))
-  }
-  /// since: 6
-  pub async fn get_config(
-    &self,
-  ) -> Result<Vec<(Value, Value)>, Box<CallError>> {
-    self
-      .neovim
-      .call("nvim_win_get_config", call_args![self.code_data.clone()])
+      .call("nvim_win_hide", call_args![self.code_data.clone()])
       .await??
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
@@ -703,13 +760,11 @@ impl<W> Tabpage<W>
 where
   W: AsyncWrite + Send + Unpin + 'static,
 {
-  #[must_use]
   pub fn new(code_data: Value, neovim: Neovim<W>) -> Tabpage<W> {
     Tabpage { code_data, neovim }
   }
 
   /// Internal value, that represent type
-  #[must_use]
   pub fn get_value(&self) -> &Value {
     &self.code_data
   }
@@ -781,6 +836,29 @@ impl<W> Neovim<W>
 where
   W: AsyncWrite + Send + Unpin + 'static,
 {
+  pub async fn command_output(
+    &self,
+    command: &str,
+  ) -> Result<String, Box<CallError>> {
+    self
+      .call("nvim_command_output", call_args![command])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
+  pub async fn execute_lua(
+    &self,
+    code: &str,
+    args: Vec<Value>,
+  ) -> Result<Value, Box<CallError>> {
+    self
+      .call("nvim_execute_lua", call_args![code, args])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
   pub async fn ui_detach(&self) -> Result<(), Box<CallError>> {
     self
       .call("nvim_ui_detach", call_args![])
@@ -909,6 +987,19 @@ where
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
   }
 
+  pub async fn set_hl(
+    &self,
+    ns_id: i64,
+    name: &str,
+    val: Vec<(Value, Value)>,
+  ) -> Result<(), Box<CallError>> {
+    self
+      .call("nvim_set_hl", call_args![ns_id, name, val])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
   pub async fn feedkeys(
     &self,
     keys: &str,
@@ -966,32 +1057,9 @@ where
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
   }
 
-  pub async fn command_output(
-    &self,
-    command: &str,
-  ) -> Result<String, Box<CallError>> {
-    self
-      .call("nvim_command_output", call_args![command])
-      .await??
-      .try_unpack()
-      .map_err(|v| Box::new(CallError::WrongValueType(v)))
-  }
-
   pub async fn eval(&self, expr: &str) -> Result<Value, Box<CallError>> {
     self
       .call("nvim_eval", call_args![expr])
-      .await??
-      .try_unpack()
-      .map_err(|v| Box::new(CallError::WrongValueType(v)))
-  }
-
-  pub async fn execute_lua(
-    &self,
-    code: &str,
-    args: Vec<Value>,
-  ) -> Result<Value, Box<CallError>> {
-    self
-      .call("nvim_execute_lua", call_args![code, args])
       .await??
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
@@ -1004,6 +1072,19 @@ where
   ) -> Result<Value, Box<CallError>> {
     self
       .call("nvim_exec_lua", call_args![code, args])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
+  pub async fn notify(
+    &self,
+    msg: &str,
+    log_level: i64,
+    opts: Vec<(Value, Value)>,
+  ) -> Result<Value, Box<CallError>> {
+    self
+      .call("nvim_notify", call_args![msg, log_level, opts])
       .await??
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
@@ -1155,6 +1236,27 @@ where
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
   }
 
+  pub async fn get_all_options_info(
+    &self,
+  ) -> Result<Vec<(Value, Value)>, Box<CallError>> {
+    self
+      .call("nvim_get_all_options_info", call_args![])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
+  pub async fn get_option_info(
+    &self,
+    name: &str,
+  ) -> Result<Vec<(Value, Value)>, Box<CallError>> {
+    self
+      .call("nvim_get_option_info", call_args![name])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
   pub async fn set_option(
     &self,
     name: &str,
@@ -1162,6 +1264,19 @@ where
   ) -> Result<(), Box<CallError>> {
     self
       .call("nvim_set_option", call_args![name, value])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
+  pub async fn echo(
+    &self,
+    chunks: Vec<Value>,
+    history: bool,
+    opts: Vec<(Value, Value)>,
+  ) -> Result<(), Box<CallError>> {
+    self
+      .call("nvim_echo", call_args![chunks, history, opts])
       .await??
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
@@ -1208,6 +1323,30 @@ where
   ) -> Result<(), Box<CallError>> {
     self
       .call("nvim_set_current_win", call_args![window])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
+  pub async fn open_term(
+    &self,
+    buffer: &Buffer<W>,
+    opts: Vec<(Value, Value)>,
+  ) -> Result<i64, Box<CallError>> {
+    self
+      .call("nvim_open_term", call_args![buffer, opts])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
+  pub async fn chan_send(
+    &self,
+    chan: i64,
+    data: &str,
+  ) -> Result<(), Box<CallError>> {
+    self
+      .call("nvim_chan_send", call_args![chan, data])
       .await??
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
@@ -1495,6 +1634,37 @@ where
         "nvim_select_popupmenu_item",
         call_args![item, insert, finish, opts],
       )
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
+  pub async fn set_decoration_provider(
+    &self,
+    ns_id: i64,
+    opts: Vec<(Value, Value)>,
+  ) -> Result<(), Box<CallError>> {
+    self
+      .call("nvim_set_decoration_provider", call_args![ns_id, opts])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
+  pub async fn del_mark(&self, name: &str) -> Result<bool, Box<CallError>> {
+    self
+      .call("nvim_del_mark", call_args![name])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
+  pub async fn get_mark(
+    &self,
+    name: &str,
+  ) -> Result<Vec<Value>, Box<CallError>> {
+    self
+      .call("nvim_get_mark", call_args![name])
       .await??
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
