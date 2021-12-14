@@ -24,15 +24,15 @@ impl UiOption {
 
   fn to_name_value(&self) -> (&'static str, Value) {
     match *self {
-      UiOption::Rgb(val) => ("rgb", val.into()),
-      UiOption::ExtPopupmenu(val) => ("ext_popupmenu", val.into()),
-      UiOption::ExtTabline(val) => ("ext_tabline", val.into()),
-      UiOption::ExtCmdline(val) => ("ext_cmdline", val.into()),
-      UiOption::ExtWildmenu(val) => ("ext_wildmenu", val.into()),
-      UiOption::ExtLinegrid(val) => ("ext_linegrid", val.into()),
-      UiOption::ExtHlstate(val) => ("ext_hlstate", val.into()),
-      UiOption::ExtMultigrid(val) => ("ext_multigrid", val.into()),
-      UiOption::ExtMessages(val) => ("ext_messages", val.into())
+      Self::Rgb(val) => ("rgb", val.into()),
+      Self::ExtPopupmenu(val) => ("ext_popupmenu", val.into()),
+      Self::ExtTabline(val) => ("ext_tabline", val.into()),
+      Self::ExtCmdline(val) => ("ext_cmdline", val.into()),
+      Self::ExtWildmenu(val) => ("ext_wildmenu", val.into()),
+      Self::ExtLinegrid(val) => ("ext_linegrid", val.into()),
+      Self::ExtHlstate(val) => ("ext_hlstate", val.into()),
+      Self::ExtMultigrid(val) => ("ext_multigrid", val.into()),
+      Self::ExtMessages(val) => ("ext_messages", val.into())
     }
   }
 }
