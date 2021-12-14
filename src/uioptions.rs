@@ -14,6 +14,7 @@ pub enum UiOption {
   ExtHlstate(bool),
   ExtMultigrid(bool),
   ExtMessages(bool),
+  ExtTermcolors(bool),
 }
 
 impl UiOption {
@@ -32,7 +33,8 @@ impl UiOption {
       Self::ExtLinegrid(val) => ("ext_linegrid", val.into()),
       Self::ExtHlstate(val) => ("ext_hlstate", val.into()),
       Self::ExtMultigrid(val) => ("ext_multigrid", val.into()),
-      Self::ExtMessages(val) => ("ext_messages", val.into())
+      Self::ExtMessages(val) => ("ext_messages", val.into()),
+      Self::ExtTermcolors(val) => ("ext_termcolors", val.into()),
     }
   }
 }
@@ -65,6 +67,7 @@ ui_opt_setters! (
   ExtHlstate as set_hlstate_external;
   ExtMultigrid as set_multigrid_external;
   ExtMessages as set_messages_external;
+  ExtTermcolors as set_termcolors_external;
 );
 
 impl UiAttachOptions {
