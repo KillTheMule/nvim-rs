@@ -7,6 +7,17 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+
+## 0.4.0 - 2021-12-16
+
+### Added
+- Added support for `ext_termcolors` (thanks @Lyude)
+
+### Changed
+- Updated dependencies
+- Updated API (some breakage from neovim's side here)
+
+
 ## 0.3.0 - 2021-08-28
 
 - Updated tokio to 1.\*
@@ -16,7 +27,7 @@ and this project adheres to Semantic Versioning.
 - Requests/notifications are now handled in order of arrival (which is mainly important
   for notifications)
 - Removed LoopError::SpawnError
-- 
+
 
 ## 0.2.0 - 2020-08-29
 
