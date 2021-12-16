@@ -14,6 +14,7 @@ pub enum UiOption {
   ExtHlstate(bool),
   ExtMultigrid(bool),
   ExtMessages(bool),
+  ExtTermcolors(bool),
 }
 
 impl UiOption {
@@ -24,15 +25,16 @@ impl UiOption {
 
   fn to_name_value(&self) -> (&'static str, Value) {
     match *self {
-      UiOption::Rgb(val) => ("rgb", val.into()),
-      UiOption::ExtPopupmenu(val) => ("ext_popupmenu", val.into()),
-      UiOption::ExtTabline(val) => ("ext_tabline", val.into()),
-      UiOption::ExtCmdline(val) => ("ext_cmdline", val.into()),
-      UiOption::ExtWildmenu(val) => ("ext_wildmenu", val.into()),
-      UiOption::ExtLinegrid(val) => ("ext_linegrid", val.into()),
-      UiOption::ExtHlstate(val) => ("ext_hlstate", val.into()),
-      UiOption::ExtMultigrid(val) => ("ext_multigrid", val.into()),
-      UiOption::ExtMessages(val) => ("ext_messages", val.into())
+      Self::Rgb(val) => ("rgb", val.into()),
+      Self::ExtPopupmenu(val) => ("ext_popupmenu", val.into()),
+      Self::ExtTabline(val) => ("ext_tabline", val.into()),
+      Self::ExtCmdline(val) => ("ext_cmdline", val.into()),
+      Self::ExtWildmenu(val) => ("ext_wildmenu", val.into()),
+      Self::ExtLinegrid(val) => ("ext_linegrid", val.into()),
+      Self::ExtHlstate(val) => ("ext_hlstate", val.into()),
+      Self::ExtMultigrid(val) => ("ext_multigrid", val.into()),
+      Self::ExtMessages(val) => ("ext_messages", val.into()),
+      Self::ExtTermcolors(val) => ("ext_termcolors", val.into()),
     }
   }
 }
@@ -41,6 +43,32 @@ impl UiOption {
 pub struct UiAttachOptions {
   options: Vec<(&'static str, UiOption)>,
 }
+
+macro_rules! ui_opt_setters {
+  ($( $opt:ident as $set:ident );+ ;) => {
+    impl UiAttachOptions {
+      $(
+        pub fn $set(&mut self, val: bool) -> &mut Self {
+          self.set_option(UiOption::$opt(val));
+          self
+        }
+      )+
+    }
+  }
+}
+
+ui_opt_setters! (
+  Rgb as set_rgb;
+  ExtPopupmenu as set_popupmenu_external;
+  ExtTabline as set_tabline_external;
+  ExtCmdline as set_cmdline_external;
+  ExtWildmenu as set_wildmenu_external;
+  ExtLinegrid as set_linegrid_external;
+  ExtHlstate as set_hlstate_external;
+  ExtMultigrid as set_multigrid_external;
+  ExtMessages as set_messages_external;
+  ExtTermcolors as set_termcolors_external;
+);
 
 impl UiAttachOptions {
   #[must_use]
@@ -59,63 +87,6 @@ impl UiAttachOptions {
     } else {
       self.options.push((name.0, option));
     }
-  }
-
-  pub fn set_rgb(&mut self, rgb: bool) -> &mut Self {
-    self.set_option(UiOption::Rgb(rgb));
-    self
-  }
-
-  pub fn set_popupmenu_external(
-    &mut self,
-    popupmenu_external: bool,
-  ) -> &mut Self {
-    self.set_option(UiOption::ExtPopupmenu(popupmenu_external));
-    self
-  }
-
-  pub fn set_tabline_external(&mut self, tabline_external: bool) -> &mut Self {
-    self.set_option(UiOption::ExtTabline(tabline_external));
-    self
-  }
-
-  pub fn set_cmdline_external(&mut self, cmdline_external: bool) -> &mut Self {
-    self.set_option(UiOption::ExtCmdline(cmdline_external));
-    self
-  }
-
-  pub fn set_wildmenu_external(
-    &mut self,
-    wildmenu_external: bool,
-  ) -> &mut Self {
-    self.set_option(UiOption::ExtWildmenu(wildmenu_external));
-    self
-  }
-
-  pub fn set_linegrid_external(
-    &mut self,
-    linegrid_external: bool,
-  ) -> &mut Self {
-    self.set_option(UiOption::ExtLinegrid(linegrid_external));
-    self
-  }
-
-  pub fn set_hlstate_external(&mut self, hlstate_external: bool) -> &mut Self {
-    self.set_option(UiOption::ExtHlstate(hlstate_external));
-    self
-  }
-
-  pub fn set_messages_external(&mut self, messages_external: bool) -> &mut Self {
-    self.set_option(UiOption::ExtMessages(messages_external));
-    self
-  }
-
-  pub fn set_multigrid_external(
-    &mut self,
-    multigrid_external: bool,
-  ) -> &mut Self {
-    self.set_option(UiOption::ExtMultigrid(multigrid_external));
-    self
   }
 
   #[must_use]
