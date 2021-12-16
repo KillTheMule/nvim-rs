@@ -1,4 +1,4 @@
-# nvim-rs ![CI](https://github.com/KillTheMule/nvim-rs/actions/workflows/ci.yml/badge.svg)  [![(Docs.rs)](https://docs.rs/nvim-rs/badge.svg)](https://docs.rs/nvim-rs/) [![(Crates.io status)](https://meritbadge.herokuapp.com/nvim-rs)](https://crates.io/crates/nvim-rs)
+# nvim-rs ![CI](https://github.com/KillTheMule/nvim-rs/actions/workflows/ci.yml/badge.svg)  [![(Docs.rs)](https://docs.rs/nvim-rs/badge.svg)](https://docs.rs/nvim-rs/) [![(Crates.io status)](https://img.shields.io/crates/v/nvim-rs.svg)](https://crates.io/crates/nvim-rs)
 Rust library for Neovim msgpack-rpc clients. Utilizes async to allow for arbitrary nesting of requests.
 
 ## Status
@@ -22,9 +22,11 @@ simple as `cd neovim && make`.
 - On Windows, follow the build instructions [from the neovim
   wiki](https://github.com/neovim/neovim/wiki/Building-Neovim).
 
-After building neovim, you can simply run `cargo test`. Also run `cargo build
---examples` as well as `cargo bench -- --test` to make sure everything still
-compiles.
+After building neovim, you can simply run `cargo test --features="use_tokio"`.
+Also run `cargo build --examples --features="use_tokio"` as well as `cargo
+bench -- --test --features="use_tokio"` to make sure everything still compiles
+(replace `use_tokio` by `use_async-std` to do all the above with `async-std`
+instead of `tokio`). 
 
 ## License
 
