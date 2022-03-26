@@ -22,7 +22,7 @@
 //!
 //! I've not yet worked through the details of what-to-export, but I'm quite
 //! willing to consider what people need or want.
-#![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 extern crate rmp;
 extern crate rmpv;
 #[macro_use]
@@ -48,9 +48,8 @@ pub use crate::{
 };
 
 #[cfg(feature = "use_tokio")]
-#[cfg_attr(docsrs, doc(cfg(feature = "use_tokio")))]
 pub mod compat {
-  //! A re-export of tokio-util's [`Compat`](tokio_util::compat::Compat) 
+  //! A re-export of tokio-util's [`Compat`](tokio_util::compat::Compat)
   pub mod tokio {
     pub use tokio_util::compat::Compat;
   }
