@@ -13,16 +13,10 @@ I'd love contributions, comments, praise, criticism... You could open an [issue]
 
 ## Running tests
 
-For some of the tests, the neovim source included as a submodule needs to be
-compiled. 
+For some tests, neovim needs to be installed. Set the environment variable `NVIMRS_TEST_BIN` to
+the path of the binary before running the tests.
 
-- On Linux and OSX, after checking out the source, it should be as
-simple as `cd neovim && make`.
-
-- On Windows, follow the build instructions [from the neovim
-  wiki](https://github.com/neovim/neovim/wiki/Building-Neovim).
-
-After building neovim, you can simply run `cargo test --features="use_tokio"`.
+Afterwards, you can simply run `cargo test --features="use_tokio"`.
 Also run `cargo build --examples --features="use_tokio"` as well as `cargo
 bench -- --test --features="use_tokio"` to make sure everything still compiles
 (replace `use_tokio` by `use_async-std` to do all the above with `async-std`
