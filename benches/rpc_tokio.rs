@@ -8,7 +8,9 @@ use nvim_rs::{
 
 use tokio::{process::Command, runtime::Builder};
 
-const NVIMPATH: &str = "neovim/build/bin/nvim";
+#[path = "../tests/common/mod.rs"]
+mod common;
+use common::nvim_path;
 
 fn simple_requests(c: &mut Criterion) {
   let handler = Dummy::new();
@@ -20,7 +22,7 @@ fn simple_requests(c: &mut Criterion) {
 
   let (nvim, _io_handler, _child) = rt
     .block_on(create::new_child_cmd(
-      Command::new(NVIMPATH).args(&["-u", "NONE", "--embed", "--headless"]),
+      Command::new(nvim_path()).args(&["-u", "NONE", "--embed", "--headless"]),
       handler,
     ))
     .unwrap();
@@ -49,7 +51,7 @@ fn request_file(c: &mut Criterion) {
 
   let (nvim, _io_handler, _child) = rt
     .block_on(create::new_child_cmd(
-      Command::new(NVIMPATH).args(&[
+      Command::new(nvim_path()).args(&[
         "-u",
         "NONE",
         "--embed",
