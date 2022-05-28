@@ -101,8 +101,8 @@ jobs:
     ###############################################
 
     ### BUILD NEOVIM ##############################
-    - name: Build neovim on linux/osx
-      if: matrix.os != 'windows-latest'
+    - name: Build neovim on osx
+      if: matrix.os == 'macos-latest'
       run: |
         cd neovim
         make
@@ -121,6 +121,12 @@ jobs:
         cd ..
         neovim\build\bin\nvim.exe --version
     ###############################################
+    - name: Download neovim binary on linux
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        curl -L https://github.com/neovim/neovim/releases/download/nightly/nvim.appimage -o nvim.appimage
+        chmod a+x nvim.appimage
+        echo "NVIM_RS_TEST_BIN=$PWD/nvim.appimage" >> $GITHUB_ENV
 
     - name: Build basic example
       run: |
