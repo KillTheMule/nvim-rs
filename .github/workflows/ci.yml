@@ -50,14 +50,14 @@ jobs:
       run: |
         curl -L https://github.com/neovim/neovim/releases/download/nightly/nvim.appimage -o nvim.appimage
         chmod a+x nvim.appimage
-        echo "NVIM_RS_TEST_BIN=$PWD/nvim.appimage" >> $GITHUB_ENV
+        echo "NVIMRS_TEST_BIN=$PWD/nvim.appimage" >> $GITHUB_ENV
 
     - name: Download neovim binary on macos
       if: matrix.os == 'macos-latest'
       run: |
         curl -L https://github.com/neovim/neovim/releases/download/nightly/nvim-macos.tar.gz -o nvim-macos.tar.gz
         tar xfz nvim-macos.tar.gz
-        echo "NVIM_RS_TEST_BIN=$PWD/nvim-osx64/bin/nvim" >> $GITHUB_ENV
+        echo "NVIMRS_TEST_BIN=$PWD/nvim-osx64/bin/nvim" >> $GITHUB_ENV
 
     - name: Download neovim binary on windows
       if: matrix.os == 'windows-latest'
@@ -65,7 +65,7 @@ jobs:
         curl -L https://github.com/neovim/neovim/releases/download/nightly/nvim-win64.zip -o nvim-win64.zip
         7z x nvim-win64.zip
         $exe = Get-ChildItem -Path nvim-win64 -Filter nvim.exe -Recurse | %{$_.FullName}
-        echo "NVIM_RS_TEST_BIN=$exe" >> $env:GITHUB_ENV
+        echo "NVIMRS_TEST_BIN=$exe" >> $env:GITHUB_ENV
 
     - name: Build basic example
       run: |
