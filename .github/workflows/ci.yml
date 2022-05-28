@@ -13,9 +13,6 @@ env:
   NVIMRS_LOG_LEVEL: debug
   NVIMRS_STDERR: nvim-rs.stderr
   RUSTFLAGS: -C opt-level=0
-  NVIM_DEPS_BUILD_DIR: ${{ format('{0}/neovim/nvim-deps', github.workspace) }}
-  NVIM_DEPS_PREFIX: ${{ format('{0}/neovim/nvim-deps/usr', github.workspace) }}
-  NVIM_CONFIG: MINGW_64
 
 jobs:
   all:
@@ -42,85 +39,33 @@ jobs:
         profile: minimal
         override: true
 
-    ### CACHING ###################################
-    # Note: Purportedly buggy on macos, so we leave that out
-    - name: Cargo Cache Linux
-      if: matrix.os == 'ubuntu-latest'
-      uses: actions/cache@v1
-      with:
-        path: ~/.cargo
-        key: ${{ matrix.os }}-cargo-${{ matrix.rust}}-${{ hashFiles('Cargo.toml') }}
-
-    - name: Cargo Target Cache Linux
-      if: matrix.os == 'ubuntu-latest'
-      uses: actions/cache@v1
-      with:
-        path: target
-        key: ${{ matrix.os }}-cargo-${{ matrix.rust}}-target-${{ hashFiles('Cargo.toml') }}
-    ###############################################
+    - uses: Swatinem/rust-cache@v1
 
     - name: Check
       run: |
         cargo check && cargo check --examples --features use_tokio && cargo check --examples --features use_async-std
 
-    ### NEOVIM REQUIREMENTS #######################
-    - name: Install neovim requirements on linux
+    - name: Download neovim binary on linux
       if: matrix.os == 'ubuntu-latest'
       run: |
-        sudo apt-get install -y libtool-bin gettext ccache ninja-build
+        curl -L https://github.com/neovim/neovim/releases/download/nightly/nvim.appimage -o nvim.appimage
+        chmod a+x nvim.appimage
+        echo "NVIMRS_TEST_BIN=$PWD/nvim.appimage" >> $GITHUB_ENV
 
-    - name: Install neovim requirements on osx
+    - name: Download neovim binary on macos
       if: matrix.os == 'macos-latest'
       run: |
-        # Workaround brew issues
-        rm -f /usr/local/bin/2to3
-        brew unlink gcc@9
-        brew update >/dev/null
-        brew upgrade
-        brew install automake ccache perl cpanminus ninja
-    ###############################################
+        curl -L https://github.com/neovim/neovim/releases/download/nightly/nvim-macos.tar.gz -o nvim-macos.tar.gz
+        tar xfz nvim-macos.tar.gz
+        echo "NVIMRS_TEST_BIN=$PWD/nvim-osx64/bin/nvim" >> $GITHUB_ENV
 
-    - name: Check out neovim sources
-      run: |
-        git submodule update --init --recursive
-
-    ### CACHING NEOVIM DEPS #######################
-    - name: Cache neovim dependencies on linux/osx
-      if: matrix.os != 'windows-latest'
-      uses: actions/cache@v2
-      with:
-        path: |
-          $HOME/.cache/nvim-deps
-          $HOME/.ccache
-        key: ${{ matrix.os }}-${{ hashFiles('neovim/cmake/*', 'neovim/third-party/**', 'neovim/**/CMakeLists.txt') }}
-    - name: Cache neovim dependencies on windows
-      uses: actions/cache@v2
-      with:
-        path: ${{ env.NVIM_DEPS_BUILD_DIR }}
-        key: ${{ env.NVIM_CONFIG }}-${{ hashFiles('neovim\third-party\**') }}
-    ###############################################
-
-    ### BUILD NEOVIM ##############################
-    - name: Build neovim on linux/osx
-      if: matrix.os != 'windows-latest'
-      run: |
-        cd neovim
-        make
-        cd ..
-        neovim/build/bin/nvim --version
-
-    - name: Build neovim on windows
+    - name: Download neovim binary on windows
       if: matrix.os == 'windows-latest'
-      env:
-        CONFIGURATION: ${{ env.NVIM_CONFIG }}
-        DEPS_BUILD_DIR: ${{ env.NVIM_DEPS_BUILD_DIR }}
-        DEPS_PREFIX: ${{ env.NVIM_DEPS_PREFIX}}
       run: |
-        cd neovim
-        powershell ci\build.ps1 -NoTests
-        cd ..
-        neovim\build\bin\nvim.exe --version
-    ###############################################
+        curl -L https://github.com/neovim/neovim/releases/download/nightly/nvim-win64.zip -o nvim-win64.zip
+        7z x nvim-win64.zip
+        $exe = Get-ChildItem -Path nvim-win64 -Filter nvim.exe -Recurse | %{$_.FullName}
+        echo "NVIMRS_TEST_BIN=$exe" >> $env:GITHUB_ENV
 
     - name: Build basic example
       run: |

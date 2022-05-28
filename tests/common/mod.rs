@@ -16,7 +16,7 @@ const NVIM_PATH: &str = if cfg!(windows) {
 };
 
 pub fn nvim_path() -> PathBuf {
-  let (path_str, have_env) = match env::var("NVIM_RS_TEST_BIN") {
+  let (path_str, have_env) = match env::var("NVIMRS_TEST_BIN") {
     Ok(path) => (path, true),
     Err(_) => (NVIM_PATH.into(), false),
   };
@@ -24,11 +24,11 @@ pub fn nvim_path() -> PathBuf {
   let path = PathBuf::from(&path_str);
   if !path.exists() {
     if have_env {
-      panic!("nvim bin from $NVIM_RS_TEST_BIN \"{}\" does not exist", path_str)
+      panic!("nvim bin from $NVIMRS_TEST_BIN \"{}\" does not exist", path_str)
     } else {
       panic!(
         "\"{}\" not found, maybe you need to build it or set \
-        $NVIM_RS_TEST_BIN?",
+        $NVIMRS_TEST_BIN?",
         NVIM_PATH
       );
     }
