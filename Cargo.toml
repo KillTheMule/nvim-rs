@@ -32,9 +32,9 @@ rustdoc-args = ["--cfg", "docsrs"]
 bench = false
 
 [dependencies]
-rmp = "0.8.10"
+rmp = "0.8.11"
 rmpv = "1.0.0"
-log = "0.4.14"
+log = "0.4.17"
 async-trait = "0.1.57"
 futures = { version = "0.3.24", features = ["io-compat"] }
 tokio = { version = "1.21.2", features = ["full"] , optional = true}
