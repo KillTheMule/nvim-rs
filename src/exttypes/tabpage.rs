@@ -25,23 +25,19 @@ where
 {
   /// since: 1
   pub async fn list_wins(&self) -> Result<Vec<Window<W>>, Box<CallError>> {
-    Ok(
-      self
-        .neovim
-        .call("nvim_tabpage_list_wins", call_args![self.code_data.clone()])
-        .await?
-        .map(|val| {
-          if let Value::Array(arr) = val {
-            arr
-              .into_iter()
-              .map(|v| Window::new(v, self.neovim.clone()))
-              .collect()
-          } else {
-            // TODO: Introduce UnexpectedValueError
-            panic!("Non-array return value in nvim_tabpage_list_wins!");
-          }
-        })?,
-    )
+    match self
+      .neovim
+      .call("nvim_tabpage_list_wins", call_args![self.code_data.clone()])
+      .await??
+    {
+      Value::Array(arr) => Ok(
+        arr
+          .into_iter()
+          .map(|v| Window::new(v, self.neovim.clone()))
+          .collect(),
+      ),
+      val => Err(CallError::WrongValueType(val))?,
+    }
   }
   /// since: 1
   pub async fn get_win(&self) -> Result<Window<W>, Box<CallError>> {

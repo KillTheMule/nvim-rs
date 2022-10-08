@@ -15,6 +15,7 @@ use crate::{
 impl<W> {{ etype.name }}<W>
   where W: AsyncWrite + Send + Unpin + 'static
   {
+    #[must_use]
     pub fn new(code_data: Value, neovim: Neovim<W>) -> {{ etype.name }}<W>
     {
         {{ etype.name }} {
@@ -24,6 +25,7 @@ impl<W> {{ etype.name }}<W>
     }
 
     /// Internal value, that represent type
+    #[must_use]
     pub fn get_value(&self) -> &Value {
         &self.code_data
     }

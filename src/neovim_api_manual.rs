@@ -12,22 +12,15 @@ where
   W: AsyncWrite + Send + Unpin + 'static,
 {
   pub async fn list_bufs(&self) -> Result<Vec<Buffer<W>>, Box<CallError>> {
-    Ok(
-      self
-        .call("nvim_list_bufs", call_args![])
-        .await?
-        .map(|val| {
-          if let Value::Array(arr) = val {
-            arr
-              .into_iter()
-              .map(|v| Buffer::new(v, self.clone()))
-              .collect()
-          } else {
-            // TODO: This can return an error now
-            panic!("Non-array response in nvim_list_bufs!");
-          }
-        })?,
-    )
+    match self.call("nvim_list_bufs", call_args![]).await?? {
+      Value::Array(arr) => Ok(
+        arr
+          .into_iter()
+          .map(|v| Buffer::new(v, self.clone()))
+          .collect(),
+      ),
+      val => Err(CallError::WrongValueType(val))?,
+    }
   }
 
   pub async fn get_current_buf(&self) -> Result<Buffer<W>, Box<CallError>> {
@@ -40,21 +33,15 @@ where
   }
 
   pub async fn list_wins(&self) -> Result<Vec<Window<W>>, Box<CallError>> {
-    Ok(
-      self
-        .call("nvim_list_wins", call_args![])
-        .await?
-        .map(|val| {
-          if let Value::Array(arr) = val {
-            arr
-              .into_iter()
-              .map(|v| Window::new(v, self.clone()))
-              .collect()
-          } else {
-            panic!("Non-array response in nvim_list_bufs!");
-          }
-        })?,
-    )
+    match self.call("nvim_list_wins", call_args![]).await?? {
+      Value::Array(arr) => Ok(
+        arr
+          .into_iter()
+          .map(|v| Window::new(v, self.clone()))
+          .collect(),
+      ),
+      val => Err(CallError::WrongValueType(val))?,
+    }
   }
 
   pub async fn get_current_win(&self) -> Result<Window<W>, Box<CallError>> {
@@ -94,21 +81,15 @@ where
   }
 
   pub async fn list_tabpages(&self) -> Result<Vec<Tabpage<W>>, Box<CallError>> {
-    Ok(
-      self
-        .call("nvim_list_tabpages", call_args![])
-        .await?
-        .map(|val| {
-          if let Value::Array(arr) = val {
-            arr
-              .into_iter()
-              .map(|v| Tabpage::new(v, self.clone()))
-              .collect()
-          } else {
-            panic!("Non-array response in nvim_list_bufs!");
-          }
-        })?,
-    )
+    match self.call("nvim_list_tabpages", call_args![]).await?? {
+      Value::Array(arr) => Ok(
+        arr
+          .into_iter()
+          .map(|v| Tabpage::new(v, self.clone()))
+          .collect(),
+      ),
+      val => Err(CallError::WrongValueType(val))?,
+    }
   }
 
   pub async fn get_current_tabpage(

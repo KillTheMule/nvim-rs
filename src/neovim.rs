@@ -245,7 +245,7 @@ where
           method,
           params
         } => handler.handle_notify(method, params, self.clone()).await,
-        _ => unreachable!(),
+        RpcMessage::RpcResponse { .. } => unreachable!(),
       }
     }
   }

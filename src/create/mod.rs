@@ -27,7 +27,7 @@ use crate::rpc::handler::Handler;
 /// [`Handler`](crate::rpc::handler::Handler) using the appropriate runtime.
 ///
 /// If you have a runtime that brings appropriate types, you can implement this
-/// on your `[`Handler`](crate::rpc::handler::Handler) and use
+/// on your [`Handler`](crate::rpc::handler::Handler) and use
 /// [`Neovim::new`](crate::neovim::Neovim::new) to connect to neovim.
 pub trait Spawner: Handler {
   type Handle;

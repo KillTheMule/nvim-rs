@@ -78,20 +78,20 @@ impl Display for InvalidMessage {
     use InvalidMessage::*;
 
     match self {
-      NotAnArray(val) => write!(fmt, "Value not an Array: '{}'", val),
+      NotAnArray(val) => write!(fmt, "Value not an Array: '{val}'"),
       WrongArrayLength(should, is) => write!(
         fmt,
         "Array should have length {:?}, has length {}",
         should, is
       ),
       InvalidType(val) => {
-        write!(fmt, "Message type not decodable into u64: {}", val)
+        write!(fmt, "Message type not decodable into u64: {val}")
       }
       UnknownMessageType(m) => {
-        write!(fmt, "Message type {} is not 0, 1 or 2", m)
+        write!(fmt, "Message type {m} is not 0, 1 or 2")
       }
       InvalidParams(val, s) => {
-        write!(fmt, "Params of method '{}' not an Array: '{}'", s, val)
+        write!(fmt, "Params of method '{s}' not an Array: '{val}'")
       }
       InvalidNotificationName(val) => write!(
         fmt,
@@ -100,10 +100,10 @@ impl Display for InvalidMessage {
         val
       ),
       InvalidRequestName(id, val) => {
-        write!(fmt, "Request id {}: name not valid String: '{}'", id, val)
+        write!(fmt, "Request id {id}: name not valid String: '{val}'")
       }
       InvalidMsgid(val) => {
-        write!(fmt, "Msgid of message not decodable into u64: '{}'", val)
+        write!(fmt, "Msgid of message not decodable into u64: '{val}'")
       }
     }
   }
@@ -286,23 +286,22 @@ impl CallError {
 impl Display for CallError {
   fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
     match *self {
-      Self::SendError(_, ref s) => write!(fmt, "Error sending request '{}'", s),
+      Self::SendError(_, ref s) => write!(fmt, "Error sending request '{s}'"),
       Self::InternalReceiveError(_, ref s) => {
-        write!(fmt, "Error receiving response for '{}'", s)
+        write!(fmt, "Error receiving response for '{s}'")
       }
       Self::DecodeError(_, ref s) => {
-        write!(fmt, "Error decoding response to request '{}'", s)
+        write!(fmt, "Error decoding response to request '{s}'")
       }
       Self::NeovimError(ref i, ref s) => match i {
-        Some(i) => write!(fmt, "Error processing request: {} - '{}')", i, s),
+        Some(i) => write!(fmt, "Error processing request: {i} - '{s}')"),
         None => write!(
           fmt,
-          "Error processing request, unknown error format: '{}'",
-          s
+          "Error processing request, unknown error format: '{s}'"
         ),
       },
       CallError::WrongValueType(ref val) => {
-        write!(fmt, "Wrong value type: '{}'", val)
+        write!(fmt, "Wrong value type: '{val}'")
       }
     }
   }
@@ -323,7 +322,7 @@ impl From<Value> for Box<CallError> {
         let i = arr.pop().expect("This was checked").as_i64();
         Box::new(CallError::NeovimError(i, s))
       }
-      val => Box::new(CallError::NeovimError(None, format!("{:?}", val))),
+      val => Box::new(CallError::NeovimError(None, format!("{val:?}"))),
     }
   }
 }
@@ -390,7 +389,7 @@ impl Display for LoopError {
   fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
     match *self {
       Self::MsgidNotFound(i) => {
-        write!(fmt, "Could not find Msgid '{}' in the Qeue", i)
+        write!(fmt, "Could not find Msgid '{i}' in the Queue")
       }
       Self::DecodeError(_, ref o) => match o {
         None => write!(fmt, "Error reading message"),
@@ -403,8 +402,8 @@ impl Display for LoopError {
       },
       Self::InternalSendResponseError(i, ref res) => write!(
         fmt,
-        "Request {}: Could not send response, which was {:?}",
-        i, res
+        "Request {i}: Could not send response, which was {:?}",
+        res
       ),
     }
   }

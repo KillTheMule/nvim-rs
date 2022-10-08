@@ -1,6 +1,6 @@
 //! The auto generated API for [`neovim`](crate::neovim::Neovim)
 //!
-//! Auto generated 2022-10-08 16:44:34.649067
+//! Auto generated 2022-10-08 18:21:42.946138
 use futures::io::AsyncWrite;
 
 use crate::{
@@ -14,11 +14,13 @@ impl<W> Buffer<W>
 where
   W: AsyncWrite + Send + Unpin + 'static,
 {
+  #[must_use]
   pub fn new(code_data: Value, neovim: Neovim<W>) -> Buffer<W> {
     Buffer { code_data, neovim }
   }
 
   /// Internal value, that represent type
+  #[must_use]
   pub fn get_value(&self) -> &Value {
     &self.code_data
   }
@@ -590,11 +592,13 @@ impl<W> Window<W>
 where
   W: AsyncWrite + Send + Unpin + 'static,
 {
+  #[must_use]
   pub fn new(code_data: Value, neovim: Neovim<W>) -> Window<W> {
     Window { code_data, neovim }
   }
 
   /// Internal value, that represent type
+  #[must_use]
   pub fn get_value(&self) -> &Value {
     &self.code_data
   }
@@ -831,11 +835,13 @@ impl<W> Tabpage<W>
 where
   W: AsyncWrite + Send + Unpin + 'static,
 {
+  #[must_use]
   pub fn new(code_data: Value, neovim: Neovim<W>) -> Tabpage<W> {
     Tabpage { code_data, neovim }
   }
 
   /// Internal value, that represent type
+  #[must_use]
   pub fn get_value(&self) -> &Value {
     &self.code_data
   }
