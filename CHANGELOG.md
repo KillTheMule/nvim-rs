@@ -7,6 +7,12 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+## 0.5.0  2022-10-08
+
+- Updated dependencies
+- Updated API (some breakage from neovim's side here)
+- Improved some docs 
+
 
 ## 0.4.0 - 2021-12-16
 
