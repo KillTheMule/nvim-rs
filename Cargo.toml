@@ -48,7 +48,7 @@ tempfile = "3.3.0"
 # TODO: if changing tempfile: the rand version is based on whatever version
 # tempfile is using, to deduplicate dependencies
 fastrand = "1.6.0"
-criterion = "0.3.5"
+criterion = "0.4.0"
 
 [profile.bench]
 lto = true
