@@ -7,6 +7,7 @@ pub use buffer::Buffer;
 pub use tabpage::Tabpage;
 pub use window::Window;
 
+/// A macro to implement trait for the [`exttypes`](crate::exttypes)
 #[macro_export]
 macro_rules! impl_exttype_traits {
   ($ext:ident) => {

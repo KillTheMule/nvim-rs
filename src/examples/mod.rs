@@ -20,7 +20,7 @@
 //!
 //! A port of a real existing plugin.
 //!
-//! ## `scorched_earth`
+//! ## `scorched_earth_as`
 //!
 //! A port of the `scorched_earth` example to `async-std`.
 //!

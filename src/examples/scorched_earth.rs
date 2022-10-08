@@ -17,18 +17,7 @@
 //! cargo build --example scorched_earth
 //! ```
 //!
-//! The binary will be located in `target/debug/examples/scorched_earth`.
-//!
-//! Follow the
-//! [steps](https://github.com/boxofrox/neovim-scorched-earth#try-it-out)
-//! described for the original plugin. Of course, you don't need to build it.
-//! Before step 4, put
-//!
-//! ```viml
-//! let g:scorched_earth_program = '<path to nvim-rs>/target/debug/examples/scorched_earth'
-//! ```
-//!
-//! into `init.vim`. That's it, fire it up and enjoy.
+//! Then follow the steps described in the [`README`](README.md) for the examples.
 //!
 //! ## Description
 //!
