@@ -57,7 +57,7 @@ jobs:
       run: |
         curl -L https://github.com/neovim/neovim/releases/download/nightly/nvim-macos.tar.gz -o nvim-macos.tar.gz
         tar xfz nvim-macos.tar.gz
-        echo "NVIMRS_TEST_BIN=$PWD/nvim-osx64/bin/nvim" >> $GITHUB_ENV
+        echo "NVIMRS_TEST_BIN=$PWD/nvim-macos/bin/nvim" >> $GITHUB_ENV
 
     - name: Download neovim binary on windows
       if: matrix.os == 'windows-latest'
