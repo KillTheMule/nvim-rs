@@ -19,7 +19,7 @@ use std::{
 };
 
 #[cfg(unix)]
-use tempdir::TempDir;
+use tempfile::{Builder, TempDir};
 
 #[path = "../common/mod.rs"]
 mod common;
@@ -65,7 +65,9 @@ async fn can_connect_via_tcp() {
 
 #[cfg(unix)]
 fn get_socket_path() -> (std::path::PathBuf, TempDir) {
-  let dir = TempDir::new("neovim-lib.test")
+  let dir = Builder::new()
+    .prefix("neovim-lib.test")
+    .tempdir()
     .expect("Cannot create temporary directory for test.");
 
   (dir.path().join("unix_socket"), dir)
@@ -73,7 +75,7 @@ fn get_socket_path() -> (std::path::PathBuf, TempDir) {
 
 #[cfg(windows)]
 fn get_socket_path() -> (std::path::PathBuf, ()) {
-  let rand = rand::random::<u32>();
+  let rand = fastrand::u32(..);
   let name = format!(r"\\.\pipe\nvim-rs-test-{}", rand);
   (name.into(), ())
 }

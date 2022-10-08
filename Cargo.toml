@@ -44,10 +44,10 @@ neovim-lib = { version = "0.6.1", optional = true }
 parity-tokio-ipc = { version = "0.9.0", optional = true }
 
 [dev-dependencies]
-tempdir = "0.3.7"
-# TODO: if changing tempdir: the rand version is based on whatever version
-# tempdir is using, to deduplicate dependencies
-rand = "0.4.6"
+tempfile = "3.3.0"
+# TODO: if changing tempfile: the rand version is based on whatever version
+# tempfile is using, to deduplicate dependencies
+fastrand = "1.6.0"
 criterion = "0.3.5"
 
 [profile.bench]
