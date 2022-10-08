@@ -38,10 +38,9 @@ macro_rules! call_args {
     () => (Vec::new());
     ($($e:expr), +,) => (call_args![$($e),*]);
     ($($e:expr), +) => {{
-        let mut vec = Vec::new();
-        $(
-            vec.push($e.into_val());
-        )*
+        let vec = vec![
+          $($e.into_val(),)*
+        ];
         vec
     }};
 }

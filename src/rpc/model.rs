@@ -36,10 +36,9 @@ pub enum RpcMessage {
 
 macro_rules! rpc_args {
     ($($e:expr), *) => {{
-        let mut vec = Vec::new();
-        $(
-            vec.push(Value::from($e));
-        )*
+        let vec = vec![
+          $(Value::from($e),)*
+        ];
         Value::from(vec)
     }}
 }
