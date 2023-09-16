@@ -57,7 +57,7 @@ impl Handler for NeovimHandler {
         let line = args[0].as_u64().unwrap();
         let column = args[1].as_u64().unwrap();
 
-        let mut posis = &mut *(self.0).lock().await;
+        let posis = &mut *(self.0).lock().await;
 
         posis.cursor_start = the_smaller(posis.cursor_start, (line, column));
         posis.cursor_end = the_larger(posis.cursor_end, (line, column));
@@ -77,13 +77,13 @@ impl Handler for NeovimHandler {
         let line = args[1].as_u64().unwrap();
         let column = args[2].as_u64().unwrap();
 
-        let mut posis = &mut *(self.0).lock().await;
+        let posis = &mut *(self.0).lock().await;
 
         posis.cursor_start = Some((line, column));
         posis.cursor_end = Some((line, column));
       }
       "insert-leave" => {
-        let mut posis = &mut *(self.0).lock().await;
+        let posis = &mut *(self.0).lock().await;
 
         posis.cursor_start = None;
         posis.cursor_end = None;
