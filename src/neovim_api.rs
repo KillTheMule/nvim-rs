@@ -1,6 +1,6 @@
 //! The auto generated API for [`neovim`](crate::neovim::Neovim)
 //!
-//! Auto generated 2022-10-08 18:21:42.946138
+//! Auto generated 2023-09-16 14:53:30.416558
 use futures::io::AsyncWrite;
 
 use crate::{
@@ -1057,6 +1057,18 @@ where
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
   }
 
+  pub async fn exec(
+    &self,
+    src: &str,
+    output: bool,
+  ) -> Result<String, Box<CallError>> {
+    self
+      .call("nvim_exec", call_args![src, output])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
   pub async fn command_output(
     &self,
     command: &str,
@@ -1075,6 +1087,41 @@ where
   ) -> Result<Value, Box<CallError>> {
     self
       .call("nvim_execute_lua", call_args![code, args])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
+  pub async fn get_hl_by_id(
+    &self,
+    hl_id: i64,
+    rgb: bool,
+  ) -> Result<Vec<(Value, Value)>, Box<CallError>> {
+    self
+      .call("nvim_get_hl_by_id", call_args![hl_id, rgb])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
+  pub async fn get_hl_by_name(
+    &self,
+    name: &str,
+    rgb: bool,
+  ) -> Result<Vec<(Value, Value)>, Box<CallError>> {
+    self
+      .call("nvim_get_hl_by_name", call_args![name, rgb])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
+  pub async fn get_option_info(
+    &self,
+    name: &str,
+  ) -> Result<Vec<(Value, Value)>, Box<CallError>> {
+    self
+      .call("nvim_get_option_info", call_args![name])
       .await??
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
@@ -1148,12 +1195,13 @@ where
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
   }
 
-  pub async fn get_option_info(
+  pub async fn get_option_info2(
     &self,
     name: &str,
+    opts: Vec<(Value, Value)>,
   ) -> Result<Vec<(Value, Value)>, Box<CallError>> {
     self
-      .call("nvim_get_option_info", call_args![name])
+      .call("nvim_get_option_info2", call_args![name, opts])
       .await??
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
@@ -1174,6 +1222,14 @@ where
   pub async fn get_option(&self, name: &str) -> Result<Value, Box<CallError>> {
     self
       .call("nvim_get_option", call_args![name])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
+  pub async fn ui_set_focus(&self, gained: bool) -> Result<(), Box<CallError>> {
+    self
+      .call("nvim_ui_set_focus", call_args![gained])
       .await??
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
@@ -1252,36 +1308,24 @@ where
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
   }
 
-  pub async fn get_hl_by_name(
-    &self,
-    name: &str,
-    rgb: bool,
-  ) -> Result<Vec<(Value, Value)>, Box<CallError>> {
-    self
-      .call("nvim_get_hl_by_name", call_args![name, rgb])
-      .await??
-      .try_unpack()
-      .map_err(|v| Box::new(CallError::WrongValueType(v)))
-  }
-
-  pub async fn get_hl_by_id(
-    &self,
-    hl_id: i64,
-    rgb: bool,
-  ) -> Result<Vec<(Value, Value)>, Box<CallError>> {
-    self
-      .call("nvim_get_hl_by_id", call_args![hl_id, rgb])
-      .await??
-      .try_unpack()
-      .map_err(|v| Box::new(CallError::WrongValueType(v)))
-  }
-
   pub async fn get_hl_id_by_name(
     &self,
     name: &str,
   ) -> Result<i64, Box<CallError>> {
     self
       .call("nvim_get_hl_id_by_name", call_args![name])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
+  pub async fn get_hl(
+    &self,
+    ns_id: i64,
+    opts: Vec<(Value, Value)>,
+  ) -> Result<Vec<(Value, Value)>, Box<CallError>> {
+    self
+      .call("nvim_get_hl", call_args![ns_id, opts])
       .await??
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
@@ -1868,13 +1912,13 @@ where
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
   }
 
-  pub async fn exec(
+  pub async fn exec2(
     &self,
     src: &str,
-    output: bool,
-  ) -> Result<String, Box<CallError>> {
+    opts: Vec<(Value, Value)>,
+  ) -> Result<Vec<(Value, Value)>, Box<CallError>> {
     self
-      .call("nvim_exec", call_args![src, output])
+      .call("nvim_exec2", call_args![src, opts])
       .await??
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
