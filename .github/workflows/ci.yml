@@ -48,6 +48,7 @@ jobs:
     - name: Download neovim binary on linux
       if: matrix.os == 'ubuntu-latest'
       run: |
+        sudo apt install libfuse2
         curl -L https://github.com/neovim/neovim/releases/download/nightly/nvim.appimage -o nvim.appimage
         chmod a+x nvim.appimage
         echo "NVIMRS_TEST_BIN=$PWD/nvim.appimage" >> $GITHUB_ENV
