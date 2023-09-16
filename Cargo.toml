@@ -32,23 +32,23 @@ rustdoc-args = ["--cfg", "docsrs"]
 bench = false
 
 [dependencies]
-rmp = "0.8.11"
-rmpv = "1.0.0"
-log = "0.4.17"
-async-trait = "0.1.57"
-futures = { version = "0.3.24", features = ["io-compat"] }
-tokio = { version = "1.21.2", features = ["full"] , optional = true}
-tokio-util = { version = "0.7.4", features = ["compat"], optional = true }
+rmp = "0.8.12"
+rmpv = "1.0.1"
+log = "0.4.20"
+async-trait = "0.1.73"
+futures = { version = "0.3.28", features = ["io-compat"] }
+tokio = { version = "1.32.0", features = ["full"] , optional = true}
+tokio-util = { version = "0.7.8", features = ["compat"], optional = true }
 async-std = { version = "1.12.0", features = ["attributes"], optional = true }
 neovim-lib = { version = "0.6.1", optional = true }
 parity-tokio-ipc = { version = "0.9.0", optional = true }
 
 [dev-dependencies]
-tempfile = "3.3.0"
+tempfile = "3.8.0"
 # TODO: if changing tempfile: the rand version is based on whatever version
 # tempfile is using, to deduplicate dependencies
-fastrand = "1.6.0"
-criterion = "0.4.0"
+fastrand = "2.0.0"
+criterion = "0.5.1"
 
 [profile.bench]
 lto = true
