@@ -1,6 +1,6 @@
 [package]
 name = "nvim-rs"
-version = "0.6.0"
+version = "0.6.0-pre"
 license = "LGPL-3.0"
 authors = ["KillTheMule <KillTheMule@users.noreply.github.com"]
 description = "A library for writing neovim rpc clients"

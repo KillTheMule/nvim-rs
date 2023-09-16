@@ -7,6 +7,11 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+## 0.6.0 2023-09-16
+- Updated dependencies
+- Updated API
+- Extended UiOptions (thanks @fredizzimo)
+
 ## 0.5.0  2022-10-08
 
 - Updated dependencies
