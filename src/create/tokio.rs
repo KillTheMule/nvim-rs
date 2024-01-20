@@ -8,7 +8,7 @@ use std::{
 };
 
 use tokio::{
-  io::{split, stdin, stdout, Stdout, WriteHalf},
+  io::{split, stdin, WriteHalf},
   net::{TcpStream, ToSocketAddrs},
   process::{Child, ChildStdin, Command},
   spawn,
@@ -153,15 +153,17 @@ where
 pub async fn new_parent<H>(
   handler: H,
 ) -> (
-  Neovim<Compat<Stdout>>,
+  Neovim<Compat<tokio::fs::File>>,
   JoinHandle<Result<(), Box<LoopError>>>,
 )
 where
-  H: Handler<Writer = Compat<Stdout>>,
+  H: Handler<Writer = Compat<tokio::fs::File>>,
 {
-  let (neovim, io) = Neovim::<Compat<Stdout>>::new(
+  use std::os::fd::FromRawFd;
+  let sout = unsafe { tokio::fs::File::from_raw_fd(1) }.compat_write();
+  let (neovim, io) = Neovim::<Compat<tokio::fs::File>>::new(
     stdin().compat(),
-    stdout().compat_write(),
+    sout,
     handler,
   );
   let io_handle = spawn(io);
