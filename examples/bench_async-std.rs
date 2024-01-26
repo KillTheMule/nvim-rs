@@ -4,25 +4,22 @@ use async_trait::async_trait;
 
 use rmpv::Value;
 
-use async_std::io::Stdout;
-use async_std;
+use async_std::{self, fs::File as ASFile};
 
-use nvim_rs::{
-  create::async_std as create, Handler, Neovim,
-};
+use nvim_rs::{create::async_std as create, Handler, Neovim};
 
 #[derive(Clone)]
-struct NeovimHandler{}
+struct NeovimHandler {}
 
 #[async_trait]
 impl Handler for NeovimHandler {
-  type Writer =Stdout;
+  type Writer = ASFile;
 
   async fn handle_request(
     &self,
     name: String,
     _args: Vec<Value>,
-    neovim: Neovim<Stdout>,
+    neovim: Neovim<ASFile>,
   ) -> Result<Value, Value> {
     match name.as_ref() {
       "file" => {
@@ -31,30 +28,29 @@ impl Handler for NeovimHandler {
           let _x = c.get_lines(0, -1, false).await;
         }
         Ok(Value::Nil)
-      },
+      }
       "buffer" => {
         for _ in 0..10_000_usize {
           let _ = neovim.get_current_buf().await.unwrap();
         }
         Ok(Value::Nil)
-      },
+      }
       "api" => {
         for _ in 0..1_000_usize {
           let _ = neovim.get_api_info().await.unwrap();
         }
         Ok(Value::Nil)
-      },
-      _ => Ok(Value::Nil)
+      }
+      _ => Ok(Value::Nil),
     }
   }
 }
 
 #[async_std::main]
 async fn main() {
+  let handler: NeovimHandler = NeovimHandler {};
 
-  let handler: NeovimHandler = NeovimHandler{};
-
-  let (nvim, io_handler) = create::new_parent(handler).await;
+  let (nvim, io_handler) = create::new_parent(handler).await.unwrap();
 
   // Any error should probably be logged, as stderr is not visible to users.
   match io_handler.await {

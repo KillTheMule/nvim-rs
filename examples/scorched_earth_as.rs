@@ -7,11 +7,9 @@ use rmpv::Value;
 
 use futures::lock::Mutex;
 
-use nvim_rs::{
- create::async_std as create, Handler, Neovim,
-};
+use nvim_rs::{create::async_std as create, Handler, Neovim};
 
-use async_std::{self, io::Stdout};
+use async_std::{self, fs::File as ASFile};
 
 struct Posis {
   cursor_start: Option<(u64, u64)>,
@@ -45,13 +43,13 @@ struct NeovimHandler(Arc<Mutex<Posis>>);
 
 #[async_trait]
 impl Handler for NeovimHandler {
-  type Writer = Stdout;
+  type Writer = ASFile;
 
   async fn handle_notify(
     &self,
     name: String,
     args: Vec<Value>,
-    neovim: Neovim<Stdout>,
+    neovim: Neovim<ASFile>,
   ) {
     match name.as_ref() {
       "cursor-moved-i" => {
@@ -103,7 +101,7 @@ async fn main() {
   };
   let handler: NeovimHandler = NeovimHandler(Arc::new(Mutex::new(p)));
 
-  let (nvim, io_handler) = create::new_parent(handler).await;
+  let (nvim, io_handler) = create::new_parent(handler).await.unwrap();
 
   // Any error should probably be logged, as stderr is not visible to users.
   match io_handler.await {
