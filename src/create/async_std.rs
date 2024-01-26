@@ -1,14 +1,15 @@
 //! Functions to spawn a [`neovim`](crate::neovim::Neovim) session using
 //! [`async-std`](async-std)
-use std::{future::Future, io};
+use std::{future::Future, io, fs::File, os::fd::AsFd};
 
 #[cfg(unix)]
 use async_std::os::unix::net::UnixStream;
 
 use async_std::{
-  io::{stdin, stdout, Stdout},
+  io::{stdin},
   net::{TcpStream, ToSocketAddrs},
   task::{spawn, JoinHandle},
+  fs::File as ASFile,
 };
 
 #[cfg(unix)]
@@ -78,12 +79,15 @@ where
 /// Connect to the neovim instance that spawned this process over stdin/stdout
 pub async fn new_parent<H>(
   handler: H,
-) -> (Neovim<Stdout>, JoinHandle<Result<(), Box<LoopError>>>)
+) -> io::Result<(Neovim<ASFile>, JoinHandle<Result<(), Box<LoopError>>>)>
 where
-  H: Handler<Writer = Stdout>,
+  H: Handler<Writer = ASFile>,
 {
-  let (neovim, io) = Neovim::<Stdout>::new(stdin(), stdout(), handler);
+  let owned = std::io::stdout().as_fd().try_clone_to_owned()?;
+  let file = File::from(owned);
+  let sout: ASFile = file.into();
+  let (neovim, io) = Neovim::<ASFile>::new(stdin(), sout, handler);
   let io_handle = spawn(io);
 
-  (neovim, io_handle)
+  Ok((neovim, io_handle))
 }
