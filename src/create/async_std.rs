@@ -1,6 +1,6 @@
 //! Functions to spawn a [`neovim`](crate::neovim::Neovim) session using
 //! [`async-std`](async-std)
-use std::{fs::File, future::Future, io, os::fd::AsFd};
+use std::{future::Future, io};
 
 #[cfg(unix)]
 use async_std::os::unix::net::UnixStream;
@@ -17,7 +17,12 @@ use async_std::path::Path;
 
 use futures::io::{AsyncReadExt, WriteHalf};
 
-use crate::{create::Spawner, error::LoopError, neovim::Neovim, Handler};
+use crate::{
+  create::{unbuffered_stdout, Spawner},
+  error::LoopError,
+  neovim::Neovim,
+  Handler,
+};
 
 impl<H> Spawner for H
 where
@@ -83,9 +88,7 @@ pub async fn new_parent<H>(
 where
   H: Handler<Writer = ASFile>,
 {
-  let owned = std::io::stdout().as_fd().try_clone_to_owned()?;
-  let file = File::from(owned);
-  let sout: ASFile = file.into();
+  let sout: ASFile = unbuffered_stdout()?.into();
   let (neovim, io) = Neovim::<ASFile>::new(stdin(), sout, handler);
   let io_handle = spawn(io);
 

@@ -1,10 +1,8 @@
 //! Functions to spawn a [`neovim`](crate::neovim::Neovim) session using
 //! [`tokio`](tokio)
 use std::{
-  fs::File,
   future::Future,
-  io::{self, stdout, Error, ErrorKind},
-  os::fd::AsFd,
+  io::{self, Error, ErrorKind},
   path::Path,
   process::Stdio,
 };
@@ -24,7 +22,12 @@ use tokio_util::compat::{
   Compat, TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt,
 };
 
-use crate::{create::Spawner, error::LoopError, neovim::Neovim, Handler};
+use crate::{
+  create::{unbuffered_stdout, Spawner},
+  error::LoopError,
+  neovim::Neovim,
+  Handler,
+};
 
 impl<H> Spawner for H
 where
@@ -165,9 +168,7 @@ pub async fn new_parent<H>(
 where
   H: Handler<Writer = Compat<tokio::fs::File>>,
 {
-  let owned_sout_fd = stdout().as_fd().try_clone_to_owned()?;
-  let file = File::from(owned_sout_fd);
-  let sout = TokioFile::from_std(file);
+  let sout = TokioFile::from_std(unbuffered_stdout()?);
 
   let (neovim, io) = Neovim::<Compat<tokio::fs::File>>::new(
     stdin().compat(),
