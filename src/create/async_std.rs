@@ -1,15 +1,15 @@
 //! Functions to spawn a [`neovim`](crate::neovim::Neovim) session using
 //! [`async-std`](async-std)
-use std::{future::Future, io, fs::File, os::fd::AsFd};
+use std::{fs::File, future::Future, io, os::fd::AsFd};
 
 #[cfg(unix)]
 use async_std::os::unix::net::UnixStream;
 
 use async_std::{
-  io::{stdin},
+  fs::File as ASFile,
+  io::stdin,
   net::{TcpStream, ToSocketAddrs},
   task::{spawn, JoinHandle},
-  fs::File as ASFile,
 };
 
 #[cfg(unix)]

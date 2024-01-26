@@ -1,21 +1,21 @@
 //! Functions to spawn a [`neovim`](crate::neovim::Neovim) session using
 //! [`tokio`](tokio)
 use std::{
+  fs::File,
   future::Future,
-  io::{self, Error, ErrorKind, stdout},
+  io::{self, stdout, Error, ErrorKind},
+  os::fd::AsFd,
   path::Path,
   process::Stdio,
-  fs::File,
-  os::fd::AsFd,
 };
 
 use tokio::{
+  fs::File as TokioFile,
   io::{split, stdin, WriteHalf},
   net::{TcpStream, ToSocketAddrs},
   process::{Child, ChildStdin, Command},
   spawn,
   task::JoinHandle,
-  fs::File as TokioFile,
 };
 
 use parity_tokio_ipc::{Connection, Endpoint};
@@ -155,10 +155,13 @@ where
 /// Connect to the neovim instance that spawned this process over stdin/stdout
 pub async fn new_parent<H>(
   handler: H,
-) -> Result<(
-  Neovim<Compat<tokio::fs::File>>,
-  JoinHandle<Result<(), Box<LoopError>>>,
-), Error>
+) -> Result<
+  (
+    Neovim<Compat<tokio::fs::File>>,
+    JoinHandle<Result<(), Box<LoopError>>>,
+  ),
+  Error,
+>
 where
   H: Handler<Writer = Compat<tokio::fs::File>>,
 {
