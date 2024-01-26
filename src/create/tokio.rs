@@ -2,9 +2,11 @@
 //! [`tokio`](tokio)
 use std::{
   future::Future,
-  io::{self, Error, ErrorKind},
+  io::{self, Error, ErrorKind, stdout},
   path::Path,
   process::Stdio,
+  fs::File,
+  os::fd::AsFd,
 };
 
 use tokio::{
@@ -13,6 +15,7 @@ use tokio::{
   process::{Child, ChildStdin, Command},
   spawn,
   task::JoinHandle,
+  fs::File as TokioFile,
 };
 
 use parity_tokio_ipc::{Connection, Endpoint};
@@ -152,21 +155,23 @@ where
 /// Connect to the neovim instance that spawned this process over stdin/stdout
 pub async fn new_parent<H>(
   handler: H,
-) -> (
+) -> Result<(
   Neovim<Compat<tokio::fs::File>>,
   JoinHandle<Result<(), Box<LoopError>>>,
-)
+), Error>
 where
   H: Handler<Writer = Compat<tokio::fs::File>>,
 {
-  use std::os::fd::FromRawFd;
-  let sout = unsafe { tokio::fs::File::from_raw_fd(1) }.compat_write();
+  let owned_sout_fd = stdout().as_fd().try_clone_to_owned()?;
+  let file = File::from(owned_sout_fd);
+  let sout = TokioFile::from_std(file);
+
   let (neovim, io) = Neovim::<Compat<tokio::fs::File>>::new(
     stdin().compat(),
-    sout,
+    sout.compat(),
     handler,
   );
   let io_handle = spawn(io);
 
-  (neovim, io_handle)
+  Ok((neovim, io_handle))
 }
