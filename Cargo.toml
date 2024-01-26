@@ -112,3 +112,15 @@ required-features = ["use_tokio"]
 
 [[test]]
 name = "basic"
+
+[[test]]
+name = "regression"
+path = "tests/regression/mod.rs"
+
+[[bin]]
+name = "linebuffercrash"
+required-features = ["use_tokio"]
+
+[[bin]]
+name = "linebuffercrash_as"
+required-features = ["use_async-std"]
