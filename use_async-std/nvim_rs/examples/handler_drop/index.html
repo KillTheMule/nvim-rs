@@ -1,0 +1,55 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="`handler_drop`"><title>nvim_rs::examples::handler_drop - Rust</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-5bc39a1768837dd0.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="nvim_rs" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (bf3c6c5be 2024-02-01)" data-channel="nightly" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-4c98445ec4002617.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-48f368f3872407c8.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../nvim_rs/index.html">nvim_rs</a><span class="version">0.8.0-pre</span></h2></div><h2 class="location"><a href="#">Module handler_drop</a></h2><div class="sidebar-elems"><h2><a href="../index.html">In nvim_rs::examples</a></h2></div></nav><div class="sidebar-resizer"></div>
+    <main><div class="width-limiter"><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../../nvim_rs/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="main-heading"><h1>Module <a href="../../index.html">nvim_rs</a>::<wbr><a href="../index.html">examples</a>::<wbr><a class="mod" href="#">handler_drop</a><button id="copy-path" title="Copy item path to clipboard"><img src="../../../static.files/clipboard-7571035ce49a181d.svg" width="19" height="18" alt="Copy item path"></button></h1><span class="out-of-band"><a class="src" href="../../../src/nvim_rs/examples/handler_drop.rs.html#1-56">source</a> · <button id="toggle-all-docs" title="collapse all docs">[<span>&#x2212;</span>]</button></span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="handler_drop"><a class="doc-anchor" href="#handler_drop">§</a><code>handler_drop</code></h2>
+<p>An example of handling cleanup logic by implementing
+<a href="https://doc.rust-lang.org/nightly/core/ops/drop/trait.Drop.html" title="trait core::ops::drop::Drop"><code>Drop</code></a> for the handler. The plugin attaches to the current
+buffer, then sets the first 2 lines, which get sent back to us with a
+<code>nvim_buf_lines_event</code> notification. We handle this notification by saving
+the lines in the handler. We then let nvim close the channel, and wait for
+the IO loop to finish. The handler gets dropped, and so our cleanup logic is
+executed.</p>
+<h3 id="usage"><a class="doc-anchor" href="#usage">§</a>Usage</h3>
+<p>First, build the neovim included as a submodule:</p>
+<div class="example-wrap"><pre class="language-sh"><code>cd neovim
+make
+</code></pre></div>
+<p>See <a href="https://github.com/neovim/neovim/wiki/Building-Neovim">https://github.com/neovim/neovim/wiki/Building-Neovim</a> for build options.
+Nothing is really needed to run the example.</p>
+<p>After that, run the example via</p>
+<div class="example-wrap"><pre class="language-sh"><code>cargo run --example handler_drop
+</code></pre></div>
+<p>You can verify it worked by looking at the file <code>handler_drop.txt</code> in the
+project directory which should contain 2 lines (“xyz” and “abc”).</p>
+<h3 id="description"><a class="doc-anchor" href="#description">§</a>Description</h3>
+<ul>
+<li>
+<p>The associated type for our <a href="../../rpc/handler/trait.Handler.html" title="trait nvim_rs::rpc::handler::Handler"><code>Handler</code></a> is
+the stdin of our child. But tokio’s
+<a href="tokio::process::ChildStdin"><code>ChildStdin</code></a> does not implement
+<a href="futures::io::AsyncWrite"><code>futures::io::AsyncWrite</code></a>, so it needs to be
+wrapped in the provided <a href="crate::compat::tokio::Compat"><code>Compat</code></a> type.</p>
+</li>
+<li>
+<p>Implementing <a href="https://doc.rust-lang.org/nightly/core/ops/drop/trait.Drop.html" title="trait core::ops::drop::Drop"><code>Drop</code></a> is straightforward, except that we
+cannot do so asynchronously. Since dropping the handler is one of the last
+things our plugin does, it’s not problem to run even larger code bodies
+synchronously here.</p>
+</li>
+<li>
+<p>The event handling code is not efficient, because we just read the
+arguments by reference and clone them. It’s easy to take ownership directly
+by matching on the enum <a href="../../enum.Value.html" title="enum nvim_rs::Value"><code>Value</code></a> directly, though.</p>
+</li>
+<li>
+<p>There’s basically no error handling, other than <code>unwrap</code>ing all the
+<code>Result</code>s.</p>
+</li>
+<li>
+<p><code>await</code>ing the io future handle is probably not necessary, but feels like
+a nice thing to do.</p>
+</li>
+<li>
+<p>As with the other examples, we implement <a href="futures::task::Spawn"><code>Spawn</code></a>
+for our <code>NeovimHandler</code> most trivially.</p>
+</li>
+</ul>
+</div></details></section></div></main></body></html>

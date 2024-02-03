@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["handler_drop","quitting","scorched_earth","scorched_earth_as"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["new_parent","new_path","new_tcp"]};

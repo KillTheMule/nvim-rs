@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Value"],"macro":["call_args","impl_exttype_traits"],"mod":["compat","create","error","examples","exttypes","neovim","neovim_api","neovim_api_manual","rpc","uioptions"]};

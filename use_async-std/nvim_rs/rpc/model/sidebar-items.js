@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["RpcMessage"],"fn":["decode","encode"],"trait":["IntoVal"]};
