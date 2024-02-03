@@ -10,6 +10,7 @@ and this project adheres to Semantic Versioning.
 ## 0.7.0 2024-02-03
 - Create our own Stdout for connecting to a parent neovim to avoid line buffering
 - Updated API
+- Updated dependencies
 
 ## 0.6.0 2023-09-16
 - Updated dependencies
