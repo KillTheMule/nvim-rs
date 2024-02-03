@@ -1,6 +1,6 @@
 //! The auto generated API for [`neovim`](crate::neovim::Neovim)
 //!
-//! Auto generated 2023-09-16 14:53:30.416558
+//! Auto generated 2024-02-03 13:46:25.630774
 use futures::io::AsyncWrite;
 
 use crate::{
@@ -446,6 +446,34 @@ where
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
   }
+  /// since: 1
+  pub async fn get_option(&self, name: &str) -> Result<Value, Box<CallError>> {
+    self
+      .neovim
+      .call(
+        "nvim_buf_get_option",
+        call_args![self.code_data.clone(), name],
+      )
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+  /// since: 1
+  pub async fn set_option(
+    &self,
+    name: &str,
+    value: Value,
+  ) -> Result<(), Box<CallError>> {
+    self
+      .neovim
+      .call(
+        "nvim_buf_set_option",
+        call_args![self.code_data.clone(), name, value],
+      )
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
   /// since: 7
   pub async fn get_extmark_by_id(
     &self,
@@ -553,34 +581,6 @@ where
       .call(
         "nvim_buf_clear_namespace",
         call_args![self.code_data.clone(), ns_id, line_start, line_end],
-      )
-      .await??
-      .try_unpack()
-      .map_err(|v| Box::new(CallError::WrongValueType(v)))
-  }
-  /// since: 1
-  pub async fn get_option(&self, name: &str) -> Result<Value, Box<CallError>> {
-    self
-      .neovim
-      .call(
-        "nvim_buf_get_option",
-        call_args![self.code_data.clone(), name],
-      )
-      .await??
-      .try_unpack()
-      .map_err(|v| Box::new(CallError::WrongValueType(v)))
-  }
-  /// since: 1
-  pub async fn set_option(
-    &self,
-    name: &str,
-    value: Value,
-  ) -> Result<(), Box<CallError>> {
-    self
-      .neovim
-      .call(
-        "nvim_buf_set_option",
-        call_args![self.code_data.clone(), name, value],
       )
       .await??
       .try_unpack()
@@ -829,6 +829,21 @@ where
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
   }
+  /// since: 12
+  pub async fn text_height(
+    &self,
+    opts: Vec<(Value, Value)>,
+  ) -> Result<Vec<(Value, Value)>, Box<CallError>> {
+    self
+      .neovim
+      .call(
+        "nvim_win_text_height",
+        call_args![self.code_data.clone(), opts],
+      )
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
 }
 
 impl<W> Tabpage<W>
@@ -881,6 +896,18 @@ where
       .call(
         "nvim_tabpage_del_var",
         call_args![self.code_data.clone(), name],
+      )
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+  /// since: 12
+  pub async fn set_win(&self, win: &Window<W>) -> Result<(), Box<CallError>> {
+    self
+      .neovim
+      .call(
+        "nvim_tabpage_set_win",
+        call_args![self.code_data.clone(), win],
       )
       .await??
       .try_unpack()
@@ -1127,6 +1154,26 @@ where
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
   }
 
+  pub async fn set_option(
+    &self,
+    name: &str,
+    value: Value,
+  ) -> Result<(), Box<CallError>> {
+    self
+      .call("nvim_set_option", call_args![name, value])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
+  pub async fn get_option(&self, name: &str) -> Result<Value, Box<CallError>> {
+    self
+      .call("nvim_get_option", call_args![name])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
   pub async fn create_namespace(
     &self,
     name: &str,
@@ -1202,26 +1249,6 @@ where
   ) -> Result<Vec<(Value, Value)>, Box<CallError>> {
     self
       .call("nvim_get_option_info2", call_args![name, opts])
-      .await??
-      .try_unpack()
-      .map_err(|v| Box::new(CallError::WrongValueType(v)))
-  }
-
-  pub async fn set_option(
-    &self,
-    name: &str,
-    value: Value,
-  ) -> Result<(), Box<CallError>> {
-    self
-      .call("nvim_set_option", call_args![name, value])
-      .await??
-      .try_unpack()
-      .map_err(|v| Box::new(CallError::WrongValueType(v)))
-  }
-
-  pub async fn get_option(&self, name: &str) -> Result<Value, Box<CallError>> {
-    self
-      .call("nvim_get_option", call_args![name])
       .await??
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
@@ -1308,6 +1335,18 @@ where
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
   }
 
+  pub async fn ui_term_event(
+    &self,
+    event: &str,
+    value: Value,
+  ) -> Result<(), Box<CallError>> {
+    self
+      .call("nvim_ui_term_event", call_args![event, value])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
   pub async fn get_hl_id_by_name(
     &self,
     name: &str,
@@ -1339,6 +1378,17 @@ where
   ) -> Result<(), Box<CallError>> {
     self
       .call("nvim_set_hl", call_args![ns_id, name, val])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
+  pub async fn get_hl_ns(
+    &self,
+    opts: Vec<(Value, Value)>,
+  ) -> Result<i64, Box<CallError>> {
+    self
+      .call("nvim_get_hl_ns", call_args![opts])
       .await??
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
@@ -1907,6 +1957,18 @@ where
   ) -> Result<Vec<(Value, Value)>, Box<CallError>> {
     self
       .call("nvim_eval_statusline", call_args![str, opts])
+      .await??
+      .try_unpack()
+      .map_err(|v| Box::new(CallError::WrongValueType(v)))
+  }
+
+  pub async fn complete_set(
+    &self,
+    index: i64,
+    opts: Vec<(Value, Value)>,
+  ) -> Result<Vec<(Value, Value)>, Box<CallError>> {
+    self
+      .call("nvim_complete_set", call_args![index, opts])
       .await??
       .try_unpack()
       .map_err(|v| Box::new(CallError::WrongValueType(v)))
