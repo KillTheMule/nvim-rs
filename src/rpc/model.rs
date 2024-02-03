@@ -7,7 +7,7 @@ use std::{
 };
 
 use futures::{
-  io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufWriter},
+  io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt,},
   lock::Mutex,
 };
 use rmpv::{decode::read_value, encode::write_value, Value};
@@ -165,7 +165,7 @@ fn decode_buffer<R: Read>(
 /// Encode the given message into the `BufWriter`. Flushes the writer when
 /// finished.
 pub async fn encode<W: AsyncWrite + Send + Unpin + 'static>(
-  writer: Arc<Mutex<BufWriter<W>>>,
+  writer: Arc<Mutex<W>>,
   msg: RpcMessage,
 ) -> std::result::Result<(), Box<EncodeError>> {
   let mut v: Vec<u8> = vec![];

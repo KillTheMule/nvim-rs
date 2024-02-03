@@ -6,7 +6,8 @@ use std::{future::Future, io};
 use async_std::os::unix::net::UnixStream;
 
 use async_std::{
-  io::{stdin, stdout, Stdout},
+  fs::File as ASFile,
+  io::stdin,
   net::{TcpStream, ToSocketAddrs},
   task::{spawn, JoinHandle},
 };
@@ -16,7 +17,12 @@ use async_std::path::Path;
 
 use futures::io::{AsyncReadExt, WriteHalf};
 
-use crate::{create::Spawner, error::LoopError, neovim::Neovim, Handler};
+use crate::{
+  create::{unbuffered_stdout, Spawner},
+  error::LoopError,
+  neovim::Neovim,
+  Handler,
+};
 
 impl<H> Spawner for H
 where
@@ -78,12 +84,13 @@ where
 /// Connect to the neovim instance that spawned this process over stdin/stdout
 pub async fn new_parent<H>(
   handler: H,
-) -> (Neovim<Stdout>, JoinHandle<Result<(), Box<LoopError>>>)
+) -> io::Result<(Neovim<ASFile>, JoinHandle<Result<(), Box<LoopError>>>)>
 where
-  H: Handler<Writer = Stdout>,
+  H: Handler<Writer = ASFile>,
 {
-  let (neovim, io) = Neovim::<Stdout>::new(stdin(), stdout(), handler);
+  let sout: ASFile = unbuffered_stdout()?.into();
+  let (neovim, io) = Neovim::<ASFile>::new(stdin(), sout, handler);
   let io_handle = spawn(io);
 
-  (neovim, io_handle)
+  Ok((neovim, io_handle))
 }

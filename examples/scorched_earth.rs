@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use rmpv::Value;
 
 use futures::lock::Mutex;
-use tokio::io::Stdout;
+use tokio::fs::File as TokioFile;
 
 use nvim_rs::{
   compat::tokio::Compat, create::tokio as create, Handler, Neovim,
@@ -44,13 +44,13 @@ struct NeovimHandler(Arc<Mutex<Posis>>);
 
 #[async_trait]
 impl Handler for NeovimHandler {
-  type Writer = Compat<Stdout>;
+  type Writer = Compat<TokioFile>;
 
   async fn handle_notify(
     &self,
     name: String,
     args: Vec<Value>,
-    neovim: Neovim<Compat<Stdout>>,
+    neovim: Neovim<Compat<TokioFile>>,
   ) {
     match name.as_ref() {
       "cursor-moved-i" => {
@@ -102,7 +102,7 @@ async fn main() {
   };
   let handler: NeovimHandler = NeovimHandler(Arc::new(Mutex::new(p)));
 
-  let (nvim, io_handler) = create::new_parent(handler).await;
+  let (nvim, io_handler) = create::new_parent(handler).await.unwrap();
 
   // Any error should probably be logged, as stderr is not visible to users.
   match io_handler.await {

@@ -8,7 +8,8 @@ use std::{
 };
 
 use tokio::{
-  io::{split, stdin, stdout, Stdout, WriteHalf},
+  fs::File as TokioFile,
+  io::{split, stdin, WriteHalf},
   net::{TcpStream, ToSocketAddrs},
   process::{Child, ChildStdin, Command},
   spawn,
@@ -21,7 +22,12 @@ use tokio_util::compat::{
   Compat, TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt,
 };
 
-use crate::{create::Spawner, error::LoopError, neovim::Neovim, Handler};
+use crate::{
+  create::{unbuffered_stdout, Spawner},
+  error::LoopError,
+  neovim::Neovim,
+  Handler,
+};
 
 impl<H> Spawner for H
 where
@@ -152,19 +158,24 @@ where
 /// Connect to the neovim instance that spawned this process over stdin/stdout
 pub async fn new_parent<H>(
   handler: H,
-) -> (
-  Neovim<Compat<Stdout>>,
-  JoinHandle<Result<(), Box<LoopError>>>,
-)
+) -> Result<
+  (
+    Neovim<Compat<tokio::fs::File>>,
+    JoinHandle<Result<(), Box<LoopError>>>,
+  ),
+  Error,
+>
 where
-  H: Handler<Writer = Compat<Stdout>>,
+  H: Handler<Writer = Compat<tokio::fs::File>>,
 {
-  let (neovim, io) = Neovim::<Compat<Stdout>>::new(
+  let sout = TokioFile::from_std(unbuffered_stdout()?);
+
+  let (neovim, io) = Neovim::<Compat<tokio::fs::File>>::new(
     stdin().compat(),
-    stdout().compat_write(),
+    sout.compat(),
     handler,
   );
   let io_handle = spawn(io);
 
-  (neovim, io_handle)
+  Ok((neovim, io_handle))
 }

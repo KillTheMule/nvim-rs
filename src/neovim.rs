@@ -12,7 +12,7 @@ use futures::{
     mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
     oneshot,
   },
-  io::{AsyncRead, AsyncWrite, BufWriter},
+  io::{AsyncRead, AsyncWrite,},
   lock::Mutex,
   sink::SinkExt,
   stream::StreamExt,
@@ -54,7 +54,7 @@ pub struct Neovim<W>
 where
   W: AsyncWrite + Send + Unpin + 'static,
 {
-  pub(crate) writer: Arc<Mutex<BufWriter<W>>>,
+  pub(crate) writer: Arc<Mutex<W>>,
   pub(crate) queue: Queue,
   pub(crate) msgid_counter: Arc<AtomicU64>,
 }
@@ -100,7 +100,7 @@ where
     H: Handler<Writer = W> + Spawner,
   {
     let req = Neovim {
-      writer: Arc::new(Mutex::new(BufWriter::new(writer))),
+      writer: Arc::new(Mutex::new(writer)),
       msgid_counter: Arc::new(AtomicU64::new(0)),
       queue: Arc::new(Mutex::new(Vec::new())),
     };

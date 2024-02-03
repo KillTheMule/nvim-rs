@@ -6,7 +6,7 @@ use async_trait::async_trait;
 
 use rmpv::Value;
 
-use tokio::io::Stdout;
+use tokio::fs::File as TokioFile;
 
 use nvim_rs::{
   compat::tokio::Compat, create::tokio as create, rpc::IntoVal, Handler, Neovim,
@@ -17,13 +17,13 @@ struct NeovimHandler {}
 
 #[async_trait]
 impl Handler for NeovimHandler {
-  type Writer = Compat<Stdout>;
+  type Writer = Compat<TokioFile>;
 
   async fn handle_request(
     &self,
     name: String,
     _args: Vec<Value>,
-    _neovim: Neovim<Compat<Stdout>>,
+    _neovim: Neovim<Compat<TokioFile>>,
   ) -> Result<Value, Value> {
     match name.as_ref() {
       "ping" => Ok(Value::from("pong")),
@@ -35,7 +35,7 @@ impl Handler for NeovimHandler {
 #[tokio::main]
 async fn main() {
   let handler: NeovimHandler = NeovimHandler {};
-  let (nvim, io_handler) = create::new_parent(handler).await;
+  let (nvim, io_handler) = create::new_parent(handler).await.unwrap();
   let curbuf = nvim.get_current_buf().await.unwrap();
 
   let mut envargs = env::args();

@@ -4,24 +4,24 @@ use async_trait::async_trait;
 
 use rmpv::Value;
 
-use tokio::io::Stdout;
+use tokio::fs::File as TokioFile;
 
 use nvim_rs::{
   compat::tokio::Compat, create::tokio as create, Handler, Neovim,
 };
 
 #[derive(Clone)]
-struct NeovimHandler{}
+struct NeovimHandler {}
 
 #[async_trait]
 impl Handler for NeovimHandler {
-  type Writer = Compat<Stdout>;
+  type Writer = Compat<TokioFile>;
 
   async fn handle_request(
     &self,
     name: String,
     _args: Vec<Value>,
-    neovim: Neovim<Compat<Stdout>>,
+    neovim: Neovim<Compat<TokioFile>>,
   ) -> Result<Value, Value> {
     match name.as_ref() {
       "file" => {
@@ -30,30 +30,29 @@ impl Handler for NeovimHandler {
           let _x = c.get_lines(0, -1, false).await;
         }
         Ok(Value::Nil)
-      },
+      }
       "buffer" => {
         for _ in 0..10_000_usize {
           let _ = neovim.get_current_buf().await.unwrap();
         }
         Ok(Value::Nil)
-      },
+      }
       "api" => {
         for _ in 0..1_000_usize {
           let _ = neovim.get_api_info().await.unwrap();
         }
         Ok(Value::Nil)
-      },
-      _ => Ok(Value::Nil)
+      }
+      _ => Ok(Value::Nil),
     }
   }
 }
 
 #[tokio::main]
 async fn main() {
+  let handler: NeovimHandler = NeovimHandler {};
 
-  let handler: NeovimHandler = NeovimHandler{};
-
-  let (nvim, io_handler) = create::new_parent(handler).await;
+  let (nvim, io_handler) = create::new_parent(handler).await.unwrap();
 
   // Any error should probably be logged, as stderr is not visible to users.
   match io_handler.await {
