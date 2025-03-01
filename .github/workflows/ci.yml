@@ -49,14 +49,14 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt install libfuse2
-        curl -L https://github.com/neovim/neovim/releases/download/nightly/nvim.appimage -o nvim.appimage
+        curl -L https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-x86_64.appimage -o nvim.appimage
         chmod a+x nvim.appimage
         echo "NVIMRS_TEST_BIN=$PWD/nvim.appimage" >> $GITHUB_ENV
 
     - name: Download neovim binary on macos
       if: matrix.os == 'macos-latest'
       run: |
-        curl -L https://github.com/neovim/neovim/releases/download/nightly/nvim-macos.tar.gz -o nvim-macos.tar.gz
+        curl -L https://github.com/neovim/neovim/releases/download/nightly/nvim-macos-x86_64.tar.gz -o nvim-macos.tar.gz
         tar xfz nvim-macos.tar.gz
         echo "NVIMRS_TEST_BIN=$PWD/nvim-macos/bin/nvim" >> $GITHUB_ENV
 
