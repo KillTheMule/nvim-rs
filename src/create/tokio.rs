@@ -16,7 +16,10 @@ use tokio::{
   task::JoinHandle,
 };
 
-use parity_tokio_ipc::{Connection, Endpoint};
+#[cfg(unix)]
+type Connection = tokio::net::UnixStream;
+#[cfg(windows)]
+type Connection = tokio::net::windows::named_pipe::NamedPipeClient;
 
 use tokio_util::compat::{
   Compat, TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt,
@@ -78,7 +81,38 @@ pub async fn new_path<H, P: AsRef<Path> + Clone>(
 where
   H: Handler<Writer = Compat<WriteHalf<Connection>>> + Send + 'static,
 {
-  let stream = Endpoint::connect(path).await?;
+  let stream = {
+    #[cfg(unix)]
+    {
+      use tokio::net::UnixStream;
+
+      UnixStream::connect(path).await?
+    }
+    #[cfg(windows)]
+    {
+      use std::time::Duration;
+      use tokio::net::windows::named_pipe::ClientOptions;
+      use tokio::time;
+
+      // From windows-sys so we don't have to depend on that for just this constant
+      // https://docs.rs/windows-sys/latest/windows_sys/Win32/Foundation/constant.ERROR_PIPE_BUSY.html
+      pub const ERROR_PIPE_BUSY: i32 = 231i32;
+
+      // Based on the example in the tokio docs, see explanation there
+      // https://docs.rs/tokio/latest/tokio/net/windows/named_pipe/struct.NamedPipeClient.html
+      let client = loop {
+        match ClientOptions::new().open(path.as_ref()) {
+          Ok(client) => break client,
+          Err(e) if e.raw_os_error() == Some(ERROR_PIPE_BUSY) => (),
+          Err(e) => return Err(e),
+        }
+
+        time::sleep(Duration::from_millis(50)).await;
+      };
+
+      client
+    }
+  };
   let (reader, writer) = split(stream);
   let (neovim, io) = Neovim::<Compat<WriteHalf<Connection>>>::new(
     reader.compat(),
