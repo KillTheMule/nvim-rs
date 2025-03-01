@@ -73,7 +73,7 @@ class NeovimTypeVal:
             'Boolean': 'bool',
             'String': '&str',
             'Object': 'Value',
-            'Dictionary': 'Vec<(Value, Value)>',
+            'Dict': 'Vec<(Value, Value)>',
         }
 
     SIMPLETYPES_VAL = {
@@ -85,7 +85,7 @@ class NeovimTypeVal:
             'Boolean': 'bool',
             'String': 'String',
             'Object': 'Value',
-            'Dictionary': 'Vec<(Value, Value)>',
+            'Dict': 'Vec<(Value, Value)>',
         }
     # msgpack extension types
     EXTTYPES = {
@@ -94,7 +94,7 @@ class NeovimTypeVal:
             'Tabpage': 'Tabpage<W>',
         }
     # Unbound Array types
-    UNBOUND_ARRAY = re.compile('ArrayOf\(\s*(\w+)\s*\)')
+    UNBOUND_ARRAY = re.compile(r'ArrayOf\(\s*(\w+)\s*\)')
 
     def __init__(self, typename, name=''):
         self.name = name
