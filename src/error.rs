@@ -426,3 +426,81 @@ impl From<u64> for Box<LoopError> {
     Box::new(LoopError::MsgidNotFound(i))
   }
 }
+
+#[derive(Debug)]
+pub enum HandshakeError {
+  /// Sending the request to neovim has failed.
+  ///
+  /// Fields:
+  ///
+  /// 0. The underlying error
+  SendError(EncodeError),
+  /// Sending the request to neovim has failed.
+  ///
+  /// Fields:
+  ///
+  /// 0. The underlying error
+  /// 1. The data read so far
+  RecvError(io::Error, String),
+  /// Unexpected response received
+  ///
+  /// Fields:
+  ///
+  /// 0. The data read so far
+  UnexpectedResponse(String),
+  /// The launch of Neovim failed
+  ///
+  /// Fields:
+  ///
+  /// 0. The underlying error
+  LaunchError(io::Error),
+}
+
+impl From<Box<EncodeError>> for Box<HandshakeError> {
+  fn from(v: Box<EncodeError>) -> Box<HandshakeError> {
+    Box::new(HandshakeError::SendError(*v))
+  }
+}
+
+impl From<(io::Error, String)> for Box<HandshakeError> {
+  fn from(v: (io::Error, String)) -> Box<HandshakeError> {
+    Box::new(HandshakeError::RecvError(v.0, v.1))
+  }
+}
+
+impl From<io::Error> for Box<HandshakeError> {
+  fn from(v: io::Error) -> Box<HandshakeError> {
+    Box::new(HandshakeError::LaunchError(v))
+  }
+}
+
+impl Error for HandshakeError {
+  fn source(&self) -> Option<&(dyn Error + 'static)> {
+    match *self {
+      Self::SendError(ref s) => Some(s),
+      Self::RecvError(ref s, _) => Some(s),
+      Self::LaunchError(ref s) => Some(s),
+      Self::UnexpectedResponse(_) => None,
+    }
+  }
+}
+
+impl Display for HandshakeError {
+  fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    match *self {
+      Self::SendError(ref s) => write!(fmt, "Error sending handshake '{s}'"),
+      Self::RecvError(ref s, ref output) => {
+        write!(
+          fmt,
+          "Error receiving handshake response '{s}'\n\
+             Unexpected output:\n{output}"
+        )
+      }
+      Self::LaunchError(ref s) => write!(fmt, "Error launching nvim '{s}'"),
+      Self::UnexpectedResponse(ref output) => write!(
+        fmt,
+        "Error receiving handshake response, unexpected output:\n{output}"
+      ),
+    }
+  }
+}
