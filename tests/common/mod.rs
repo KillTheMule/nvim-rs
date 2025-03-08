@@ -1,14 +1,7 @@
-use std::{
-  path::PathBuf,
-  env,
-};
+use std::{env, path::PathBuf};
 
 #[allow(dead_code)]
-pub const NVIM_BIN: &str = if cfg!(windows) {
-  "nvim.exe"
-} else {
-  "nvim"
-};
+pub const NVIM_BIN: &str = if cfg!(windows) { "nvim.exe" } else { "nvim" };
 const NVIM_PATH: &str = if cfg!(windows) {
   "neovim/build/bin/nvim.exe"
 } else {
@@ -24,7 +17,10 @@ pub fn nvim_path() -> PathBuf {
   let path = PathBuf::from(&path_str);
   if !path.exists() {
     if have_env {
-      panic!("nvim bin from $NVIMRS_TEST_BIN \"{}\" does not exist", path_str)
+      panic!(
+        "nvim bin from $NVIMRS_TEST_BIN \"{}\" does not exist",
+        path_str
+      )
     } else {
       panic!(
         "\"{}\" not found, maybe you need to build it or set \
