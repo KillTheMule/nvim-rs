@@ -2,12 +2,12 @@
 use std::{
   self,
   convert::TryInto,
-  io::{self, Cursor, ErrorKind, Read},
+  io::{self, Cursor, ErrorKind, Read, Write},
   sync::Arc,
 };
 
 use futures::{
-  io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt,},
+  io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
   lock::Mutex,
 };
 use rmpv::{decode::read_value, encode::write_value, Value};
@@ -162,13 +162,11 @@ fn decode_buffer<R: Read>(
   }
 }
 
-/// Encode the given message into the `BufWriter`. Flushes the writer when
-/// finished.
-pub async fn encode<W: AsyncWrite + Send + Unpin + 'static>(
-  writer: Arc<Mutex<W>>,
+/// Encode the given message into the `writer`.
+pub fn encode_sync<W: Write>(
+  writer: &mut W,
   msg: RpcMessage,
 ) -> std::result::Result<(), Box<EncodeError>> {
-  let mut v: Vec<u8> = vec![];
   match msg {
     RpcMessage::RpcRequest {
       msgid,
@@ -176,7 +174,7 @@ pub async fn encode<W: AsyncWrite + Send + Unpin + 'static>(
       params,
     } => {
       let val = rpc_args!(0, msgid, method, params);
-      write_value(&mut v, &val)?;
+      write_value(writer, &val)?;
     }
     RpcMessage::RpcResponse {
       msgid,
@@ -184,13 +182,25 @@ pub async fn encode<W: AsyncWrite + Send + Unpin + 'static>(
       result,
     } => {
       let val = rpc_args!(1, msgid, error, result);
-      write_value(&mut v, &val)?;
+      write_value(writer, &val)?;
     }
     RpcMessage::RpcNotification { method, params } => {
       let val = rpc_args!(2, method, params);
-      write_value(&mut v, &val)?;
+      write_value(writer, &val)?;
     }
   };
+
+  Ok(())
+}
+
+/// Encode the given message into the `BufWriter`. Flushes the writer when
+/// finished.
+pub async fn encode<W: AsyncWrite + Send + Unpin + 'static>(
+  writer: Arc<Mutex<W>>,
+  msg: RpcMessage,
+) -> std::result::Result<(), Box<EncodeError>> {
+  let mut v: Vec<u8> = vec![];
+  encode_sync(&mut v, msg)?;
 
   let mut writer = writer.lock().await;
   writer.write_all(&v).await?;
