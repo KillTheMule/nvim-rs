@@ -27,7 +27,7 @@ use tokio_util::compat::{
 
 use crate::{
   create::{unbuffered_stdout, Spawner},
-  error::LoopError,
+  error::{HandshakeError, LoopError},
   neovim::Neovim,
   Handler,
 };
@@ -212,4 +212,47 @@ where
   let io_handle = spawn(io);
 
   Ok((neovim, io_handle))
+}
+
+/// Connect to a neovim instance by spawning a new one and send a handshake
+/// message. Unlike `new_child_cmd`, this function is tolerant to extra
+/// data in the reader before the handshake response is received.
+///
+/// `message` should be a unique string that is normally not found in the
+/// stdout. Due to the way Neovim packs strings, the length has to be either
+/// less than 20 characters or more than 31 characters long.
+/// See https://github.com/neovim/neovim/issues/32784 for more information.
+pub async fn new_child_handshake_cmd<H>(
+  cmd: &mut Command,
+  handler: H,
+  message: &str,
+) -> Result<
+  (
+    Neovim<Compat<ChildStdin>>,
+    JoinHandle<Result<(), Box<LoopError>>>,
+    Child,
+  ),
+  Box<HandshakeError>,
+>
+where
+  H: Handler<Writer = Compat<ChildStdin>> + Send + 'static,
+{
+  let mut child = cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn()?;
+  let stdout = child
+    .stdout
+    .take()
+    .ok_or_else(|| Error::new(ErrorKind::Other, "Can't open stdout"))?
+    .compat();
+  let stdin = child
+    .stdin
+    .take()
+    .ok_or_else(|| Error::new(ErrorKind::Other, "Can't open stdin"))?
+    .compat_write();
+
+  let (neovim, io) =
+    Neovim::<Compat<ChildStdin>>::handshake(stdout, stdin, handler, message)
+      .await?;
+  let io_handle = spawn(io);
+
+  Ok((neovim, io_handle, child))
 }
