@@ -7,6 +7,15 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+## 0.9.1 2025-03-23
+- Add support to connect to a child nvim with a handshake message, ignoring
+  additional data in stdio (thanks @fredizzimo)
+
+## 0.9.0 20250-03-01
+- Mistakenly change the version to 0.9.0 instead of 0.8.0 (sorry)
+- Remove dependency on `parity-tokio-ipc` (thanks @sdroege)
+- Update the neovim API
+
 ## 0.7.0 2024-02-03
 - Create our own Stdout for connecting to a parent neovim to avoid line buffering
 - Updated API
