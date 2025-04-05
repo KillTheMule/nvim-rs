@@ -1,7 +1,5 @@
 use std::error::Error;
 
-use async_trait::async_trait;
-
 use rmpv::Value;
 
 use async_std::{self, fs::File as ASFile};
@@ -11,7 +9,6 @@ use nvim_rs::{create::async_std as create, Handler, Neovim};
 #[derive(Clone)]
 struct NeovimHandler {}
 
-#[async_trait]
 impl Handler for NeovimHandler {
   type Writer = ASFile;
 

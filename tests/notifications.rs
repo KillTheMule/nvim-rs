@@ -3,8 +3,6 @@ use std::{
   time::Duration,
 };
 
-use async_trait::async_trait;
-
 use tokio::{
   sync::{
     mpsc::{UnboundedSender, unbounded_channel},
@@ -44,7 +42,6 @@ struct Handler {
   notifiers: Arc<Vec<Notify>>,
 }
 
-#[async_trait]
 impl nvim_rs::Handler for Handler {
   type Writer = Compat<ChildStdin>;
 

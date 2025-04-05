@@ -5,8 +5,6 @@ use nvim_rs::{
   Handler,
 };
 
-use async_trait::async_trait;
-
 use rmpv::Value;
 
 use std::{
@@ -37,7 +35,6 @@ struct NeovimHandler {
   froodle: Arc<Mutex<String>>,
 }
 
-#[async_trait]
 impl Handler for NeovimHandler {
   type Writer = Compat<ChildStdin>;
 

@@ -1,7 +1,5 @@
 use std::error::Error;
 
-use async_trait::async_trait;
-
 use rmpv::Value;
 
 use tokio::fs::File as TokioFile;
@@ -13,7 +11,6 @@ use nvim_rs::{
 #[derive(Clone)]
 struct NeovimHandler {}
 
-#[async_trait]
 impl Handler for NeovimHandler {
   type Writer = Compat<TokioFile>;
 

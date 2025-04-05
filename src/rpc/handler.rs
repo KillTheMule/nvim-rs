@@ -2,9 +2,8 @@
 //!
 //! The core of a plugin is defining and implementing the
 //! [`handler`](crate::rpc::handler::Handler).
-use std::{marker::PhantomData, sync::Arc};
+use std::{future::Future, marker::PhantomData, sync::Arc};
 
-use async_trait::async_trait;
 use futures::io::AsyncWrite;
 use rmpv::Value;
 
@@ -13,7 +12,6 @@ use crate::Neovim;
 /// The central functionality of a plugin. The trait bounds asure that each
 /// asynchronous task can receive a copy of the handler, so some state can be
 /// shared.
-#[async_trait]
 pub trait Handler: Send + Sync + Clone + 'static {
   /// The type where we write our responses to requests. Handling of incoming
   /// requests/notifications is done on the io loop, which passes the parsed
@@ -22,24 +20,25 @@ pub trait Handler: Send + Sync + Clone + 'static {
 
   /// Handling an rpc request. The ID's of requests are handled by the
   /// [`neovim`](crate::neovim::Neovim) instance.
-  async fn handle_request(
+  fn handle_request(
     &self,
     _name: String,
     _args: Vec<Value>,
     _neovim: Neovim<Self::Writer>,
-  ) -> Result<Value, Value> {
-    Err(Value::from("Not implemented"))
+  ) -> impl Future<Output = Result<Value, Value>> + Send {
+    async { Err(Value::from("Not implemented")) }
   }
 
   /// Handling an rpc notification. Notifications are handled one at a time in
   /// the order in which they were received, and will block new requests from
   /// being received until handle_notify returns.
-  async fn handle_notify(
+  fn handle_notify(
     &self,
     _name: String,
     _args: Vec<Value>,
     _neovim: Neovim<<Self as Handler>::Writer>,
-  ) {
+  ) -> impl Future<Output = ()> + Send {
+    async {}
   }
 }
 

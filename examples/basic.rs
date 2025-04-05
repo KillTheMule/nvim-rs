@@ -2,7 +2,6 @@
 //! functionality.
 use std::{env, error::Error, fs};
 
-use async_trait::async_trait;
 
 use rmpv::Value;
 
@@ -15,7 +14,6 @@ use nvim_rs::{
 #[derive(Clone)]
 struct NeovimHandler {}
 
-#[async_trait]
 impl Handler for NeovimHandler {
   type Writer = Compat<TokioFile>;
 
