@@ -39,6 +39,11 @@ where
 }
 
 /// Connect to a neovim instance via tcp
+#[deprecated(
+  since = "0.9.2",
+  note = "async-std is deprecated, use `smol` \
+          instead"
+)]
 pub async fn new_tcp<A, H>(
   addr: A,
   handler: H,
@@ -62,6 +67,11 @@ where
 #[cfg(unix)]
 /// Connect to a neovim instance via unix socket by path. This is currently
 /// only available on Unix for async-std.
+#[deprecated(
+  since = "0.9.2",
+  note = "async-std is deprecated, use `smol` \
+          instead"
+)]
 pub async fn new_path<H, P: AsRef<Path> + Clone>(
   path: P,
   handler: H,
@@ -82,6 +92,11 @@ where
 }
 
 /// Connect to the neovim instance that spawned this process over stdin/stdout
+#[deprecated(
+  since = "0.9.2",
+  note = "async-std is deprecated, use `smol` \
+          instead"
+)]
 pub async fn new_parent<H>(
   handler: H,
 ) -> io::Result<(Neovim<ASFile>, JoinHandle<Result<(), Box<LoopError>>>)>
