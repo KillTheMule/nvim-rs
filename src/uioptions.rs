@@ -78,7 +78,7 @@ ui_opt_setters! (
   ExtCmdline as set_cmdline_external(bool);
   ExtHlstate as set_hlstate_external(bool);
   ExtLinegrid as set_linegrid_external(bool);
-  ExtMessages as set_messages_externa(bool);
+  ExtMessages as set_messages_external(bool);
   ExtMultigrid as set_multigrid_external(bool);
   ExtPopupmenu as set_popupmenu_external(bool);
   ExtTabline as set_tabline_external(bool);
