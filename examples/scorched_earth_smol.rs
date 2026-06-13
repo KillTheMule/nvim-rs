@@ -1,13 +1,18 @@
 //! Scorched earth. See src/examples/scorched_earth.rs for documentation
-use std::{error::Error, sync::Arc};
+use std::{error::Error, sync::Arc, fs::File};
 
 use rmpv::Value;
 
 use futures::lock::Mutex;
 
-use nvim_rs::{create::async_std as create, Handler, Neovim};
+use smol_macros::main;
 
-use async_std::{self, fs::File as ASFile};
+use smol::{
+  Unblock,
+};
+
+use nvim_rs::{create::smol as create, Handler, Neovim};
+
 
 struct Posis {
   cursor_start: Option<(u64, u64)>,
@@ -40,13 +45,13 @@ fn the_smaller(
 struct NeovimHandler(Arc<Mutex<Posis>>);
 
 impl Handler for NeovimHandler {
-  type Writer = ASFile;
+  type Writer = Unblock<File>;
 
   async fn handle_notify(
     &self,
     name: String,
     args: Vec<Value>,
-    neovim: Neovim<ASFile>,
+    neovim: Neovim<Unblock<File>>,
   ) {
     match name.as_ref() {
       "cursor-moved-i" => {
@@ -90,7 +95,7 @@ impl Handler for NeovimHandler {
   }
 }
 
-#[async_std::main]
+main! {
 async fn main() {
   let p = Posis {
     cursor_start: None,
@@ -134,4 +139,5 @@ async fn main() {
     }
     Ok(()) => {}
   }
+}
 }

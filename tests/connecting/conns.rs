@@ -3,13 +3,11 @@ use nvim_rs::rpc::handler::Dummy as DummyHandler;
 
 #[cfg(feature = "use_tokio")]
 use nvim_rs::create::tokio as create;
-#[cfg(feature = "use_tokio")]
-use tokio::test as atest;
 
-#[cfg(feature = "use_async-std")]
-use async_std::test as atest;
-#[cfg(feature = "use_async-std")]
-use nvim_rs::create::async_std as create;
+#[cfg(feature = "use_smol")]
+use nvim_rs::create::smol as create;
+
+use super::atest;
 
 use std::{
   path::Path,
@@ -28,7 +26,7 @@ use common::*;
 const HOST: &str = "127.0.0.1";
 const PORT: u16 = 6666;
 
-#[atest]
+atest!{
 async fn can_connect_via_tcp() {
   let listen = HOST.to_string() + ":" + &PORT.to_string();
 
@@ -62,6 +60,7 @@ async fn can_connect_via_tcp() {
 
   assert_eq!(&listen, servername.as_str().unwrap());
 }
+}
 
 #[cfg(unix)]
 fn get_socket_path() -> (std::path::PathBuf, TempDir) {
@@ -80,8 +79,8 @@ fn get_socket_path() -> (std::path::PathBuf, ()) {
   (name.into(), ())
 }
 
-#[cfg(not(all(feature = "use_async-std", windows)))]
-#[atest]
+#[cfg(not(all(feature = "use_smol", windows)))]
+atest!{
 async fn can_connect_via_path() {
   let (socket_path, _guard) = get_socket_path();
 
@@ -128,4 +127,5 @@ async fn can_connect_via_path() {
   child.kill().expect("Could not kill neovim");
 
   assert_eq!(socket_path, Path::new(&servername));
+}
 }

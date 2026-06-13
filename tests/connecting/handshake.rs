@@ -4,15 +4,13 @@ use nvim_rs::rpc::handler::Dummy as DummyHandler;
 use nvim_rs::create::tokio as create;
 #[cfg(feature = "use_tokio")]
 use tokio::process::Command;
-#[cfg(feature = "use_tokio")]
-use tokio::test as atest;
 
-#[cfg(feature = "use_async-std")]
-use async_std::test as atest;
-#[cfg(feature = "use_async-std")]
-use nvim_rs::create::async_std as create;
-#[cfg(feature = "use_async-std")]
+#[cfg(feature = "use_smol")]
+use nvim_rs::create::smol as create;
+#[cfg(feature = "use_smol")]
 use std::process::Command;
+
+use super::atest;
 
 #[path = "../common/mod.rs"]
 mod common;
@@ -20,7 +18,7 @@ use common::*;
 
 use nvim_rs::error::HandshakeError;
 
-#[atest]
+atest!{
 async fn successful_handshake() {
   let handler = DummyHandler::new();
 
@@ -32,9 +30,10 @@ async fn successful_handshake() {
   .await
   .expect("Should launch correctly");
 }
+}
 
 #[cfg(unix)]
-#[atest]
+atest!{
 async fn successful_handshake_with_extra_output() {
   let handler = DummyHandler::new();
   let nvim = nvim_path();
@@ -53,9 +52,10 @@ async fn successful_handshake_with_extra_output() {
   .await
   .expect("Should launch correctly");
 }
+}
 
 #[cfg(unix)]
-#[atest]
+atest!{
 async fn unsuccessful_handshake_with_wrong_output() {
   let handler = DummyHandler::new();
 
@@ -85,4 +85,5 @@ async fn unsuccessful_handshake_with_wrong_output() {
     },
     _ => panic!("No error returned"),
   }
+}
 }

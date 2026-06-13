@@ -13,8 +13,8 @@
 #[cfg(feature = "use_tokio")]
 pub mod tokio;
 
-#[cfg(feature = "use_async-std")]
-pub mod async_std;
+#[cfg(feature = "use_smol")]
+pub mod smol;
 
 use core::future::Future;
 use std::{fs::File, io};

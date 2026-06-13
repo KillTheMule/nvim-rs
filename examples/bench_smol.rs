@@ -1,22 +1,27 @@
 use std::error::Error;
+use std::fs::File;
 
 use rmpv::Value;
 
-use async_std::{self, fs::File as ASFile};
+use smol::{
+  Unblock,
+};
 
-use nvim_rs::{create::async_std as create, Handler, Neovim};
+use nvim_rs::{create::smol as create, Handler, Neovim};
+
+use smol_macros::main;
 
 #[derive(Clone)]
 struct NeovimHandler {}
 
 impl Handler for NeovimHandler {
-  type Writer = ASFile;
+  type Writer = Unblock<File>;
 
   async fn handle_request(
     &self,
     name: String,
     _args: Vec<Value>,
-    neovim: Neovim<ASFile>,
+    neovim: Neovim<Unblock<File>>,
   ) -> Result<Value, Value> {
     match name.as_ref() {
       "file" => {
@@ -43,7 +48,7 @@ impl Handler for NeovimHandler {
   }
 }
 
-#[async_std::main]
+main!{
 async fn main() {
   let handler: NeovimHandler = NeovimHandler {};
 
@@ -83,4 +88,5 @@ async fn main() {
     }
     Ok(()) => {}
   }
+}
 }

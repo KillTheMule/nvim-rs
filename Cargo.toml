@@ -21,7 +21,7 @@ edition = "2024"
 
 [features]
 use_tokio = ["tokio", "tokio-util"]
-use_async-std = ["async-std"]
+use_smol = ["smol", "smol-macros"]
 use_neovim_lib = ["neovim-lib"]
 
 [package.metadata.docs.rs]
@@ -38,7 +38,8 @@ log = "0.4.26"
 futures = "0.3.31"
 tokio = { version = "1.52.3", features = ["full", "net"] , optional = true}
 tokio-util = { version = "0.7.18", features = ["compat"], optional = true }
-async-std = { version = "1.13.0", features = ["attributes"], optional = true }
+smol = { version = "2.0.2", optional = true }
+smol-macros = { version = "0.1.1", optional = true }
 neovim-lib = { version = "0.6.1", optional = true }
 
 [dev-dependencies]
@@ -78,16 +79,16 @@ name = "bench_tokio"
 required-features = ["use_tokio"]
 
 [[example]]
-name = "bench_async-std"
-required-features = ["use_async-std"]
+name = "bench_smol"
+required-features = ["use_smol"]
 
 [[example]]
 name = "bench_sync"
 required-features = ["use_neovim_lib"]
 
 [[example]]
-name = "scorched_earth_as"
-required-features = ["use_async-std"]
+name = "scorched_earth_smol"
+required-features = ["use_smol"]
 
 [[example]]
 name = "nested_requests"
@@ -117,5 +118,5 @@ name = "linebuffercrash"
 required-features = ["use_tokio"]
 
 [[bin]]
-name = "linebuffercrash_as"
-required-features = ["use_async-std"]
+name = "linebuffercrash_smol"
+required-features = ["use_smol"]

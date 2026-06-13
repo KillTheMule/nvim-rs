@@ -1,12 +1,13 @@
 
 use nvim_rs::{
-  create::async_std as create, 
+  create::smol as create, 
   rpc::handler::Dummy as DummyHandler
 };
 
+use smol_macros::main;
 
-#[async_std::main]
-async fn main() {
+
+main! { async fn main() {
   let handler = DummyHandler::new();
   let (nvim, _io_handler) = create::new_parent(handler).await.unwrap();
   let curbuf = nvim.get_current_buf().await.unwrap();
@@ -21,4 +22,5 @@ async fn main() {
 
     let _ = nvim.command("quit!").await;
 
+  }
 }
