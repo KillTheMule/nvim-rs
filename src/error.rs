@@ -270,7 +270,7 @@ impl CallError {
         return true
       }
       CallError::DecodeError(ref err, _) => {
-        if let DecodeError::ReaderError(ref e) = err.as_ref() {
+        if let DecodeError::ReaderError(e) = err.as_ref() {
           if e.kind() == ErrorKind::UnexpectedEof {
             return true;
           }
@@ -365,7 +365,7 @@ impl LoopError {
   #[must_use]
   pub fn is_channel_closed(&self) -> bool {
     if let LoopError::DecodeError(ref err, _) = *self {
-      if let DecodeError::ReaderError(ref e) = err.as_ref() {
+      if let DecodeError::ReaderError(e) = err.as_ref() {
         if e.kind() == ErrorKind::UnexpectedEof {
           return true;
         }

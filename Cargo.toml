@@ -17,7 +17,7 @@ exclude = [
   ".gitmodules",
   "build.ps1"
 ]
-edition = "2021"
+edition = "2024"
 
 [features]
 use_tokio = ["tokio", "tokio-util"]

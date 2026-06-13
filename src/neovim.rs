@@ -37,8 +37,8 @@ use rmpv::Value;
 #[macro_export]
 macro_rules! call_args {
     () => (Vec::new());
-    ($($e:expr), +,) => (call_args![$($e),*]);
-    ($($e:expr), +) => {{
+    ($($e:expr_2021), +,) => (call_args![$($e),*]);
+    ($($e:expr_2021), +) => {{
         let vec = vec![
           $($e.into_val(),)*
         ];
@@ -132,7 +132,7 @@ where
   ) -> Result<
     (
       Neovim<<H as Handler>::Writer>,
-      impl Future<Output = Result<(), Box<LoopError>>>,
+      impl Future<Output = Result<(), Box<LoopError>>> + use<H, R, W>,
     ),
     Box<HandshakeError>,
   >
