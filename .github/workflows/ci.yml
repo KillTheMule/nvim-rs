@@ -30,14 +30,16 @@ jobs:
             rust: nightly
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v6
 
     - name: Install Rust ${{ matrix.rust }}
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: ${{ matrix.rust }}
-        profile: minimal
-        override: true
+      run: |
+        rustup set profile minimal
+        rustup toolchain install ${{ matrix.rust }}
+        rustup override set ${{ matrix.rust }}
+        rustc -V
+        cargo -V
+        rustup -V
 
     - uses: Swatinem/rust-cache@v2
 
