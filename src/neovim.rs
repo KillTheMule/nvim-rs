@@ -434,6 +434,56 @@ mod tests {
   use super::*;
 
   #[tokio::test]
+  async fn late_responses_after_timeout_preserve_connection() {
+    use std::time::Duration;
+
+    for error in [Value::Nil, Value::from("late error")] {
+      let nvim = Neovim {
+        writer: Arc::new(Mutex::new(futures::io::sink())),
+        queue: Arc::new(Mutex::new(Vec::new())),
+        msgid_counter: Arc::new(AtomicU64::new(0)),
+      };
+      // Time out only after the complete request has been written.
+      let cancelled = nvim.send_msg("slow", vec![]).await.unwrap();
+      assert!(tokio::time::timeout(Duration::from_millis(1), cancelled)
+        .await
+        .is_err());
+      let active = nvim.send_msg("next", vec![]).await.unwrap();
+      let mut wire = Vec::new();
+      for message in [
+        RpcMessage::RpcResponse {
+          msgid: 0,
+          error,
+          result: Value::Nil,
+        },
+        RpcMessage::RpcResponse {
+          msgid: 1,
+          error: Value::Nil,
+          result: Value::from(42),
+        },
+        RpcMessage::RpcNotification {
+          method: "redraw".into(),
+          params: vec![],
+        },
+      ] {
+        model::encode_sync(&mut wire, message).unwrap();
+      }
+      let (tx, mut rx) = unbounded();
+      // EOF ends this finite stream, but both replies and the notification
+      // must have been processed before the connection reports EOF.
+      let end = nvim
+        .clone()
+        .io_loop(futures::io::Cursor::new(wire), tx)
+        .await;
+      assert!(matches!(*end.unwrap_err(), LoopError::DecodeError(..)));
+      assert_eq!(active.await.unwrap().unwrap().unwrap(), Value::from(42));
+      assert!(matches!(rx.next().await,
+        Some(RpcMessage::RpcNotification { method, .. }) if method == "redraw"));
+      assert!(nvim.queue.lock().await.is_empty());
+    }
+  }
+
+  #[tokio::test]
   async fn test_find_sender() {
     let queue = Arc::new(Mutex::new(Vec::new()));
 
