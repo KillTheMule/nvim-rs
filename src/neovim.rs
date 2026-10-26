@@ -316,10 +316,8 @@ where
           let writer = self.writer.clone();
 
           handler.spawn(async move {
-            let response = match handler_c
-              .handle_request(method, params, neovim)
-              .await
-              {
+            let response =
+              match handler_c.handle_request(method, params, neovim).await {
                 Ok(result) => RpcMessage::RpcResponse {
                   msgid,
                   result,
@@ -332,17 +330,14 @@ where
                 },
               };
 
-            model::encode(writer, response)
-              .await
-              .unwrap_or_else(|e| {
-                error!("Error sending response to request {}: '{}'", msgid, e);
-              });
+            model::encode(writer, response).await.unwrap_or_else(|e| {
+              error!("Error sending response to request {}: '{}'", msgid, e);
+            });
           });
-        },
-        RpcMessage::RpcNotification {
-          method,
-          params
-        } => handler.handle_notify(method, params, self.clone()).await,
+        }
+        RpcMessage::RpcNotification { method, params } => {
+          handler.handle_notify(method, params, self.clone()).await
+        }
         RpcMessage::RpcResponse { .. } => unreachable!(),
       }
     }
@@ -368,7 +363,12 @@ where
       };
 
       debug!("Get message {:?}", msg);
-      if let RpcMessage::RpcResponse { msgid, result, error, } = msg {
+      if let RpcMessage::RpcResponse {
+        msgid,
+        result,
+        error,
+      } = msg
+      {
         let sender = find_sender(&self.queue, msgid).await?;
         let response = if error == Value::Nil {
           Ok(result)
