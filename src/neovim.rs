@@ -370,14 +370,15 @@ where
       debug!("Get message {:?}", msg);
       if let RpcMessage::RpcResponse { msgid, result, error, } = msg {
         let sender = find_sender(&self.queue, msgid).await?;
-        if error == Value::Nil {
-          sender
-            .send(Ok(Ok(result)))
-            .map_err(|r| (msgid, r.expect("This was an OK(_)")))?;
+        let response = if error == Value::Nil {
+          Ok(result)
         } else {
-          sender
-            .send(Ok(Err(error)))
-            .map_err(|r| (msgid, r.expect("This was an OK(_)")))?;
+          Err(error)
+        };
+        // A caller may have timed out after sending its request. Consume the
+        // late response without disconnecting other callers or notifications.
+        if sender.send(Ok(response)).is_err() {
+          debug!("Discarding response to cancelled request {}", msgid);
         }
       } else {
         // Send message to handler_loop()
