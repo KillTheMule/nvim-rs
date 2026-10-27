@@ -700,6 +700,90 @@ mod tests {
     }
   }
 
+  #[derive(Clone)]
+  struct RecordingHandler {
+    sender: tokio::sync::mpsc::UnboundedSender<(String, Vec<Value>)>,
+  }
+
+  impl Handler for RecordingHandler {
+    type Writer = futures::io::Sink;
+
+    async fn handle_notify(
+      &self,
+      method: String,
+      args: Vec<Value>,
+      _neovim: Neovim<Self::Writer>,
+    ) {
+      self.sender.send((method, args)).unwrap();
+    }
+  }
+
+  #[tokio::test]
+  async fn final_notification_is_handled_before_eof() {
+    let mut wire = Vec::new();
+    model::encode_sync(
+      &mut wire,
+      RpcMessage::RpcNotification {
+        method: "redraw".into(),
+        params: vec![],
+      },
+    )
+    .unwrap();
+
+    let (sender, mut notifications) = tokio::sync::mpsc::unbounded_channel();
+    let (_, session) = Neovim::new(
+      futures::io::Cursor::new(wire),
+      futures::io::sink(),
+      RecordingHandler { sender },
+    );
+
+    let error = session.await.unwrap_err();
+    assert!(matches!(*error, LoopError::DecodeError(..)));
+    assert_eq!(notifications.try_recv().unwrap(), ("redraw".into(), vec![]));
+  }
+
+  #[tokio::test]
+  async fn handshake_delivers_connect_before_eof() {
+    let handshake = "HandshakeMessage";
+    let connect = Value::Array(vec![
+      Value::from("connect"),
+      Value::Array(vec![Value::from("hey")]),
+    ]);
+    let redraw = vec![connect];
+    let mut wire = Vec::new();
+    model::encode_sync(
+      &mut wire,
+      RpcMessage::RpcResponse {
+        msgid: 0,
+        error: Value::Nil,
+        result: Value::String(handshake.into()),
+      },
+    )
+    .unwrap();
+    model::encode_sync(
+      &mut wire,
+      RpcMessage::RpcNotification {
+        method: "redraw".into(),
+        params: redraw.clone(),
+      },
+    )
+    .unwrap();
+
+    let (sender, mut notifications) = tokio::sync::mpsc::unbounded_channel();
+    let (_, session) = Neovim::handshake(
+      futures::io::Cursor::new(wire),
+      futures::io::sink(),
+      RecordingHandler { sender },
+      handshake,
+    )
+    .await
+    .unwrap();
+
+    let error = session.await.unwrap_err();
+    assert!(matches!(*error, LoopError::DecodeError(..)));
+    assert_eq!(notifications.try_recv().unwrap(), ("redraw".into(), redraw));
+  }
+
   #[tokio::test]
   async fn test_find_sender() {
     let queue = Arc::new(SyncMutex::new(Queue::default()));
