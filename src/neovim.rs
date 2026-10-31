@@ -434,6 +434,109 @@ async fn find_sender(
 mod tests {
   use super::*;
 
+  fn session<R: AsyncRead + Send + Unpin + 'static>(
+    reader: R,
+  ) -> (
+    Neovim<futures::io::Sink>,
+    impl Future<Output = Result<(), Box<LoopError>>>,
+  ) {
+    Neovim::new(
+      reader,
+      futures::io::sink(),
+      crate::rpc::handler::Dummy::<futures::io::Sink>::new(),
+    )
+  }
+
+  async fn assert_disconnected(
+    nvim: &Neovim<futures::io::Sink>,
+    pending: oneshot::Receiver<ResponseResult>,
+  ) {
+    let result =
+      tokio::time::timeout(std::time::Duration::from_secs(1), pending)
+        .await
+        .expect("pending call was not released")
+        .unwrap();
+    assert!(result.is_err());
+    assert!(nvim.queue.lock().await.is_empty());
+    let error = nvim.call("after_close", vec![]).await.unwrap_err();
+    assert!(matches!(error.as_ref(), CallError::SendError(..)));
+  }
+
+  #[tokio::test]
+  async fn dropping_unpolled_io_releases_callers() {
+    let (nvim, io) = session(futures::io::Cursor::new(Vec::<u8>::new()));
+    let pending = nvim.send_msg("pending", vec![]).await.unwrap();
+    drop(io);
+    assert_disconnected(&nvim, pending).await;
+  }
+
+  #[tokio::test]
+  async fn aborting_io_releases_callers() {
+    use tokio_util::compat::TokioAsyncReadCompatExt;
+    let (reader, _peer) = tokio::io::duplex(1024);
+    let (nvim, io) = session(reader.compat());
+    let task = tokio::spawn(io);
+    let pending = nvim.send_msg("pending", vec![]).await.unwrap();
+    tokio::task::yield_now().await;
+    task.abort();
+    assert!(task.await.unwrap_err().is_cancelled());
+    assert_disconnected(&nvim, pending).await;
+  }
+
+  #[tokio::test]
+  async fn eof_with_cancelled_call_preserves_original_error() {
+    let (nvim, io) = session(futures::io::Cursor::new(Vec::<u8>::new()));
+    drop(nvim.send_msg("cancelled", vec![]).await.unwrap());
+    let pending = nvim.send_msg("pending", vec![]).await.unwrap();
+    let error = io.await.unwrap_err();
+    assert!(matches!(*error, LoopError::DecodeError(_, None)));
+    assert!(error.is_channel_closed());
+    assert_disconnected(&nvim, pending).await;
+  }
+
+  #[tokio::test]
+  async fn unknown_response_releases_other_callers() {
+    let mut wire = Vec::new();
+    model::encode_sync(
+      &mut wire,
+      RpcMessage::RpcResponse {
+        msgid: 999,
+        error: Value::Nil,
+        result: Value::Nil,
+      },
+    )
+    .unwrap();
+    let (nvim, io) = session(futures::io::Cursor::new(wire));
+    let pending = nvim.send_msg("pending", vec![]).await.unwrap();
+    assert!(matches!(
+      *io.await.unwrap_err(),
+      LoopError::MsgidNotFound(999)
+    ));
+    assert_disconnected(&nvim, pending).await;
+  }
+
+  #[tokio::test]
+  async fn write_failure_closes_pending_requests() {
+    // Opening a file read-only gives a deterministic failing writer.
+    let file = tempfile::NamedTempFile::new().unwrap();
+    let writer =
+      futures::io::AllowStdIo::new(std::fs::File::open(file.path()).unwrap());
+    let (nvim, io) = Neovim::new(
+      futures::io::Cursor::new(Vec::<u8>::new()),
+      writer,
+      crate::rpc::handler::Dummy::<futures::io::AllowStdIo<std::fs::File>>::new(
+      ),
+    );
+    let (tx, rx) = oneshot::channel();
+    nvim.queue.lock().await.push((999, tx));
+    assert!(nvim.call("write", vec![]).await.is_err());
+    assert!(tokio::time::timeout(std::time::Duration::from_secs(1), rx)
+      .await.expect("pending call was not released").unwrap().is_err());
+    assert!(nvim.queue.lock().await.is_empty());
+    assert!(matches!(nvim.call("after_close", vec![]).await.unwrap_err().as_ref(), CallError::SendError(..)));
+    drop(io);
+  }
+
   #[tokio::test]
   async fn late_responses_after_timeout_preserve_connection() {
     use std::time::Duration;
