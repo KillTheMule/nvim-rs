@@ -3,7 +3,7 @@ use std::{
   future::Future,
   sync::{
     atomic::{AtomicU64, Ordering},
-    Arc,
+    Arc, Mutex as SyncMutex,
   },
 };
 
@@ -48,7 +48,40 @@ macro_rules! call_args {
 
 type ResponseResult = Result<Result<Value, Value>, Arc<DecodeError>>;
 
-type Queue = Arc<Mutex<Vec<(u64, oneshot::Sender<ResponseResult>)>>>;
+#[derive(Default)]
+struct PendingRequests {
+  requests: Vec<(u64, oneshot::Sender<ResponseResult>)>,
+  closed: bool,
+}
+
+type Queue = Arc<SyncMutex<PendingRequests>>;
+
+// Never hold this synchronous lock across IO or an await point.
+fn close_queue(queue: &Queue, error: Arc<DecodeError>) {
+  let requests = {
+    let mut pending = queue.lock().unwrap();
+    pending.closed = true;
+    std::mem::take(&mut pending.requests)
+  };
+  for (_, sender) in requests {
+    // Cancellation of an individual caller must not hide the connection error.
+    let _ = sender.send(Err(error.clone()));
+  }
+}
+
+struct ConnectionGuard(Queue);
+
+impl Drop for ConnectionGuard {
+  fn drop(&mut self) {
+    close_queue(
+      &self.0,
+      Arc::new(DecodeError::ReaderError(std::io::Error::new(
+        std::io::ErrorKind::BrokenPipe,
+        "RPC IO loop stopped",
+      ))),
+    );
+  }
+}
 
 /// An active Neovim session.
 pub struct Neovim<W>
@@ -56,7 +89,7 @@ where
   W: AsyncWrite + Send + Unpin + 'static,
 {
   pub(crate) writer: Arc<Mutex<W>>,
-  pub(crate) queue: Queue,
+  queue: Queue,
   pub(crate) msgid_counter: Arc<AtomicU64>,
 }
 
@@ -103,7 +136,7 @@ where
     let req = Neovim {
       writer: Arc::new(Mutex::new(writer)),
       msgid_counter: Arc::new(AtomicU64::new(0)),
-      queue: Arc::new(Mutex::new(Vec::new())),
+      queue: Arc::new(SyncMutex::new(PendingRequests::default())),
     };
 
     let (sender, receiver) = unbounded();
@@ -143,7 +176,7 @@ where
     let instance = Neovim {
       writer: Arc::new(Mutex::new(writer)),
       msgid_counter: Arc::new(AtomicU64::new(0)),
-      queue: Arc::new(Mutex::new(Vec::new())),
+      queue: Arc::new(SyncMutex::new(PendingRequests::default())),
     };
 
     let msgid = instance.msgid_counter.fetch_add(1, Ordering::SeqCst);
@@ -228,10 +261,33 @@ where
 
     let (sender, receiver) = oneshot::channel();
 
-    self.queue.lock().await.push((msgid, sender));
+    {
+      let mut pending = self.queue.lock().unwrap();
+      if pending.closed {
+        return Err(
+          std::io::Error::new(
+            std::io::ErrorKind::BrokenPipe,
+            "RPC connection is closed",
+          )
+          .into(),
+        );
+      }
+      pending.requests.push((msgid, sender));
+    }
 
     let writer = self.writer.clone();
-    model::encode(writer, req).await?;
+    if let Err(error) = model::encode(writer, req).await {
+      // A failed write may have left a partial frame on the stream. Do not
+      // allow later calls to reuse it, and release all pending callers.
+      close_queue(
+        &self.queue,
+        Arc::new(DecodeError::ReaderError(std::io::Error::new(
+          std::io::ErrorKind::BrokenPipe,
+          "RPC write failed",
+        ))),
+      );
+      return Err(error);
+    }
 
     Ok(receiver)
   }
@@ -260,30 +316,6 @@ where
           method.to_string(),
         )))
       }
-    }
-  }
-
-  async fn send_error_to_callers(
-    &self,
-    queue: &Queue,
-    err: DecodeError,
-  ) -> Result<Arc<DecodeError>, Box<LoopError>> {
-    let err = Arc::new(err);
-    let mut v: Vec<u64> = vec![];
-
-    let mut queue = queue.lock().await;
-    queue.drain(0..).for_each(|sender| {
-      let msgid = sender.0;
-      sender
-        .1
-        .send(Err(err.clone()))
-        .unwrap_or_else(|_| v.push(msgid));
-    });
-
-    if v.is_empty() {
-      Ok(err)
-    } else {
-      Err((err, v).into())
     }
   }
 
@@ -343,46 +375,53 @@ where
     }
   }
 
-  async fn io_loop<R>(
+  fn io_loop<R>(
     self,
     mut reader: R,
     mut sender: UnboundedSender<RpcMessage>,
-  ) -> Result<(), Box<LoopError>>
+  ) -> impl Future<Output = Result<(), Box<LoopError>>>
   where
     R: AsyncRead + Send + Unpin + 'static,
   {
-    let mut rest: Vec<u8> = vec![];
+    // Construct the guard before polling so dropping an unpolled IO future
+    // also closes the session and wakes pending calls.
+    let guard = ConnectionGuard(self.queue.clone());
+    async move {
+      let _guard = guard;
+      let mut rest: Vec<u8> = vec![];
 
-    loop {
-      let msg = match model::decode(&mut reader, &mut rest).await {
-        Ok(msg) => msg,
-        Err(err) => {
-          let e = self.send_error_to_callers(&self.queue, *err).await?;
-          return Err(Box::new(LoopError::DecodeError(e, None)));
-        }
-      };
-
-      debug!("Get message {:?}", msg);
-      if let RpcMessage::RpcResponse {
-        msgid,
-        result,
-        error,
-      } = msg
-      {
-        let sender = find_sender(&self.queue, msgid).await?;
-        let response = if error == Value::Nil {
-          Ok(result)
-        } else {
-          Err(error)
+      loop {
+        let msg = match model::decode(&mut reader, &mut rest).await {
+          Ok(msg) => msg,
+          Err(err) => {
+            let e = Arc::new(*err);
+            close_queue(&self.queue, e.clone());
+            return Err(Box::new(LoopError::DecodeError(e, None)));
+          }
         };
-        // A caller may have timed out after sending its request. Consume the
-        // late response without disconnecting other callers or notifications.
-        if sender.send(Ok(response)).is_err() {
-          debug!("Discarding response to cancelled request {}", msgid);
+
+        debug!("Get message {:?}", msg);
+        if let RpcMessage::RpcResponse {
+          msgid,
+          result,
+          error,
+        } = msg
+        {
+          let sender = find_sender(&self.queue, msgid)?;
+          let response = if error == Value::Nil {
+            Ok(result)
+          } else {
+            Err(error)
+          };
+          // A caller may have timed out after sending its request. Consume the
+          // late response without disconnecting other callers or notifications.
+          if sender.send(Ok(response)).is_err() {
+            debug!("Discarding response to cancelled request {}", msgid);
+          }
+        } else {
+          // Send message to handler_loop()
+          sender.send(msg).await.unwrap();
         }
-      } else {
-        // Send message to handler_loop()
-        sender.send(msg).await.unwrap();
       }
     }
   }
@@ -417,11 +456,12 @@ where
  * is that Vec is faster on small queue sizes
  * in most cases Vec.len = 1 so we just take first item in iteration.
  */
-async fn find_sender(
+fn find_sender(
   queue: &Queue,
   msgid: u64,
 ) -> Result<oneshot::Sender<ResponseResult>, Box<LoopError>> {
-  let mut queue = queue.lock().await;
+  let mut pending = queue.lock().unwrap();
+  let queue = &mut pending.requests;
 
   let pos = match queue.iter().position(|req| req.0 == msgid) {
     Some(p) => p,
@@ -457,7 +497,7 @@ mod tests {
         .expect("pending call was not released")
         .unwrap();
     assert!(result.is_err());
-    assert!(nvim.queue.lock().await.is_empty());
+    assert!(nvim.queue.lock().unwrap().requests.is_empty());
     let error = nvim.call("after_close", vec![]).await.unwrap_err();
     assert!(matches!(error.as_ref(), CallError::SendError(..)));
   }
@@ -528,11 +568,10 @@ mod tests {
       ),
     );
     let (tx, rx) = oneshot::channel();
-    nvim.queue.lock().await.push((999, tx));
+    nvim.queue.lock().unwrap().requests.push((999, tx));
     assert!(nvim.call("write", vec![]).await.is_err());
-    assert!(tokio::time::timeout(std::time::Duration::from_secs(1), rx)
-      .await.expect("pending call was not released").unwrap().is_err());
-    assert!(nvim.queue.lock().await.is_empty());
+    assert!(rx.await.unwrap().is_err());
+    assert!(nvim.queue.lock().unwrap().requests.is_empty());
     assert!(matches!(nvim.call("after_close", vec![]).await.unwrap_err().as_ref(), CallError::SendError(..)));
     drop(io);
   }
@@ -544,7 +583,7 @@ mod tests {
     for error in [Value::Nil, Value::from("late error")] {
       let nvim = Neovim {
         writer: Arc::new(Mutex::new(futures::io::sink())),
-        queue: Arc::new(Mutex::new(Vec::new())),
+        queue: Arc::new(SyncMutex::new(PendingRequests::default())),
         msgid_counter: Arc::new(AtomicU64::new(0)),
       };
       // Time out only after the complete request has been written.
@@ -583,36 +622,35 @@ mod tests {
       assert_eq!(active.await.unwrap().unwrap().unwrap(), Value::from(42));
       assert!(matches!(rx.next().await,
         Some(RpcMessage::RpcNotification { method, .. }) if method == "redraw"));
-      assert!(nvim.queue.lock().await.is_empty());
+      assert!(nvim.queue.lock().unwrap().requests.is_empty());
     }
   }
 
   #[tokio::test]
   async fn test_find_sender() {
-    let queue = Arc::new(Mutex::new(Vec::new()));
+    let queue = Arc::new(SyncMutex::new(PendingRequests::default()));
 
     {
       let (sender, _receiver) = oneshot::channel();
-      queue.lock().await.push((1, sender));
+      queue.lock().unwrap().requests.push((1, sender));
     }
     {
       let (sender, _receiver) = oneshot::channel();
-      queue.lock().await.push((2, sender));
+      queue.lock().unwrap().requests.push((2, sender));
     }
     {
       let (sender, _receiver) = oneshot::channel();
-      queue.lock().await.push((3, sender));
+      queue.lock().unwrap().requests.push((3, sender));
     }
 
-    find_sender(&queue, 1).await.unwrap();
-    assert_eq!(2, queue.lock().await.len());
-    find_sender(&queue, 2).await.unwrap();
-    assert_eq!(1, queue.lock().await.len());
-    find_sender(&queue, 3).await.unwrap();
-    assert!(queue.lock().await.is_empty());
+    find_sender(&queue, 1).unwrap();
+    assert_eq!(2, queue.lock().unwrap().requests.len());
+    find_sender(&queue, 2).unwrap();
+    assert_eq!(1, queue.lock().unwrap().requests.len());
+    find_sender(&queue, 3).unwrap();
+    assert!(queue.lock().unwrap().requests.is_empty());
 
-    if let LoopError::MsgidNotFound(17) =
-      *find_sender(&queue, 17).await.unwrap_err()
+    if let LoopError::MsgidNotFound(17) = *find_sender(&queue, 17).unwrap_err()
     {
     } else {
       panic!()
