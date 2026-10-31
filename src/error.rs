@@ -45,6 +45,18 @@ use rmpv::{
   decode::Error as RmpvDecodeError, encode::Error as RmpvEncodeError, Value,
 };
 
+// Transport shutdown is reported differently by pipes and sockets.
+fn is_closed_io_error(kind: ErrorKind) -> bool {
+  matches!(
+    kind,
+    ErrorKind::UnexpectedEof
+      | ErrorKind::BrokenPipe
+      | ErrorKind::ConnectionReset
+      | ErrorKind::ConnectionAborted
+      | ErrorKind::NotConnected
+  )
+}
+
 /// A message from neovim had an invalid format
 ///
 /// This should be very basically non-existent, since it would indicate a bug in
@@ -265,13 +277,13 @@ impl CallError {
   pub fn is_channel_closed(&self) -> bool {
     match *self {
       CallError::SendError(EncodeError::WriterError(ref e), _)
-        if e.kind() == ErrorKind::UnexpectedEof =>
+        if is_closed_io_error(e.kind()) =>
       {
         return true
       }
       CallError::DecodeError(ref err, _) => {
         if let DecodeError::ReaderError(e) = err.as_ref() {
-          if e.kind() == ErrorKind::UnexpectedEof {
+          if is_closed_io_error(e.kind()) {
             return true;
           }
         }
@@ -366,7 +378,7 @@ impl LoopError {
   pub fn is_channel_closed(&self) -> bool {
     if let LoopError::DecodeError(ref err, _) = *self {
       if let DecodeError::ReaderError(e) = err.as_ref() {
-        if e.kind() == ErrorKind::UnexpectedEof {
+        if is_closed_io_error(e.kind()) {
           return true;
         }
       }
@@ -501,6 +513,36 @@ impl Display for HandshakeError {
         fmt,
         "Error receiving handshake response, unexpected output:\n{output}"
       ),
+    }
+  }
+}
+
+#[cfg(test)]
+mod shutdown_tests {
+  use super::*;
+
+  #[test]
+  fn classify_transport_shutdown_without_hiding_other_errors() {
+    for (kind, closed) in [
+      (ErrorKind::UnexpectedEof, true),
+      (ErrorKind::BrokenPipe, true),
+      (ErrorKind::ConnectionReset, true),
+      (ErrorKind::ConnectionAborted, true),
+      (ErrorKind::NotConnected, true),
+      (ErrorKind::TimedOut, false),
+      (ErrorKind::PermissionDenied, false),
+      (ErrorKind::InvalidData, false),
+    ] {
+      let send = CallError::SendError(
+        EncodeError::WriterError(io::Error::from(kind)),
+        "test".into(),
+      );
+      let decode = Arc::new(DecodeError::ReaderError(io::Error::from(kind)));
+      let call = CallError::DecodeError(decode.clone(), "test".into());
+      let receive = LoopError::DecodeError(decode, None);
+      assert_eq!(send.is_channel_closed(), closed, "{kind:?}");
+      assert_eq!(call.is_channel_closed(), closed, "{kind:?}");
+      assert_eq!(receive.is_channel_closed(), closed, "{kind:?}");
     }
   }
 }
