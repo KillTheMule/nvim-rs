@@ -499,7 +499,7 @@ mod tests {
     assert!(result.is_err());
     assert!(nvim.queue.lock().unwrap().requests.is_empty());
     let error = nvim.call("after_close", vec![]).await.unwrap_err();
-    assert!(matches!(error.as_ref(), CallError::SendError(..)));
+    assert!(error.is_channel_closed());
   }
 
   #[tokio::test]
@@ -572,7 +572,11 @@ mod tests {
     assert!(nvim.call("write", vec![]).await.is_err());
     assert!(rx.await.unwrap().is_err());
     assert!(nvim.queue.lock().unwrap().requests.is_empty());
-    assert!(matches!(nvim.call("after_close", vec![]).await.unwrap_err().as_ref(), CallError::SendError(..)));
+    assert!(nvim
+      .call("after_close", vec![])
+      .await
+      .unwrap_err()
+      .is_channel_closed());
     drop(io);
   }
 
