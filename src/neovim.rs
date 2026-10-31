@@ -49,17 +49,34 @@ macro_rules! call_args {
 type ResponseResult = Result<Result<Value, Value>, Arc<DecodeError>>;
 
 #[derive(Default)]
-struct PendingRequests {
+struct Queue {
   requests: Vec<(u64, oneshot::Sender<ResponseResult>)>,
   closed: bool,
 }
 
-type Queue = Arc<SyncMutex<PendingRequests>>;
+impl Queue {
+  fn try_push(
+    &mut self,
+    request: (u64, oneshot::Sender<ResponseResult>),
+  ) -> Result<(), std::io::Error> {
+    if self.closed {
+      return Err(std::io::Error::new(
+        std::io::ErrorKind::BrokenPipe,
+        "RPC connection is closed",
+      ));
+    }
+    self.requests.push(request);
+    Ok(())
+  }
+}
+
+// Locked sections only access queue state; they never run user code or await.
+type SharedQueue = Arc<SyncMutex<Queue>>;
 
 // Never hold this synchronous lock across IO or an await point.
-fn close_queue(queue: &Queue, error: Arc<DecodeError>) {
+fn close_queue(queue: &SharedQueue, error: Arc<DecodeError>) {
   let requests = {
-    let mut pending = queue.lock().unwrap();
+    let mut pending = queue.lock().expect("Queue lock must not be poisoned");
     pending.closed = true;
     std::mem::take(&mut pending.requests)
   };
@@ -69,10 +86,14 @@ fn close_queue(queue: &Queue, error: Arc<DecodeError>) {
   }
 }
 
-struct ConnectionGuard(Queue);
+struct ConnectionGuard(SharedQueue);
 
 impl Drop for ConnectionGuard {
   fn drop(&mut self) {
+    // This is a synthetic shutdown error: the RPC response producer is gone,
+    // even if the transport itself is still open. BrokenPipe denotes that
+    // unusable channel; it does not claim that a peer sent EOF.
+    // Decode failures already release callers with their original error.
     close_queue(
       &self.0,
       Arc::new(DecodeError::ReaderError(std::io::Error::new(
@@ -89,7 +110,7 @@ where
   W: AsyncWrite + Send + Unpin + 'static,
 {
   pub(crate) writer: Arc<Mutex<W>>,
-  queue: Queue,
+  queue: SharedQueue,
   pub(crate) msgid_counter: Arc<AtomicU64>,
 }
 
@@ -136,7 +157,7 @@ where
     let req = Neovim {
       writer: Arc::new(Mutex::new(writer)),
       msgid_counter: Arc::new(AtomicU64::new(0)),
-      queue: Arc::new(SyncMutex::new(PendingRequests::default())),
+      queue: Arc::new(SyncMutex::new(Queue::default())),
     };
 
     let (sender, receiver) = unbounded();
@@ -176,7 +197,7 @@ where
     let instance = Neovim {
       writer: Arc::new(Mutex::new(writer)),
       msgid_counter: Arc::new(AtomicU64::new(0)),
-      queue: Arc::new(SyncMutex::new(PendingRequests::default())),
+      queue: Arc::new(SyncMutex::new(Queue::default())),
     };
 
     let msgid = instance.msgid_counter.fetch_add(1, Ordering::SeqCst);
@@ -262,17 +283,9 @@ where
     let (sender, receiver) = oneshot::channel();
 
     {
-      let mut pending = self.queue.lock().unwrap();
-      if pending.closed {
-        return Err(
-          std::io::Error::new(
-            std::io::ErrorKind::BrokenPipe,
-            "RPC connection is closed",
-          )
-          .into(),
-        );
-      }
-      pending.requests.push((msgid, sender));
+      let mut pending =
+        self.queue.lock().expect("Queue lock must not be poisoned");
+      pending.try_push((msgid, sender))?;
     }
 
     let writer = self.writer.clone();
@@ -383,6 +396,7 @@ where
   where
     R: AsyncRead + Send + Unpin + 'static,
   {
+    // An async fn would construct the guard only on its first poll.
     // Construct the guard before polling so dropping an unpolled IO future
     // also closes the session and wakes pending calls.
     let guard = ConnectionGuard(self.queue.clone());
@@ -457,10 +471,10 @@ where
  * in most cases Vec.len = 1 so we just take first item in iteration.
  */
 fn find_sender(
-  queue: &Queue,
+  queue: &SharedQueue,
   msgid: u64,
 ) -> Result<oneshot::Sender<ResponseResult>, Box<LoopError>> {
-  let mut pending = queue.lock().unwrap();
+  let mut pending = queue.lock().expect("Queue lock must not be poisoned");
   let queue = &mut pending.requests;
 
   let pos = match queue.iter().position(|req| req.0 == msgid) {
@@ -495,17 +509,28 @@ mod tests {
       tokio::time::timeout(std::time::Duration::from_secs(1), pending)
         .await
         .expect("pending call was not released")
-        .unwrap();
+        .expect("Shutdown must send an error before dropping the sender");
     assert!(result.is_err());
-    assert!(nvim.queue.lock().unwrap().requests.is_empty());
-    let error = nvim.call("after_close", vec![]).await.unwrap_err();
+    assert!(nvim
+      .queue
+      .lock()
+      .expect("Queue lock must not be poisoned")
+      .requests
+      .is_empty());
+    let error = nvim
+      .call("after_close", vec![])
+      .await
+      .expect_err("RPC shutdown must return an error");
     assert!(error.is_channel_closed());
   }
 
   #[tokio::test]
   async fn dropping_unpolled_io_releases_callers() {
     let (nvim, io) = session(futures::io::Cursor::new(Vec::<u8>::new()));
-    let pending = nvim.send_msg("pending", vec![]).await.unwrap();
+    let pending = nvim
+      .send_msg("pending", vec![])
+      .await
+      .expect("Test request must be written to the sink");
     drop(io);
     assert_disconnected(&nvim, pending).await;
   }
@@ -516,19 +541,33 @@ mod tests {
     let (reader, _peer) = tokio::io::duplex(1024);
     let (nvim, io) = session(reader.compat());
     let task = tokio::spawn(io);
-    let pending = nvim.send_msg("pending", vec![]).await.unwrap();
+    let pending = nvim
+      .send_msg("pending", vec![])
+      .await
+      .expect("Test request must be written to the sink");
     tokio::task::yield_now().await;
     task.abort();
-    assert!(task.await.unwrap_err().is_cancelled());
+    assert!(task
+      .await
+      .expect_err("Aborted task must report cancellation")
+      .is_cancelled());
     assert_disconnected(&nvim, pending).await;
   }
 
   #[tokio::test]
   async fn eof_with_cancelled_call_preserves_original_error() {
     let (nvim, io) = session(futures::io::Cursor::new(Vec::<u8>::new()));
-    drop(nvim.send_msg("cancelled", vec![]).await.unwrap());
-    let pending = nvim.send_msg("pending", vec![]).await.unwrap();
-    let error = io.await.unwrap_err();
+    drop(
+      nvim
+        .send_msg("cancelled", vec![])
+        .await
+        .expect("Test request must be written to the sink"),
+    );
+    let pending = nvim
+      .send_msg("pending", vec![])
+      .await
+      .expect("Test request must be written to the sink");
+    let error = io.await.expect_err("RPC shutdown must return an error");
     assert!(matches!(*error, LoopError::DecodeError(_, None)));
     assert!(error.is_channel_closed());
     assert_disconnected(&nvim, pending).await;
@@ -545,11 +584,14 @@ mod tests {
         result: Value::Nil,
       },
     )
-    .unwrap();
+    .expect("Test response must encode into memory");
     let (nvim, io) = session(futures::io::Cursor::new(wire));
-    let pending = nvim.send_msg("pending", vec![]).await.unwrap();
+    let pending = nvim
+      .send_msg("pending", vec![])
+      .await
+      .expect("Test request must be written to the sink");
     assert!(matches!(
-      *io.await.unwrap_err(),
+      *io.await.expect_err("RPC shutdown must return an error"),
       LoopError::MsgidNotFound(999)
     ));
     assert_disconnected(&nvim, pending).await;
@@ -558,9 +600,12 @@ mod tests {
   #[tokio::test]
   async fn write_failure_closes_pending_requests() {
     // Opening a file read-only gives a deterministic failing writer.
-    let file = tempfile::NamedTempFile::new().unwrap();
-    let writer =
-      futures::io::AllowStdIo::new(std::fs::File::open(file.path()).unwrap());
+    let file = tempfile::NamedTempFile::new()
+      .expect("Temporary test file must be created");
+    let writer = futures::io::AllowStdIo::new(
+      std::fs::File::open(file.path())
+        .expect("Existing test file must open read-only"),
+    );
     let (nvim, io) = Neovim::new(
       futures::io::Cursor::new(Vec::<u8>::new()),
       writer,
@@ -568,14 +613,27 @@ mod tests {
       ),
     );
     let (tx, rx) = oneshot::channel();
-    nvim.queue.lock().unwrap().requests.push((999, tx));
+    nvim
+      .queue
+      .lock()
+      .expect("Queue lock must not be poisoned")
+      .requests
+      .push((999, tx));
     assert!(nvim.call("write", vec![]).await.is_err());
-    assert!(rx.await.unwrap().is_err());
-    assert!(nvim.queue.lock().unwrap().requests.is_empty());
+    assert!(rx
+      .await
+      .expect("Write failure must notify pending callers")
+      .is_err());
+    assert!(nvim
+      .queue
+      .lock()
+      .expect("Queue lock must not be poisoned")
+      .requests
+      .is_empty());
     assert!(nvim
       .call("after_close", vec![])
       .await
-      .unwrap_err()
+      .expect_err("RPC shutdown must return an error")
       .is_channel_closed());
     drop(io);
   }
@@ -587,7 +645,7 @@ mod tests {
     for error in [Value::Nil, Value::from("late error")] {
       let nvim = Neovim {
         writer: Arc::new(Mutex::new(futures::io::sink())),
-        queue: Arc::new(SyncMutex::new(PendingRequests::default())),
+        queue: Arc::new(SyncMutex::new(Queue::default())),
         msgid_counter: Arc::new(AtomicU64::new(0)),
       };
       // Time out only after the complete request has been written.
@@ -626,33 +684,68 @@ mod tests {
       assert_eq!(active.await.unwrap().unwrap().unwrap(), Value::from(42));
       assert!(matches!(rx.next().await,
         Some(RpcMessage::RpcNotification { method, .. }) if method == "redraw"));
-      assert!(nvim.queue.lock().unwrap().requests.is_empty());
+      assert!(nvim
+        .queue
+        .lock()
+        .expect("Queue lock must not be poisoned")
+        .requests
+        .is_empty());
     }
   }
 
   #[tokio::test]
   async fn test_find_sender() {
-    let queue = Arc::new(SyncMutex::new(PendingRequests::default()));
+    let queue = Arc::new(SyncMutex::new(Queue::default()));
 
     {
       let (sender, _receiver) = oneshot::channel();
-      queue.lock().unwrap().requests.push((1, sender));
+      queue
+        .lock()
+        .expect("Queue lock must not be poisoned")
+        .requests
+        .push((1, sender));
     }
     {
       let (sender, _receiver) = oneshot::channel();
-      queue.lock().unwrap().requests.push((2, sender));
+      queue
+        .lock()
+        .expect("Queue lock must not be poisoned")
+        .requests
+        .push((2, sender));
     }
     {
       let (sender, _receiver) = oneshot::channel();
-      queue.lock().unwrap().requests.push((3, sender));
+      queue
+        .lock()
+        .expect("Queue lock must not be poisoned")
+        .requests
+        .push((3, sender));
     }
 
     find_sender(&queue, 1).unwrap();
-    assert_eq!(2, queue.lock().unwrap().requests.len());
+    assert_eq!(
+      2,
+      queue
+        .lock()
+        .expect("Queue lock must not be poisoned")
+        .requests
+        .len()
+    );
     find_sender(&queue, 2).unwrap();
-    assert_eq!(1, queue.lock().unwrap().requests.len());
+    assert_eq!(
+      1,
+      queue
+        .lock()
+        .expect("Queue lock must not be poisoned")
+        .requests
+        .len()
+    );
     find_sender(&queue, 3).unwrap();
-    assert!(queue.lock().unwrap().requests.is_empty());
+    assert!(queue
+      .lock()
+      .expect("Queue lock must not be poisoned")
+      .requests
+      .is_empty());
 
     if let LoopError::MsgidNotFound(17) = *find_sender(&queue, 17).unwrap_err()
     {
