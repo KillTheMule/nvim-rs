@@ -62,7 +62,7 @@ impl Queue {
     if self.closed {
       return Err(std::io::Error::new(
         std::io::ErrorKind::BrokenPipe,
-        "RPC connection is closed",
+        "RPC connection queue is closed",
       ));
     }
     self.requests.push(request);
@@ -83,24 +83,6 @@ fn close_queue(queue: &SharedQueue, error: Arc<DecodeError>) {
   for (_, sender) in requests {
     // Cancellation of an individual caller must not hide the connection error.
     let _ = sender.send(Err(error.clone()));
-  }
-}
-
-struct ConnectionGuard(SharedQueue);
-
-impl Drop for ConnectionGuard {
-  fn drop(&mut self) {
-    // This is a synthetic shutdown error: the RPC response producer is gone,
-    // even if the transport itself is still open. BrokenPipe denotes that
-    // unusable channel; it does not claim that a peer sent EOF.
-    // Decode failures already release callers with their original error.
-    close_queue(
-      &self.0,
-      Arc::new(DecodeError::ReaderError(std::io::Error::new(
-        std::io::ErrorKind::BrokenPipe,
-        "RPC IO loop stopped",
-      ))),
-    );
   }
 }
 
@@ -396,6 +378,24 @@ where
   where
     R: AsyncRead + Send + Unpin + 'static,
   {
+    struct ConnectionGuard(SharedQueue);
+
+    impl Drop for ConnectionGuard {
+      fn drop(&mut self) {
+        // This is a synthetic shutdown error: the RPC response producer is gone,
+        // even if the transport itself is still open. BrokenPipe denotes that
+        // unusable channel; it does not claim that a peer sent EOF.
+        // Decode failures already release callers with their original error.
+        close_queue(
+          &self.0,
+          Arc::new(DecodeError::ReaderError(std::io::Error::new(
+            std::io::ErrorKind::BrokenPipe,
+            "RPC IO loop stopped",
+          ))),
+        );
+      }
+    }
+
     // An async fn would construct the guard only on its first poll.
     // Construct the guard before polling so dropping an unpolled IO future
     // also closes the session and wakes pending calls.
@@ -503,13 +503,13 @@ mod tests {
 
   async fn assert_disconnected(
     nvim: &Neovim<futures::io::Sink>,
-    pending: oneshot::Receiver<ResponseResult>,
+    mut pending: oneshot::Receiver<ResponseResult>,
   ) {
-    let result =
-      tokio::time::timeout(std::time::Duration::from_secs(1), pending)
-        .await
-        .expect("pending call was not released")
-        .expect("Shutdown must send an error before dropping the sender");
+    // Shutdown has completed, so notification must already be available.
+    let result = pending
+      .try_recv()
+      .expect("Shutdown must send an error before dropping the sender")
+      .expect("Shutdown must release pending calls synchronously");
     assert!(result.is_err());
     assert!(nvim
       .queue
@@ -540,12 +540,14 @@ mod tests {
     use tokio_util::compat::TokioAsyncReadCompatExt;
     let (reader, _peer) = tokio::io::duplex(1024);
     let (nvim, io) = session(reader.compat());
-    let task = tokio::spawn(io);
+    let mut io = Box::pin(io);
     let pending = nvim
       .send_msg("pending", vec![])
       .await
       .expect("Test request must be written to the sink");
-    tokio::task::yield_now().await;
+    // Ensure this tests cancellation after polling, not an unpolled future.
+    assert!(futures::poll!(io.as_mut()).is_pending());
+    let task = tokio::spawn(io);
     task.abort();
     assert!(task
       .await
@@ -606,13 +608,13 @@ mod tests {
       std::fs::File::open(file.path())
         .expect("Existing test file must open read-only"),
     );
-    let (nvim, io) = Neovim::new(
+    let (nvim, _io) = Neovim::new(
       futures::io::Cursor::new(Vec::<u8>::new()),
       writer,
       crate::rpc::handler::Dummy::<futures::io::AllowStdIo<std::fs::File>>::new(
       ),
     );
-    let (tx, rx) = oneshot::channel();
+    let (tx, mut rx) = oneshot::channel();
     nvim
       .queue
       .lock()
@@ -621,8 +623,9 @@ mod tests {
       .push((999, tx));
     assert!(nvim.call("write", vec![]).await.is_err());
     assert!(rx
-      .await
+      .try_recv()
       .expect("Write failure must notify pending callers")
+      .expect("Failed write must release pending calls synchronously")
       .is_err());
     assert!(nvim
       .queue
@@ -635,7 +638,6 @@ mod tests {
       .await
       .expect_err("RPC shutdown must return an error")
       .is_channel_closed());
-    drop(io);
   }
 
   #[tokio::test]
