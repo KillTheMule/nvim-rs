@@ -436,6 +436,17 @@ where
           // Send message to handler_loop()
           sender.send(msg).await.unwrap();
         }
+<<<<<<< Updated upstream
+=======
+      } else {
+        // Send message to handler_loop()
+        //
+        // TODO: This unwrap makes me uncomfortable. Let's extend LoopError and
+        // return it here. There's not much to do after the handler_loop went
+        // away (which is the only error condition here), but let's not tear
+        // down stuff we don't need to.
+        sender.send(msg).await.unwrap();
+>>>>>>> Stashed changes
       }
     }
   }
