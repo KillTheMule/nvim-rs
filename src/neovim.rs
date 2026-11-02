@@ -12,12 +12,11 @@ use futures::{
     mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
     oneshot,
   },
-  future,
+  future::join,
   io::{AsyncRead, AsyncReadExt, AsyncWrite},
   lock::Mutex,
   sink::SinkExt,
   stream::StreamExt,
-  TryFutureExt,
 };
 
 use crate::{
@@ -143,11 +142,16 @@ where
     };
 
     let (sender, receiver) = unbounded();
-    let fut = future::try_join(
-      req.clone().io_loop(reader, sender),
-      req.clone().handler_loop(handler, receiver),
-    )
-    .map_ok(|_| ());
+    let io = req.clone().io_loop(reader, sender);
+    let handling = req.clone().handler_loop(handler, receiver);
+    let fut = async move {
+      // Let the handler drain notifications already queued by io_loop before
+      // returning its result. Wrapping that result prevents try_join from
+      // canceling the handler when io_loop fails.
+      let (io_res, handler_res) = join(io, handling).await;
+      handler_res?;
+      io_res
+    };
 
     (req, fut)
   }
@@ -240,11 +244,16 @@ where
     }
 
     let (sender, receiver) = unbounded();
-    let fut = future::try_join(
-      instance.clone().io_loop(reader, sender),
-      instance.clone().handler_loop(handler, receiver),
-    )
-    .map_ok(|_| ());
+    let io = instance.clone().io_loop(reader, sender);
+    let handling = instance.clone().handler_loop(handler, receiver);
+    let fut = async move {
+      // Let the handler drain notifications already queued by io_loop before
+      // returning its result. Wrapping that result prevents try_join from
+      // canceling the handler when io_loop fails.
+      let (io_res, handler_res) = join(io, handling).await;
+      handler_res?;
+      io_res
+    };
 
     Ok((instance, fut))
   }
