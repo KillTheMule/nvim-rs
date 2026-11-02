@@ -794,6 +794,120 @@ mod tests {
   }
 
   #[tokio::test]
+  async fn large_buffer_survives_backpressure() {
+    check_large_buffer_write(false).await;
+  }
+
+  #[tokio::test]
+  async fn cancellation_while_waiting_for_writer_preserves_connection() {
+    let (nvim, _io) = session(futures::io::Cursor::new(Vec::<u8>::new()));
+    let writer = nvim.writer.lock().await;
+    let mut sending = Box::pin(nvim.send_msg("cancelled", vec![]));
+    assert!(futures::poll!(sending.as_mut()).is_pending());
+    drop(sending);
+    drop(writer);
+    assert!(nvim.queue.lock().unwrap().requests.is_empty());
+    drop(nvim.send_msg("next", vec![]).await.unwrap());
+    assert!(!nvim.queue.lock().unwrap().closed);
+  }
+
+  #[tokio::test]
+  async fn cancelled_large_buffer_does_not_corrupt_next_request() {
+    check_large_buffer_write(true).await;
+  }
+
+  async fn check_large_buffer_write(cancel: bool) {
+    use std::time::Duration;
+    use tokio::io::AsyncReadExt as _;
+    use tokio_util::compat::TokioAsyncWriteCompatExt;
+
+    // Model a local pipe whose peer temporarily stops reading. The payload
+    // exceeds its capacity, so a write must yield after sending a prefix.
+    const CAPACITY: usize = 4096;
+    let (client, mut peer) = tokio::io::duplex(CAPACITY);
+    let writer = client.compat_write();
+    let (nvim, io) = Neovim::new(
+      futures::io::Cursor::new(Vec::<u8>::new()),
+      writer,
+      crate::rpc::handler::Dummy::new(),
+    );
+    let lines = Value::Array(vec![Value::from("x".repeat(1024)); 1024]);
+    let params = vec![
+      Value::from("return _G.godot_neovim.sync_external_lines(...)"),
+      Value::Array(vec![Value::from(0), lines, Value::Map(vec![])]),
+    ];
+    let first = RpcMessage::RpcRequest {
+      msgid: 0,
+      method: "nvim_exec_lua".into(),
+      params: params.clone(),
+    };
+    let second = RpcMessage::RpcRequest {
+      msgid: 1,
+      method: "nvim_eval".into(),
+      params: vec![Value::from("1")],
+    };
+    let mut first_wire = Vec::new();
+    model::encode_sync(&mut first_wire, first.clone()).unwrap();
+    assert!(first_wire.len() > CAPACITY);
+
+    let mut sending = Box::pin(nvim.send_msg("nvim_exec_lua", params));
+    assert!(futures::poll!(sending.as_mut()).is_pending());
+    // A request already waiting for the writer must also honor invalidation.
+    let mut next_write =
+      Box::pin(nvim.send_msg("nvim_eval", vec![Value::from("1")]));
+    assert!(futures::poll!(next_write.as_mut()).is_pending());
+    if cancel {
+      // Match godot-neovim's timeout around the entire RPC, including sending.
+      assert!(tokio::time::timeout(
+        Duration::from_millis(500),
+        sending.as_mut()
+      )
+      .await
+      .is_err());
+    }
+
+    let mut prefix = vec![0; CAPACITY];
+    peer.read_exact(&mut prefix).await.unwrap();
+    assert_eq!(prefix, first_wire[..CAPACITY]);
+    let drain = tokio::spawn(async move {
+      let mut wire = prefix;
+      peer.read_to_end(&mut wire).await.unwrap();
+      wire
+    });
+    if !cancel {
+      drop(sending.as_mut().await.unwrap());
+    }
+    drop(sending);
+
+    let next =
+      tokio::time::timeout(Duration::from_secs(2), next_write.as_mut())
+        .await
+        .expect("The next write must finish or reject the closed connection");
+    drop(next_write);
+    drop(io);
+    drop(nvim);
+    let wire = tokio::time::timeout(Duration::from_secs(2), drain)
+      .await
+      .unwrap()
+      .unwrap();
+
+    if next.is_err() {
+      // Closing the connection after cancellation is also a safe outcome.
+      assert!(cancel);
+      assert!(first_wire.starts_with(&wire));
+      return;
+    }
+    let mut reader = futures::io::Cursor::new(wire);
+    let mut rest = Vec::new();
+    let decoded = model::decode(&mut reader, &mut rest)
+      .await
+      .expect("Accepting another request must not leave a truncated RPC frame");
+    assert_eq!(decoded, first);
+    assert_eq!(model::decode(&mut reader, &mut rest).await.unwrap(), second);
+    assert!(rest.is_empty());
+  }
+
+  #[tokio::test]
   async fn test_find_sender() {
     let queue = Arc::new(SyncMutex::new(Queue::default()));
 
