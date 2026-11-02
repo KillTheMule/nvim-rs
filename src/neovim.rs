@@ -13,7 +13,7 @@ use futures::{
     oneshot,
   },
   future::join,
-  io::{AsyncRead, AsyncReadExt, AsyncWrite},
+  io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
   lock::Mutex,
   sink::SinkExt,
   stream::StreamExt,
@@ -201,7 +201,7 @@ where
       method: "nvim_exec_lua".to_owned(),
       params: call_args![format!("return '{message}'"), Vec::<Value>::new()],
     };
-    model::encode(instance.writer.clone(), req).await?;
+    instance.write_message(req, None).await?;
 
     let expected_resp = RpcMessage::RpcResponse {
       msgid,
@@ -273,27 +273,66 @@ where
 
     let (sender, receiver) = oneshot::channel();
 
-    {
-      let mut pending =
-        self.queue.lock().expect("Queue lock must not be poisoned");
-      pending.try_push((msgid, sender))?;
-    }
-
-    let writer = self.writer.clone();
-    if let Err(error) = model::encode(writer, req).await {
-      // A failed write may have left a partial frame on the stream. Do not
-      // allow later calls to reuse it, and release all pending callers.
-      close_queue(
-        &self.queue,
-        Arc::new(DecodeError::ReaderError(std::io::Error::new(
-          std::io::ErrorKind::BrokenPipe,
-          "RPC write failed",
-        ))),
-      );
-      return Err(error);
-    }
-
+    self.write_message(req, Some((msgid, sender))).await?;
     Ok(receiver)
+  }
+
+  async fn write_message(
+    &self,
+    message: RpcMessage,
+    request: Option<(u64, oneshot::Sender<ResponseResult>)>,
+  ) -> Result<(), Box<EncodeError>> {
+    let mut bytes = Vec::new();
+    model::encode_sync(&mut bytes, message)?;
+
+    // Cancellation while waiting for the writer has not touched the stream.
+    let mut writer = self.writer.lock().await;
+    {
+      let mut queue =
+        self.queue.lock().expect("Queue lock must not be poisoned");
+      if queue.closed {
+        return Err(
+          std::io::Error::new(
+            std::io::ErrorKind::BrokenPipe,
+            "RPC connection queue is closed",
+          )
+          .into(),
+        );
+      }
+      if let Some(request) = request {
+        queue.try_push(request)?;
+      }
+    }
+
+    struct WriteGuard<'a> {
+      queue: &'a SharedQueue,
+      complete: bool,
+    }
+
+    impl Drop for WriteGuard<'_> {
+      fn drop(&mut self) {
+        if !self.complete {
+          close_queue(
+            self.queue,
+            Arc::new(DecodeError::ReaderError(std::io::Error::new(
+              std::io::ErrorKind::BrokenPipe,
+              "RPC write failed or was cancelled",
+            ))),
+          );
+        }
+      }
+    }
+
+    // Declare after the writer lock so cancellation invalidates the session
+    // before another request or response can acquire the writer.
+    let mut guard = WriteGuard {
+      queue: &self.queue,
+      complete: false,
+    };
+    writer.write_all(&bytes).await?;
+    writer.flush().await?;
+    guard.complete = true;
+    Ok(())
   }
 
   pub async fn call(
@@ -349,26 +388,30 @@ where
         } => {
           let handler_c = handler.clone();
           let neovim = self.clone();
-          let writer = self.writer.clone();
 
           handler.spawn(async move {
-            let response =
-              match handler_c.handle_request(method, params, neovim).await {
-                Ok(result) => RpcMessage::RpcResponse {
-                  msgid,
-                  result,
-                  error: Value::Nil,
-                },
-                Err(error) => RpcMessage::RpcResponse {
-                  msgid,
-                  result: Value::Nil,
-                  error,
-                },
-              };
+            let response = match handler_c
+              .handle_request(method, params, neovim.clone())
+              .await
+            {
+              Ok(result) => RpcMessage::RpcResponse {
+                msgid,
+                result,
+                error: Value::Nil,
+              },
+              Err(error) => RpcMessage::RpcResponse {
+                msgid,
+                result: Value::Nil,
+                error,
+              },
+            };
 
-            model::encode(writer, response).await.unwrap_or_else(|e| {
-              error!("Error sending response to request {}: '{}'", msgid, e);
-            });
+            neovim
+              .write_message(response, None)
+              .await
+              .unwrap_or_else(|e| {
+                error!("Error sending response to request {}: '{}'", msgid, e);
+              });
           });
         }
         RpcMessage::RpcNotification { method, params } => {
