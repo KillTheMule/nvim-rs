@@ -54,16 +54,21 @@ struct Queue {
 }
 
 impl Queue {
-  fn try_push(
-    &mut self,
-    request: (u64, oneshot::Sender<ResponseResult>),
-  ) -> Result<(), std::io::Error> {
+  fn ensure_open(&self) -> Result<(), std::io::Error> {
     if self.closed {
       return Err(std::io::Error::new(
         std::io::ErrorKind::BrokenPipe,
         "RPC connection queue is closed",
       ));
     }
+    Ok(())
+  }
+
+  fn try_push(
+    &mut self,
+    request: (u64, oneshot::Sender<ResponseResult>),
+  ) -> Result<(), std::io::Error> {
+    self.ensure_open()?;
     self.requests.push(request);
     Ok(())
   }
@@ -280,7 +285,7 @@ where
   async fn write_message(
     &self,
     message: RpcMessage,
-    request: Option<(u64, oneshot::Sender<ResponseResult>)>,
+    pending_request: Option<(u64, oneshot::Sender<ResponseResult>)>,
   ) -> Result<(), Box<EncodeError>> {
     let mut bytes = Vec::new();
     model::encode_sync(&mut bytes, message)?;
@@ -290,17 +295,12 @@ where
     {
       let mut queue =
         self.queue.lock().expect("Queue lock must not be poisoned");
-      if queue.closed {
-        return Err(
-          std::io::Error::new(
-            std::io::ErrorKind::BrokenPipe,
-            "RPC connection queue is closed",
-          )
-          .into(),
-        );
-      }
-      if let Some(request) = request {
+      if let Some(request) = pending_request {
         queue.try_push(request)?;
+      } else {
+        // Replies do not enter the pending queue, but must also reject a
+        // closed session.
+        queue.ensure_open()?;
       }
     }
 
