@@ -2,9 +2,11 @@
 
 * Can we use the non-generic `split` methods from tokio for unixstream, tcpstream? Supposedly better performance, but introduces lifetimes...
 
-* Propogate errors from `model::encode()` in `handler_loop()`
-
 * Don't return an error on channel close, because the the regular way to shut down a plugin
   --> maybe? For a plugin, sure, what about GUIs?
 
-* Don't build neovim ourselves, download a binary
+* We don't use `model::encode` anymore, remove it. Do the tests with the sync version.
+
+* Move Queue/SharedQueue from neovim.rs to their own module, make the latter it's
+  own type and augment the lock method with a check for being closed. We should not
+  make ourselves have to remember to call `ensure_closed` 
