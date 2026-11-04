@@ -12,7 +12,7 @@ use futures::{
     mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
     oneshot,
   },
-  future::join,
+  future::{Either, join, select},
   io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
   lock::Mutex,
   sink::SinkExt,
@@ -50,12 +50,14 @@ type ResponseResult = Result<Result<Value, Value>, Arc<DecodeError>>;
 #[derive(Default)]
 struct Queue {
   requests: Vec<(u64, oneshot::Sender<ResponseResult>)>,
-  closed: bool,
+  // The first shutdown reason also marks the session as closed.
+  shutdown_error: Option<Arc<DecodeError>>,
+  shutdown_tx: Option<oneshot::Sender<Arc<DecodeError>>>,
 }
 
 impl Queue {
   fn ensure_open(&self) -> Result<(), std::io::Error> {
-    if self.closed {
+    if self.shutdown_error.is_some() {
       return Err(std::io::Error::new(
         std::io::ErrorKind::BrokenPipe,
         "RPC connection queue is closed",
@@ -77,16 +79,47 @@ impl Queue {
 // Locked sections only access queue state; they never run user code or await.
 type SharedQueue = Arc<SyncMutex<Queue>>;
 
+// Called once per session when constructing its IO loop.
+fn subscribe_shutdown(
+  queue: &SharedQueue,
+) -> oneshot::Receiver<Arc<DecodeError>> {
+  let (shutdown_tx, shutdown_rx) = oneshot::channel();
+  let error = {
+    let mut pending = queue.lock().expect("Queue lock must not be poisoned");
+    // Register under the same lock as close_queue so shutdown cannot occur
+    // between checking the state and installing the IO loop's notification.
+    if let Some(error) = &pending.shutdown_error {
+      error.clone()
+    } else {
+      pending.shutdown_tx = Some(shutdown_tx);
+      return shutdown_rx;
+    }
+  };
+  // A session closed before registration must notify the reader immediately.
+  let _ = shutdown_tx.send(error);
+  shutdown_rx
+}
+
 // Never hold this synchronous lock across IO or an await point.
 fn close_queue(queue: &SharedQueue, error: Arc<DecodeError>) {
-  let requests = {
+  let (requests, shutdown_tx) = {
     let mut pending = queue.lock().expect("Queue lock must not be poisoned");
-    pending.closed = true;
-    std::mem::take(&mut pending.requests)
+    if pending.shutdown_error.is_some() {
+      return;
+    }
+    pending.shutdown_error = Some(error.clone());
+    (
+      std::mem::take(&mut pending.requests),
+      pending.shutdown_tx.take(),
+    )
   };
   for (_, sender) in requests {
     // Cancellation of an individual caller must not hide the connection error.
     let _ = sender.send(Err(error.clone()));
+  }
+  // Wake a suspended reader even when the peer leaves its stream open.
+  if let Some(shutdown_tx) = shutdown_tx {
+    let _ = shutdown_tx.send(error);
   }
 }
 
@@ -425,7 +458,7 @@ where
   fn io_loop<R>(
     self,
     mut reader: R,
-    mut sender: UnboundedSender<RpcMessage>,
+    mut handler_tx: UnboundedSender<RpcMessage>,
   ) -> impl Future<Output = Result<(), Box<LoopError>>>
   where
     R: AsyncRead + Send + Unpin + 'static,
@@ -452,12 +485,30 @@ where
     // Construct the guard before polling so dropping an unpolled IO future
     // also closes the session and wakes pending calls.
     let guard = ConnectionGuard(self.queue.clone());
+    let shutdown_rx = subscribe_shutdown(&self.queue);
     async move {
       let _guard = guard;
       let mut rest: Vec<u8> = vec![];
+      futures::pin_mut!(shutdown_rx);
 
       loop {
-        let msg = match model::decode(&mut reader, &mut rest).await {
+        // Stop only the reader. Dropping handler_tx closes the notification
+        // queue, and join lets the handler drain it before the session ends.
+        let decoded = {
+          let decode = model::decode(&mut reader, &mut rest);
+          futures::pin_mut!(decode);
+          match select(shutdown_rx.as_mut(), decode).await {
+            Either::Left((error, _)) => {
+              // The IO loop holds the queue alive. Its sole shutdown sender
+              // is consumed by close_queue, which always sends the reason.
+              let error = error
+                .expect("Queue closure must send its shutdown reason");
+              return Err(Box::new(LoopError::DecodeError(error, None)));
+            }
+            Either::Right((decoded, _)) => decoded,
+          }
+        };
+        let msg = match decoded {
           Ok(msg) => msg,
           Err(err) => {
             let e = Arc::new(*err);
@@ -491,7 +542,7 @@ where
           // return it here. There's not much to do after the handler_loop went
           // away (which is the only error condition here), but let's not tear
           // down stuff we don't need to.
-          sender.send(msg).await.unwrap();
+          handler_tx.send(msg).await.unwrap();
         }
       }
     }
@@ -851,7 +902,7 @@ mod tests {
     drop(writer);
     assert!(nvim.queue.lock().unwrap().requests.is_empty());
     drop(nvim.send_msg("next", vec![]).await.unwrap());
-    assert!(!nvim.queue.lock().unwrap().closed);
+    assert!(nvim.queue.lock().unwrap().shutdown_error.is_none());
   }
 
   #[tokio::test]
@@ -948,6 +999,210 @@ mod tests {
     assert_eq!(decoded, first);
     assert_eq!(model::decode(&mut reader, &mut rest).await.unwrap(), second);
     assert!(rest.is_empty());
+  }
+
+  #[tokio::test]
+  async fn write_failure_stops_io_without_peer_eof() {
+    use std::time::Duration;
+    use tokio_util::compat::TokioAsyncReadCompatExt;
+
+    // Exercise both a suspended read and shutdown before the first IO poll.
+    for poll_first in [true, false] {
+      let file = tempfile::NamedTempFile::new().unwrap();
+      let writer =
+        futures::io::AllowStdIo::new(std::fs::File::open(file.path()).unwrap());
+      let (reader, _peer) = tokio::io::duplex(4096);
+      let (nvim, io) =
+        Neovim::new(reader.compat(), writer, crate::rpc::handler::Dummy::new());
+      let mut io = Box::pin(io);
+      if poll_first {
+        assert!(futures::poll!(io.as_mut()).is_pending());
+      }
+      let io = tokio::spawn(io);
+      if poll_first {
+        tokio::task::yield_now().await;
+      }
+      assert!(nvim.call("write", vec![]).await.is_err());
+      let error = tokio::time::timeout(Duration::from_secs(1), io)
+        .await
+        .expect("Write failure must stop IO without waiting for peer EOF")
+        .unwrap()
+        .unwrap_err();
+      assert!(error.is_channel_closed());
+    }
+  }
+
+  #[tokio::test]
+  async fn cancelled_write_wakes_suspended_io_without_notifications() {
+    use std::time::Duration;
+    use tokio_util::compat::{
+      TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt,
+    };
+
+    let (client, _peer) = tokio::io::duplex(4096);
+    let (reader, writer) = tokio::io::split(client);
+    let (nvim, io) = Neovim::new(
+      reader.compat(),
+      writer.compat_write(),
+      crate::rpc::handler::Dummy::new(),
+    );
+    let (started, ready) = oneshot::channel();
+    let mut task = tokio::spawn(async move {
+      futures::pin_mut!(io);
+      let mut started = Some(started);
+      futures::future::poll_fn(|cx| {
+        let result = io.as_mut().poll(cx);
+        if result.is_pending() {
+          // Signal only after registering the spawned task's own waker.
+          if let Some(started) = started.take() {
+            started.send(()).unwrap();
+          }
+        }
+        result
+      })
+      .await
+    });
+    tokio::time::timeout(Duration::from_secs(1), ready)
+      .await
+      .unwrap()
+      .unwrap();
+
+    // No incoming bytes, notifications, or EOF can wake the IO task.
+    let mut sending = Box::pin(
+      nvim.send_msg("large", vec![Value::from("x".repeat(1024 * 1024))]),
+    );
+    assert!(futures::poll!(sending.as_mut()).is_pending());
+    drop(sending);
+    let result = tokio::time::timeout(Duration::from_secs(1), &mut task).await;
+    if result.is_err() {
+      task.abort();
+    }
+    let error = result
+      .expect("Cancellation alone must wake and stop the IO task")
+      .unwrap()
+      .unwrap_err();
+    assert!(error.is_channel_closed());
+  }
+
+  #[tokio::test]
+  async fn response_write_failure_stops_io_without_peer_eof() {
+    use std::time::Duration;
+    use tokio::io::AsyncWriteExt as _;
+    use tokio_util::compat::TokioAsyncReadCompatExt;
+
+    let file = tempfile::NamedTempFile::new().unwrap();
+    let writer =
+      futures::io::AllowStdIo::new(std::fs::File::open(file.path()).unwrap());
+    let (reader, mut peer) = tokio::io::duplex(4096);
+    let (nvim, io) =
+      Neovim::new(reader.compat(), writer, crate::rpc::handler::Dummy::new());
+    let mut task = tokio::spawn(io);
+    let mut wire = Vec::new();
+    model::encode_sync(
+      &mut wire,
+      RpcMessage::RpcRequest {
+        msgid: 42,
+        method: "request".into(),
+        params: vec![],
+      },
+    )
+    .unwrap();
+    // Dummy returns an RPC error response; writing that reply must fail.
+    // Keep the peer open so EOF cannot account for session shutdown.
+    peer.write_all(&wire).await.unwrap();
+    let result = tokio::time::timeout(Duration::from_secs(1), &mut task).await;
+    if result.is_err() {
+      task.abort();
+    }
+    let error = result
+      .expect("A failed reply must stop IO without waiting for peer EOF")
+      .unwrap()
+      .unwrap_err();
+    assert!(error.is_channel_closed());
+    assert!(nvim.queue.lock().unwrap().shutdown_error.is_some());
+  }
+
+  #[derive(Clone)]
+  struct GatedHandler {
+    gate: Arc<tokio::sync::Notify>,
+    delivered: tokio::sync::mpsc::UnboundedSender<String>,
+  }
+
+  impl Handler for GatedHandler {
+    type Writer =
+      tokio_util::compat::Compat<tokio::io::WriteHalf<tokio::io::DuplexStream>>;
+
+    async fn handle_notify(
+      &self,
+      method: String,
+      _args: Vec<Value>,
+      _neovim: Neovim<Self::Writer>,
+    ) {
+      if method == "first" {
+        self.gate.notified().await;
+      }
+      self.delivered.send(method).unwrap();
+    }
+  }
+
+  #[tokio::test]
+  async fn cancelled_write_stops_io_and_drains_notifications() {
+    use std::time::Duration;
+    use tokio::io::AsyncWriteExt as _;
+    use tokio_util::compat::{
+      TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt,
+    };
+
+    let (client, mut peer) = tokio::io::duplex(4096);
+    let (reader, writer) = tokio::io::split(client);
+    let gate = Arc::new(tokio::sync::Notify::new());
+    let (delivered, mut notifications) = tokio::sync::mpsc::unbounded_channel();
+    let (nvim, io) = Neovim::new(
+      reader.compat(),
+      writer.compat_write(),
+      GatedHandler {
+        gate: gate.clone(),
+        delivered,
+      },
+    );
+    let mut wire = Vec::new();
+    for method in ["first", "second"] {
+      model::encode_sync(
+        &mut wire,
+        RpcMessage::RpcNotification {
+          method: method.into(),
+          params: vec![],
+        },
+      )
+      .unwrap();
+    }
+    peer.write_all(&wire).await.unwrap();
+    let mut io = Box::pin(io);
+    // Decode both notifications and suspend the first handler on the gate.
+    assert!(futures::poll!(io.as_mut()).is_pending());
+    let mut pending = nvim.send_msg("pending", vec![]).await.unwrap();
+    let mut sending = Box::pin(
+      nvim.send_msg("large", vec![Value::from("x".repeat(1024 * 1024))]),
+    );
+    assert!(futures::poll!(sending.as_mut()).is_pending());
+    drop(sending);
+    assert!(pending.try_recv().unwrap().unwrap().is_err());
+    // Stopping the reader must not cancel the notification in progress.
+    assert!(futures::poll!(io.as_mut()).is_pending());
+    assert!(notifications.try_recv().is_err());
+    gate.notify_one();
+    let error = tokio::time::timeout(Duration::from_secs(1), io)
+      .await
+      .expect("Cancelled write must stop IO while the peer stays open")
+      .unwrap_err();
+    assert!(error.is_channel_closed());
+    assert_eq!(notifications.try_recv().unwrap(), "first");
+    assert_eq!(notifications.try_recv().unwrap(), "second");
+    assert!(nvim
+      .call("after_close", vec![])
+      .await
+      .unwrap_err()
+      .is_channel_closed());
   }
 
   #[tokio::test]
