@@ -33,6 +33,7 @@ use crate::rpc::handler::Handler;
 pub trait Spawner: Handler {
   type Handle;
 
+  /// Spawn a task that continues running when its returned handle is dropped.
   fn spawn<Fut>(&self, future: Fut) -> Self::Handle
   where
     Fut: Future<Output = ()> + Send + 'static;
