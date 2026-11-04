@@ -22,13 +22,13 @@ impl<H> Spawner for H
 where
   H: Handler,
 {
-  type Handle = Task<()>;
+  type Handle = ();
 
   fn spawn<Fut>(&self, future: Fut) -> Self::Handle
   where
     Fut: Future<Output = ()> + Send + 'static,
   {
-    spawn(future)
+    spawn(future).detach();
   }
 }
 
