@@ -12,7 +12,7 @@ use futures::{
     mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
     oneshot,
   },
-  future::{join, select, Either},
+  future::{Either, join, select},
   io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
   lock::Mutex,
   sink::SinkExt,
@@ -1009,15 +1009,11 @@ mod tests {
     // Exercise both a suspended read and shutdown before the first IO poll.
     for poll_first in [true, false] {
       let file = tempfile::NamedTempFile::new().unwrap();
-      let writer = futures::io::AllowStdIo::new(
-        std::fs::File::open(file.path()).unwrap(),
-      );
+      let writer =
+        futures::io::AllowStdIo::new(std::fs::File::open(file.path()).unwrap());
       let (reader, _peer) = tokio::io::duplex(4096);
-      let (nvim, io) = Neovim::new(
-        reader.compat(),
-        writer,
-        crate::rpc::handler::Dummy::new(),
-      );
+      let (nvim, io) =
+        Neovim::new(reader.compat(), writer, crate::rpc::handler::Dummy::new());
       let mut io = Box::pin(io);
       if poll_first {
         assert!(futures::poll!(io.as_mut()).is_pending());
@@ -1133,9 +1129,8 @@ mod tests {
   }
 
   impl Handler for GatedHandler {
-    type Writer = tokio_util::compat::Compat<
-      tokio::io::WriteHalf<tokio::io::DuplexStream>,
-    >;
+    type Writer =
+      tokio_util::compat::Compat<tokio::io::WriteHalf<tokio::io::DuplexStream>>;
 
     async fn handle_notify(
       &self,
@@ -1165,22 +1160,30 @@ mod tests {
     let (nvim, io) = Neovim::new(
       reader.compat(),
       writer.compat_write(),
-      GatedHandler { gate: gate.clone(), delivered },
+      GatedHandler {
+        gate: gate.clone(),
+        delivered,
+      },
     );
     let mut wire = Vec::new();
     for method in ["first", "second"] {
-      model::encode_sync(&mut wire, RpcMessage::RpcNotification {
-        method: method.into(), params: vec![],
-      }).unwrap();
+      model::encode_sync(
+        &mut wire,
+        RpcMessage::RpcNotification {
+          method: method.into(),
+          params: vec![],
+        },
+      )
+      .unwrap();
     }
     peer.write_all(&wire).await.unwrap();
     let mut io = Box::pin(io);
     // Decode both notifications and suspend the first handler on the gate.
     assert!(futures::poll!(io.as_mut()).is_pending());
     let mut pending = nvim.send_msg("pending", vec![]).await.unwrap();
-    let mut sending = Box::pin(nvim.send_msg(
-      "large", vec![Value::from("x".repeat(1024 * 1024))],
-    ));
+    let mut sending = Box::pin(
+      nvim.send_msg("large", vec![Value::from("x".repeat(1024 * 1024))]),
+    );
     assert!(futures::poll!(sending.as_mut()).is_pending());
     drop(sending);
     assert!(pending.try_recv().unwrap().unwrap().is_err());
@@ -1195,7 +1198,11 @@ mod tests {
     assert!(error.is_channel_closed());
     assert_eq!(notifications.try_recv().unwrap(), "first");
     assert_eq!(notifications.try_recv().unwrap(), "second");
-    assert!(nvim.call("after_close", vec![]).await.unwrap_err().is_channel_closed());
+    assert!(nvim
+      .call("after_close", vec![])
+      .await
+      .unwrap_err()
+      .is_channel_closed());
   }
 
   #[tokio::test]
