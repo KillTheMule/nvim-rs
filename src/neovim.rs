@@ -12,7 +12,7 @@ use futures::{
     mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
     oneshot,
   },
-  future::join,
+  future::{join, select, Either},
   io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
   lock::Mutex,
   sink::SinkExt,
@@ -50,12 +50,14 @@ type ResponseResult = Result<Result<Value, Value>, Arc<DecodeError>>;
 #[derive(Default)]
 struct Queue {
   requests: Vec<(u64, oneshot::Sender<ResponseResult>)>,
-  closed: bool,
+  // The first shutdown reason also marks the session as closed.
+  shutdown_error: Option<Arc<DecodeError>>,
+  shutdown_tx: Option<oneshot::Sender<Arc<DecodeError>>>,
 }
 
 impl Queue {
   fn ensure_open(&self) -> Result<(), std::io::Error> {
-    if self.closed {
+    if self.shutdown_error.is_some() {
       return Err(std::io::Error::new(
         std::io::ErrorKind::BrokenPipe,
         "RPC connection queue is closed",
@@ -77,16 +79,47 @@ impl Queue {
 // Locked sections only access queue state; they never run user code or await.
 type SharedQueue = Arc<SyncMutex<Queue>>;
 
+// Called once per session when constructing its IO loop.
+fn subscribe_shutdown(
+  queue: &SharedQueue,
+) -> oneshot::Receiver<Arc<DecodeError>> {
+  let (shutdown_tx, shutdown_rx) = oneshot::channel();
+  let error = {
+    let mut pending = queue.lock().expect("Queue lock must not be poisoned");
+    // Register under the same lock as close_queue so shutdown cannot occur
+    // between checking the state and installing the IO loop's notification.
+    if let Some(error) = &pending.shutdown_error {
+      error.clone()
+    } else {
+      pending.shutdown_tx = Some(shutdown_tx);
+      return shutdown_rx;
+    }
+  };
+  // A session closed before registration must notify the reader immediately.
+  let _ = shutdown_tx.send(error);
+  shutdown_rx
+}
+
 // Never hold this synchronous lock across IO or an await point.
 fn close_queue(queue: &SharedQueue, error: Arc<DecodeError>) {
-  let requests = {
+  let (requests, shutdown_tx) = {
     let mut pending = queue.lock().expect("Queue lock must not be poisoned");
-    pending.closed = true;
-    std::mem::take(&mut pending.requests)
+    if pending.shutdown_error.is_some() {
+      return;
+    }
+    pending.shutdown_error = Some(error.clone());
+    (
+      std::mem::take(&mut pending.requests),
+      pending.shutdown_tx.take(),
+    )
   };
   for (_, sender) in requests {
     // Cancellation of an individual caller must not hide the connection error.
     let _ = sender.send(Err(error.clone()));
+  }
+  // Wake a suspended reader even when the peer leaves its stream open.
+  if let Some(shutdown_tx) = shutdown_tx {
+    let _ = shutdown_tx.send(error);
   }
 }
 
@@ -425,7 +458,7 @@ where
   fn io_loop<R>(
     self,
     mut reader: R,
-    mut sender: UnboundedSender<RpcMessage>,
+    mut handler_tx: UnboundedSender<RpcMessage>,
   ) -> impl Future<Output = Result<(), Box<LoopError>>>
   where
     R: AsyncRead + Send + Unpin + 'static,
@@ -452,12 +485,30 @@ where
     // Construct the guard before polling so dropping an unpolled IO future
     // also closes the session and wakes pending calls.
     let guard = ConnectionGuard(self.queue.clone());
+    let shutdown_rx = subscribe_shutdown(&self.queue);
     async move {
       let _guard = guard;
       let mut rest: Vec<u8> = vec![];
+      futures::pin_mut!(shutdown_rx);
 
       loop {
-        let msg = match model::decode(&mut reader, &mut rest).await {
+        // Stop only the reader. Dropping handler_tx closes the notification
+        // queue, and join lets the handler drain it before the session ends.
+        let decoded = {
+          let decode = model::decode(&mut reader, &mut rest);
+          futures::pin_mut!(decode);
+          match select(shutdown_rx.as_mut(), decode).await {
+            Either::Left((error, _)) => {
+              // The IO loop holds the queue alive. Its sole shutdown sender
+              // is consumed by close_queue, which always sends the reason.
+              let error = error
+                .expect("Queue closure must send its shutdown reason");
+              return Err(Box::new(LoopError::DecodeError(error, None)));
+            }
+            Either::Right((decoded, _)) => decoded,
+          }
+        };
+        let msg = match decoded {
           Ok(msg) => msg,
           Err(err) => {
             let e = Arc::new(*err);
@@ -491,7 +542,7 @@ where
           // return it here. There's not much to do after the handler_loop went
           // away (which is the only error condition here), but let's not tear
           // down stuff we don't need to.
-          sender.send(msg).await.unwrap();
+          handler_tx.send(msg).await.unwrap();
         }
       }
     }
@@ -851,7 +902,7 @@ mod tests {
     drop(writer);
     assert!(nvim.queue.lock().unwrap().requests.is_empty());
     drop(nvim.send_msg("next", vec![]).await.unwrap());
-    assert!(!nvim.queue.lock().unwrap().closed);
+    assert!(nvim.queue.lock().unwrap().shutdown_error.is_none());
   }
 
   #[tokio::test]
@@ -1072,7 +1123,7 @@ mod tests {
       .unwrap()
       .unwrap_err();
     assert!(error.is_channel_closed());
-    assert!(nvim.queue.lock().unwrap().closed);
+    assert!(nvim.queue.lock().unwrap().shutdown_error.is_some());
   }
 
   #[derive(Clone)]
