@@ -1018,15 +1018,10 @@ mod tests {
       if poll_first {
         assert!(futures::poll!(io.as_mut()).is_pending());
       }
-      let io = tokio::spawn(io);
-      if poll_first {
-        tokio::task::yield_now().await;
-      }
       assert!(nvim.call("write", vec![]).await.is_err());
       let error = tokio::time::timeout(Duration::from_secs(1), io)
         .await
         .expect("Write failure must stop IO without waiting for peer EOF")
-        .unwrap()
         .unwrap_err();
       assert!(error.is_channel_closed());
     }
@@ -1067,11 +1062,12 @@ mod tests {
       .unwrap()
       .unwrap();
 
-    // No incoming bytes, notifications, or EOF can wake the IO task.
+    // The peer never reads, so the large write fills the buffer and suspends.
     let mut sending = Box::pin(
       nvim.send_msg("large", vec![Value::from("x".repeat(1024 * 1024))]),
     );
     assert!(futures::poll!(sending.as_mut()).is_pending());
+    // Dropping the pending write cancels it and must wake the IO task.
     drop(sending);
     let result = tokio::time::timeout(Duration::from_secs(1), &mut task).await;
     if result.is_err() {
@@ -1090,6 +1086,7 @@ mod tests {
     use tokio::io::AsyncWriteExt as _;
     use tokio_util::compat::TokioAsyncReadCompatExt;
 
+    // Opening a file read-only gives a deterministic failing writer.
     let file = tempfile::NamedTempFile::new().unwrap();
     let writer =
       futures::io::AllowStdIo::new(std::fs::File::open(file.path()).unwrap());
@@ -1107,7 +1104,8 @@ mod tests {
       },
     )
     .unwrap();
-    // Dummy returns an RPC error response; writing that reply must fail.
+    // The Dummy handler rejects the request. The IO loop then tries to
+    // write the error response to the read-only file.
     // Keep the peer open so EOF cannot account for session shutdown.
     peer.write_all(&wire).await.unwrap();
     let result = tokio::time::timeout(Duration::from_secs(1), &mut task).await;
