@@ -12,7 +12,7 @@ use futures::{
     mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
     oneshot,
   },
-  future::{Either, join, select},
+  future::{FutureExt, join},
   io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
   lock::Mutex,
   sink::SinkExt,
@@ -47,17 +47,15 @@ macro_rules! call_args {
 
 type ResponseResult = Result<Result<Value, Value>, Arc<DecodeError>>;
 
-#[derive(Default)]
 struct Queue {
   requests: Vec<(u64, oneshot::Sender<ResponseResult>)>,
-  // The first shutdown reason also marks the session as closed.
-  shutdown_error: Option<Arc<DecodeError>>,
+  // Closing the queue takes the sender and signals the IO loop.
   shutdown_tx: Option<oneshot::Sender<Arc<DecodeError>>>,
 }
 
 impl Queue {
   fn ensure_open(&self) -> Result<(), std::io::Error> {
-    if self.shutdown_error.is_some() {
+    if self.shutdown_tx.is_none() {
       return Err(std::io::Error::new(
         std::io::ErrorKind::BrokenPipe,
         "RPC connection queue is closed",
@@ -79,48 +77,31 @@ impl Queue {
 // Locked sections only access queue state; they never run user code or await.
 type SharedQueue = Arc<SyncMutex<Queue>>;
 
-// Called once per session when constructing its IO loop.
-fn subscribe_shutdown(
-  queue: &SharedQueue,
-) -> oneshot::Receiver<Arc<DecodeError>> {
+fn new_queue() -> (SharedQueue, oneshot::Receiver<Arc<DecodeError>>) {
   let (shutdown_tx, shutdown_rx) = oneshot::channel();
-  let error = {
-    let mut pending = queue.lock().expect("Queue lock must not be poisoned");
-    // Register under the same lock as close_queue so shutdown cannot occur
-    // between checking the state and installing the IO loop's notification.
-    if let Some(error) = &pending.shutdown_error {
-      error.clone()
-    } else {
-      pending.shutdown_tx = Some(shutdown_tx);
-      return shutdown_rx;
-    }
+  let queue = Queue {
+    requests: Vec::new(),
+    shutdown_tx: Some(shutdown_tx),
   };
-  // A session closed before registration must notify the reader immediately.
-  let _ = shutdown_tx.send(error);
-  shutdown_rx
+  (Arc::new(SyncMutex::new(queue)), shutdown_rx)
 }
 
 // Never hold this synchronous lock across IO or an await point.
 fn close_queue(queue: &SharedQueue, error: Arc<DecodeError>) {
-  let (requests, shutdown_tx) = {
-    let mut pending = queue.lock().expect("Queue lock must not be poisoned");
-    if pending.shutdown_error.is_some() {
-      return;
-    }
-    pending.shutdown_error = Some(error.clone());
-    (
-      std::mem::take(&mut pending.requests),
-      pending.shutdown_tx.take(),
-    )
+  let mut pending = queue.lock().expect("Queue lock must not be poisoned");
+  let Some(shutdown_tx) = pending.shutdown_tx.take() else {
+    return;
   };
+  let requests = std::mem::take(&mut pending.requests);
+  // Sending can wake other tasks that need this lock.
+  drop(pending);
+
   for (_, sender) in requests {
     // Cancellation of an individual caller must not hide the connection error.
     let _ = sender.send(Err(error.clone()));
   }
   // Wake a suspended reader even when the peer leaves its stream open.
-  if let Some(shutdown_tx) = shutdown_tx {
-    let _ = shutdown_tx.send(error);
-  }
+  let _ = shutdown_tx.send(error);
 }
 
 /// An active Neovim session.
@@ -173,19 +154,19 @@ where
     R: AsyncRead + Send + Unpin + 'static,
     H: Handler<Writer = W> + Spawner,
   {
+    let (queue, shutdown_rx) = new_queue();
     let req = Neovim {
       writer: Arc::new(Mutex::new(writer)),
       msgid_counter: Arc::new(AtomicU64::new(0)),
-      queue: Arc::new(SyncMutex::new(Queue::default())),
+      queue,
     };
 
     let (sender, receiver) = unbounded();
-    let io = req.clone().io_loop(reader, sender);
+    let io = req.clone().io_loop(reader, sender, shutdown_rx);
     let handling = req.clone().handler_loop(handler, receiver);
     let fut = async move {
-      // Let the handler drain notifications already queued by io_loop before
-      // returning its result. Wrapping that result prevents try_join from
-      // canceling the handler when io_loop fails.
+      // When IO exits, its sender drops. Wait for the handler to finish
+      // delivering queued notifications before returning the IO result.
       let (io_res, handler_res) = join(io, handling).await;
       handler_res?;
       io_res
@@ -218,10 +199,11 @@ where
     R: AsyncRead + Send + Unpin + 'static,
     H: Handler<Writer = W> + Spawner,
   {
+    let (queue, shutdown_rx) = new_queue();
     let instance = Neovim {
       writer: Arc::new(Mutex::new(writer)),
       msgid_counter: Arc::new(AtomicU64::new(0)),
-      queue: Arc::new(SyncMutex::new(Queue::default())),
+      queue,
     };
 
     let msgid = instance.msgid_counter.fetch_add(1, Ordering::SeqCst);
@@ -282,12 +264,11 @@ where
     }
 
     let (sender, receiver) = unbounded();
-    let io = instance.clone().io_loop(reader, sender);
+    let io = instance.clone().io_loop(reader, sender, shutdown_rx);
     let handling = instance.clone().handler_loop(handler, receiver);
     let fut = async move {
-      // Let the handler drain notifications already queued by io_loop before
-      // returning its result. Wrapping that result prevents try_join from
-      // canceling the handler when io_loop fails.
+      // When IO exits, its sender drops. Wait for the handler to finish
+      // delivering queued notifications before returning the IO result.
       let (io_res, handler_res) = join(io, handling).await;
       handler_res?;
       io_res
@@ -459,6 +440,7 @@ where
     self,
     mut reader: R,
     mut handler_tx: UnboundedSender<RpcMessage>,
+    mut shutdown_rx: oneshot::Receiver<Arc<DecodeError>>,
   ) -> impl Future<Output = Result<(), Box<LoopError>>>
   where
     R: AsyncRead + Send + Unpin + 'static,
@@ -485,28 +467,17 @@ where
     // Construct the guard before polling so dropping an unpolled IO future
     // also closes the session and wakes pending calls.
     let guard = ConnectionGuard(self.queue.clone());
-    let shutdown_rx = subscribe_shutdown(&self.queue);
     async move {
       let _guard = guard;
       let mut rest: Vec<u8> = vec![];
-      futures::pin_mut!(shutdown_rx);
 
       loop {
-        // Stop only the reader. Dropping handler_tx closes the notification
-        // queue, and join lets the handler drain it before the session ends.
-        let decoded = {
-          let decode = model::decode(&mut reader, &mut rest);
-          futures::pin_mut!(decode);
-          match select(shutdown_rx.as_mut(), decode).await {
-            Either::Left((error, _)) => {
-              // The IO loop holds the queue alive. Its sole shutdown sender
-              // is consumed by close_queue, which always sends the reason.
-              let error = error
-                .expect("Queue closure must send its shutdown reason");
-              return Err(Box::new(LoopError::DecodeError(error, None)));
-            }
-            Either::Right((decoded, _)) => decoded,
+        let decoded = futures::select_biased! {
+          error = shutdown_rx => {
+            let error = error.expect("Queue closure must send its shutdown reason");
+            return Err(Box::new(LoopError::DecodeError(error, None)));
           }
+          decoded = model::decode(&mut reader, &mut rest).fuse() => decoded,
         };
         let msg = match decoded {
           Ok(msg) => msg,
@@ -753,9 +724,10 @@ mod tests {
     use std::time::Duration;
 
     for error in [Value::Nil, Value::from("late error")] {
+      let (queue, shutdown_rx) = new_queue();
       let nvim = Neovim {
         writer: Arc::new(Mutex::new(futures::io::sink())),
-        queue: Arc::new(SyncMutex::new(Queue::default())),
+        queue,
         msgid_counter: Arc::new(AtomicU64::new(0)),
       };
       // Time out only after the complete request has been written.
@@ -788,7 +760,7 @@ mod tests {
       // must have been processed before the connection reports EOF.
       let end = nvim
         .clone()
-        .io_loop(futures::io::Cursor::new(wire), tx)
+        .io_loop(futures::io::Cursor::new(wire), tx, shutdown_rx)
         .await;
       assert!(matches!(*end.unwrap_err(), LoopError::DecodeError(..)));
       assert_eq!(active.await.unwrap().unwrap().unwrap(), Value::from(42));
@@ -902,7 +874,7 @@ mod tests {
     drop(writer);
     assert!(nvim.queue.lock().unwrap().requests.is_empty());
     drop(nvim.send_msg("next", vec![]).await.unwrap());
-    assert!(nvim.queue.lock().unwrap().shutdown_error.is_none());
+    assert!(nvim.queue.lock().unwrap().ensure_open().is_ok());
   }
 
   #[tokio::test]
@@ -1044,18 +1016,9 @@ mod tests {
     let (started, ready) = oneshot::channel();
     let mut task = tokio::spawn(async move {
       futures::pin_mut!(io);
-      let mut started = Some(started);
-      futures::future::poll_fn(|cx| {
-        let result = io.as_mut().poll(cx);
-        if result.is_pending() {
-          // Signal only after registering the spawned task's own waker.
-          if let Some(started) = started.take() {
-            started.send(()).unwrap();
-          }
-        }
-        result
-      })
-      .await
+      assert!(futures::poll!(io.as_mut()).is_pending());
+      started.send(()).unwrap();
+      io.await
     });
     tokio::time::timeout(Duration::from_secs(1), ready)
       .await
@@ -1117,7 +1080,7 @@ mod tests {
       .unwrap()
       .unwrap_err();
     assert!(error.is_channel_closed());
-    assert!(nvim.queue.lock().unwrap().shutdown_error.is_some());
+    assert!(nvim.queue.lock().unwrap().ensure_open().is_err());
   }
 
   #[derive(Clone)]
@@ -1205,7 +1168,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_find_sender() {
-    let queue = Arc::new(SyncMutex::new(Queue::default()));
+    let (queue, _shutdown_rx) = new_queue();
 
     {
       let (sender, _receiver) = oneshot::channel();
